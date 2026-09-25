@@ -1,0 +1,158 @@
+/*
+ * Paleta de md-view.
+ *
+ * Todos los colores viven en variables CSS sobre :root[data-theme="..."].
+ * Cambiar de tema es solo cambiar el atributo data-theme del <html>: no hay
+ * que re-renderizar nada ni recargar la app.
+ */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* Superficies */
+  --bg: #ffffff;
+  --bg-subtle: #f6f8fa;
+  --bg-inset: #f6f8fa;
+  --bg-hover: #818b981f;
+  --bg-active: #818b9826;
+
+  /* Texto */
+  --fg: #1f2328;
+  --fg-muted: #59636e;
+  --fg-subtle: #818b98;
+
+  /* Bordes y sombras */
+  --border: #d1d9e0;
+  --border-muted: #d8dee4;
+  --shadow-sm: 0 1px 0 rgba(31, 35, 40, 0.04);
+  --shadow-md: 0 8px 24px rgba(66, 74, 83, 0.12);
+  --scrollbar: #c8d1da;
+
+  /* Acentos */
+  --accent: #0969da;
+  --accent-hover: #0550ae;
+  --accent-subtle: #ddf4ff;
+  --accent-fg: #ffffff;
+  --danger: #d1242f;
+  --danger-subtle: #ffebe9;
+  --success: #1a7f37;
+
+  /* Codigo */
+  --code-bg: #f6f8fa;
+  --code-fg: #1f2328;
+  --row-alt: #f6f8fa;
+
+  /* Seleccion */
+  --selection: #b4d8fe;
+
+  /* Colores de resaltado de sintaxis (tema github.css de highlight.js) */
+  --hl-keyword: #cf222e;
+  --hl-entity: #6639ba;
+  --hl-constant: #0550ae;
+  --hl-string: #0a3069;
+  --hl-variable: #953800;
+  --hl-comment: #59636e;
+  --hl-tag: #116329;
+  --hl-subst: #24292f;
+  --hl-section: #0550ae;
+  --hl-bullet: #3b2300;
+  --hl-add-fg: #116329;
+  --hl-add-bg: #dafbe1;
+  --hl-del-fg: #82071e;
+  --hl-del-bg: #ffebe9;
+
+  /* Alertas de GitHub */
+  --alert-note: #0969da;
+  --alert-tip: #1a7f37;
+  --alert-important: #8250df;
+  --alert-warning: #9a6700;
+  --alert-caution: #d1242f;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0d1117;
+  --bg-subtle: #151b23;
+  --bg-inset: #151b23;
+  --bg-hover: #656c7633;
+  --bg-active: #656c7640;
+
+  --fg: #f0f6fc;
+  --fg-muted: #9198a1;
+  --fg-subtle: #6e7681;
+
+  --border: #3d444d;
+  --border-muted: #262c36;
+  --shadow-sm: 0 0 transparent;
+  --shadow-md: 0 8px 24px rgba(1, 4, 9, 0.6);
+  --scrollbar: #3d444d;
+
+  --accent: #4493f8;
+  --accent-hover: #58a6ff;
+  --accent-subtle: #388bfd1a;
+  --accent-fg: #ffffff;
+  --danger: #f85149;
+  --danger-subtle: #67060c;
+  --success: #3fb950;
+
+  --code-bg: #151b23;
+  --code-fg: #f0f6fc;
+  --row-alt: #151b23;
+
+  --selection: #264f78;
+
+  /* Colores de resaltado de sintaxis (tema github-dark.css de highlight.js) */
+  --hl-keyword: #ff7b72;
+  --hl-entity: #d2a8ff;
+  --hl-constant: #79c0ff;
+  --hl-string: #a5d6ff;
+  --hl-variable: #ffa657;
+  --hl-comment: #9198a1;
+  --hl-tag: #7ee787;
+  --hl-subst: #f0f6fc;
+  --hl-section: #1f6feb;
+  --hl-bullet: #f2cc60;
+  --hl-add-fg: #aff5b4;
+  --hl-add-bg: #033a16;
+  --hl-del-fg: #ffdcd7;
+  --hl-del-bg: #67060c;
+
+  --alert-note: #4493f8;
+  --alert-tip: #3fb950;
+  --alert-important: #ab7df8;
+  --alert-warning: #d29922;
+  --alert-caution: #f85149;
+}
+
+::selection {
+  background: var(--selection);
+}
+
+/* Scrollbars finas y discretas, en linea con el resto de la interfaz. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-subtle);
+  background-clip: content-box;
+}

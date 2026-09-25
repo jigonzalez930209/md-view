@@ -1,0 +1,4 @@
+/* Punto de entrada de estilos (el orden importa: variables primero). */
+@import './theme.css';
+@import './app.css';
+@import './markdown.css';
