@@ -1,66 +1,27 @@
 /**
- * Pipeline de Markdown -> HTML.
+ * Pipeline de Markdown -> HTML (lado interfaz).
  *
- * Objetivo: que se vea igual que en GitHub. Usamos markdown-it con la
- * configuracion de GFM (tablas, tachado, autolinks, listas de tareas,
- * notas al pie y emojis) mas KaTeX para las formulas.
+ * El render en si vive en `markdown-core.ts` (sin DOM) y se puede despachar a
+ * un worker cuando el documento es grande. Aca queda lo que necesita el DOM:
+ * la sanitizacion con DOMPurify y la cache de HTML ya renderizado.
  *
- * El HTML resultante SIEMPRE pasa por DOMPurify: un .md puede venir de
- * cualquier lado y en la app se ejecuta dentro del webview.
+ * DOMPurify es, medido, la parte mas cara del pipeline (~45%): parsea todo el
+ * HTML en un DOM y lo recorre. Por eso:
+ *
+ * - si el Markdown no trae HTML crudo (`hasRawHtml`), se saltea: markdown-it ya
+ *   escapa el texto y valida los enlaces por su cuenta;
+ * - en documentos grandes, el nucleo se renderiza en un worker y la interfaz
+ *   solo sanitiza (si hace falta) e inserta.
  */
 
-import MarkdownIt from 'markdown-it';
-import type { MarkdownIt as MarkdownItInstance } from 'markdown-it';
-import katexModule from '@vscode/markdown-it-katex';
-import type { MarkdownKatexOptions } from '@vscode/markdown-it-katex';
-import footnotePlugin from 'markdown-it-footnote';
-import taskListPlugin from 'markdown-it-task-lists';
-import { full as emojiPlugin } from 'markdown-it-emoji';
 import DOMPurify from 'dompurify';
 import type { Config as PurifyConfig } from 'dompurify';
 import 'katex/dist/katex.min.css';
-import { highlightCode } from './highlight';
+import { hasRawHtml, renderMarkdownCore, type RenderOptions } from './markdown-core';
 
-type KatexPlugin = (md: MarkdownItInstance, options?: MarkdownKatexOptions) => void;
-
-/**
- * @vscode/markdown-it-katex se publica como CommonJS con `exports.default`, y el
- * interop de ESM puede devolver el objeto del modulo en lugar de la funcion.
- * Desenvolvemos hasta encontrar algo invocable.
- */
-function unwrapPlugin<T>(module: unknown): T {
-  let candidate: unknown = module;
-  for (let depth = 0; depth < 4; depth += 1) {
-    if (typeof candidate === 'function') return candidate as T;
-    if (candidate && typeof candidate === 'object' && 'default' in candidate) {
-      candidate = (candidate as { default: unknown }).default;
-      continue;
-    }
-    break;
-  }
-  throw new Error('No se pudo cargar el plugin de KaTeX para markdown-it');
-}
-
-const katexPlugin = unwrapPlugin<KatexPlugin>(katexModule as unknown);
-
-const md = new MarkdownIt({
-  html: true, // permitimos HTML embebido (luego se sanitiza)
-  linkify: true, // URLs sueltas se vuelven enlaces, como en GFM
-  typographer: false, // GitHub no reemplaza comillas ni guiones
-  breaks: false, // un salto simple no es <br> en los .md de un repo
-  highlight: (code, language) => highlightCode(code, language) ?? '',
-});
-
-md.use(footnotePlugin);
-// enabled: false => casillas deshabilitadas, igual que en GitHub.
-md.use(taskListPlugin, { enabled: false });
-md.use(emojiPlugin);
-md.use(katexPlugin, {
-  throwOnError: false,
-  enableFencedBlocks: true, // ```math ... ```
-  enableMathBlockInHtml: true,
-  enableMathInlineInHtml: true,
-});
+export { HIGHLIGHT_LIMIT } from './markdown-core';
+import { LARGE_DOC_LIMIT, PREVIEW_LIMIT, SIMPLIFY_LIMIT } from './limits';
+import { renderCoreInWorker } from './text-tasks';
 
 const PURIFY_CONFIG: PurifyConfig = {
   USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
@@ -71,9 +32,72 @@ const PURIFY_CONFIG: PurifyConfig = {
   ALLOW_UNKNOWN_PROTOCOLS: false,
 };
 
-/** Markdown -> HTML sanitizado, listo para insertar en el DOM. */
-export function renderMarkdown(source: string): string {
-  return DOMPurify.sanitize(md.render(source), PURIFY_CONFIG);
+/** true si conviene renderizar una version liviana (documento enorme). */
+export function isSimplified(source: string): boolean {
+  return source.length > SIMPLIFY_LIMIT;
+}
+
+/** true si el preview se limita a las primeras lineas (documento enorme). */
+export function previewNeedsWindow(source: string): boolean {
+  return source.length > PREVIEW_LIMIT;
+}
+
+/**
+ * Cache de HTML ya renderizado.
+ *
+ * Cambiar de pestana no deberia volver a pasar markdown-it + DOMPurify por el
+ * mismo texto. La clave es el propio string: V8 guarda su hash, asi que un
+ * texto reutilizado se busca en O(1).
+ */
+const htmlCache = new Map<string, string>();
+const HTML_CACHE_LIMIT = 3;
+
+function cacheKey(source: string, options: RenderOptions): string {
+  return `${options.mdx ? 'mdx' : 'md'}\u0000${source}`;
+}
+
+function remember(key: string, html: string): string {
+  if (htmlCache.size >= HTML_CACHE_LIMIT) {
+    const oldest = htmlCache.keys().next().value;
+    if (oldest !== undefined) htmlCache.delete(oldest);
+  }
+  htmlCache.set(key, html);
+  return html;
+}
+
+/** Sanitiza solo si el fuente puede traer HTML crudo. */
+function finish(source: string, core: string): string {
+  return hasRawHtml(source) ? DOMPurify.sanitize(core, PURIFY_CONFIG) : core;
+}
+
+/** Markdown -> HTML sanitizado, en el hilo actual (documentos chicos y export). */
+export function renderMarkdown(source: string, options: RenderOptions = {}): string {
+  const key = cacheKey(source, options);
+  const cached = htmlCache.get(key);
+  if (cached !== undefined) return cached;
+  return remember(key, finish(source, renderMarkdownCore(source, options)));
+}
+
+/**
+ * Igual que `renderMarkdown` pero sin bloquear: los documentos grandes se
+ * renderizan en el worker (markdown-it + plugins) y aca solo queda la
+ * sanitizacion, que necesita el DOM.
+ */
+export async function renderMarkdownAsync(
+  source: string,
+  options: RenderOptions = {},
+): Promise<string> {
+  const key = cacheKey(source, options);
+  const cached = htmlCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const core =
+    source.length >= LARGE_DOC_LIMIT
+      ? ((await renderCoreInWorker(source, options.mdx === true)) ??
+        renderMarkdownCore(source, options))
+      : renderMarkdownCore(source, options);
+
+  return remember(key, finish(source, core));
 }
 
 /** true si el documento tiene algun fence de Mermaid (para precargar la libreria). */
