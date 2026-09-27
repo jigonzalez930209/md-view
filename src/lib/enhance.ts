@@ -16,8 +16,9 @@
 
 import { isMarkdownPath, resolveReference } from './paths';
 import { openExternal, openPath, pathExists, toAssetUrl } from './backend';
-import { renderDiagram } from './mermaid';
-import type { Theme } from './theme';
+import { renderDiagram, type Appearance } from './mermaid';
+import { t } from './i18n';
+import type { Palette, Theme } from './theme';
 
 export interface PreviewHandlers {
   docPath: string | null;
@@ -27,6 +28,9 @@ export interface PreviewHandlers {
 
 export interface EnhanceOptions extends PreviewHandlers {
   theme: Theme;
+  palette: Palette;
+  /** false para documentos enormes: deja los diagramas como codigo. */
+  diagrams?: boolean;
 }
 
 /** Rutas candidatas de cada enlace local, resueltas recien al hacer click. */
@@ -79,12 +83,12 @@ function addHeadingAnchors(root: HTMLElement): void {
 type AlertType = 'note' | 'tip' | 'important' | 'warning' | 'caution';
 
 const ALERT_MARKER = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*\n?/;
-const ALERT_LABEL: Record<AlertType, string> = {
-  note: 'Nota',
-  tip: 'Tip',
-  important: 'Importante',
-  warning: 'Advertencia',
-  caution: 'Precaucion',
+const ALERT_LABEL_KEY: Record<AlertType, 'enhance.alertNote' | 'enhance.alertTip' | 'enhance.alertImportant' | 'enhance.alertWarning' | 'enhance.alertCaution'> = {
+  note: 'enhance.alertNote',
+  tip: 'enhance.alertTip',
+  important: 'enhance.alertImportant',
+  warning: 'enhance.alertWarning',
+  caution: 'enhance.alertCaution',
 };
 
 const ALERT_ICON: Record<AlertType, string> = {
@@ -119,7 +123,7 @@ function markAlerts(root: HTMLElement): void {
 
     const title = document.createElement('p');
     title.className = 'markdown-alert-title';
-    title.innerHTML = `${ALERT_ICON[type]}<span>${ALERT_LABEL[type]}</span>`;
+    title.innerHTML = `${ALERT_ICON[type]}<span>${t(ALERT_LABEL_KEY[type])}</span>`;
     quote.prepend(title);
   }
 }
@@ -128,7 +132,7 @@ function markAlerts(root: HTMLElement): void {
 /* Imagenes                                                            */
 /* ------------------------------------------------------------------ */
 
-function prepareImages(root: HTMLElement, docPath: string | null): void {
+async function prepareImages(root: HTMLElement, docPath: string | null): Promise<void> {
   for (const image of root.querySelectorAll('img')) {
     image.setAttribute('loading', 'lazy');
     image.setAttribute('decoding', 'async');
@@ -141,22 +145,20 @@ function prepareImages(root: HTMLElement, docPath: string | null): void {
     const resolved = resolveReference(raw, docPath);
     if (!resolved) continue;
 
-    let index = 0;
-    const apply = () => image.setAttribute('src', toAssetUrl(resolved.candidates[index]));
-
-    // Si la primera interpretacion no existe, probamos la alternativa
-    // (tipico en README: "/assets/x.png" relativo a la raiz del repo).
-    image.addEventListener('error', () => {
-      index += 1;
-      if (index < resolved.candidates.length) {
-        apply();
-      } else {
-        image.classList.add('md-image--broken');
-        image.setAttribute('title', `No se encontro la imagen: ${raw}`);
+    // Elegimos la primera interpretacion que exista en disco. Si ninguna
+    // existe dejamos la ruta original: puede ser una URL del propio bundle
+    // (por ejemplo "/demo-animado.svg" servido por la app).
+    let found: string | null = null;
+    for (const candidate of resolved.candidates) {
+      if (await pathExists(candidate)) {
+        found = candidate;
+        break;
       }
-    });
+    }
+    if (!found) continue;
 
-    apply();
+    image.dataset.source = found;
+    image.setAttribute('src', toAssetUrl(found));
   }
 }
 
@@ -216,7 +218,7 @@ async function followLocalLink(
       return;
     }
   }
-  handlers.onMessage(`No se encontro el destino del enlace: ${href}`, 'error');
+  handlers.onMessage(t('enhance.linkNotFound', { href }), 'error');
 }
 
 /* ------------------------------------------------------------------ */
@@ -245,14 +247,14 @@ function decorateCodeBlocks(root: HTMLElement, onMessage: EnhanceOptions['onMess
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'code-copy';
-    button.title = 'Copiar codigo';
-    button.setAttribute('aria-label', 'Copiar codigo');
+    button.title = t('enhance.copyCode');
+    button.setAttribute('aria-label', t('enhance.copyCode'));
     button.innerHTML = COPY_ICON;
 
     button.addEventListener('click', () => {
       void copyText((code ?? pre).textContent ?? '').then((ok) => {
         if (!ok) {
-          onMessage('No se pudo copiar al portapapeles.', 'error');
+          onMessage(t('enhance.copyError'), 'error');
           return;
         }
         button.innerHTML = CHECK_ICON;
@@ -294,7 +296,7 @@ async function copyText(text: string): Promise<boolean> {
 /* Diagramas Mermaid                                                   */
 /* ------------------------------------------------------------------ */
 
-async function renderDiagrams(root: HTMLElement, theme: Theme): Promise<void> {
+async function renderDiagrams(root: HTMLElement, appearance: Appearance): Promise<void> {
   const blocks = Array.from(root.querySelectorAll('code.language-mermaid'));
   if (blocks.length === 0) return;
 
@@ -302,9 +304,12 @@ async function renderDiagrams(root: HTMLElement, theme: Theme): Promise<void> {
     const source = code.textContent ?? '';
     const previous = code.closest('.code-wrap') ?? code.closest('pre');
     if (!previous) continue;
+    // Conservamos la linea del fuente para el scroll sincronizado.
+    const line = code.closest('pre')?.getAttribute('data-line') ?? null;
 
     const holder = document.createElement('div');
     holder.className = 'mermaid-block is-loading';
+    if (line) holder.dataset.line = line;
 
     const stage = document.createElement('div');
     stage.className = 'mermaid-stage';
@@ -318,7 +323,7 @@ async function renderDiagrams(root: HTMLElement, theme: Theme): Promise<void> {
     previous.replaceWith(holder);
 
     try {
-      const svg = await renderDiagram(source, theme);
+      const svg = await renderDiagram(source, appearance);
       if (!holder.isConnected) continue;
       stage.innerHTML = svg;
       holder.classList.remove('is-loading');
@@ -330,7 +335,7 @@ async function renderDiagrams(root: HTMLElement, theme: Theme): Promise<void> {
       const detail = error instanceof Error ? error.message : String(error);
       const message = document.createElement('p');
       message.className = 'mermaid-error-title';
-      message.textContent = `No se pudo dibujar el diagrama: ${detail}`;
+      message.textContent = t('enhance.diagramError', { detail });
       stage.remove();
       holder.prepend(message);
     }
@@ -342,8 +347,10 @@ async function renderDiagrams(root: HTMLElement, theme: Theme): Promise<void> {
 export async function enhance(root: HTMLElement, options: EnhanceOptions): Promise<void> {
   markAlerts(root);
   addHeadingAnchors(root);
-  prepareImages(root, options.docPath);
+  await prepareImages(root, options.docPath);
   prepareLinks(root, options.docPath);
   decorateCodeBlocks(root, options.onMessage);
-  await renderDiagrams(root, options.theme);
+  if (options.diagrams !== false) {
+    await renderDiagrams(root, { theme: options.theme, palette: options.palette });
+  }
 }
