@@ -5,15 +5,376 @@
 //! abrir enlaces con el navegador y recibir archivos desde la linea de comandos.
 
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
 /// Cuantos archivos recordamos en la lista de recientes.
 const RECENT_LIMIT: usize = 12;
+/// Limites del arbol de carpetas, para no congelar la app con repos enormes.
+const TREE_MAX_ENTRIES: usize = 20_000;
+const TREE_MAX_DEPTH: u32 = 16;
+
+/// Carpetas que no aportan y suelen ser gigantes.
+const TREE_IGNORED_DIRS: &[&str] = &[
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".next",
+    ".cache",
+    ".gradle",
+    ".idea",
+];
+
+/// Extensiones que consideramos texto sin mirar el contenido.
+const TEXT_EXTENSIONS: &[&str] = &[
+    "md",
+    "markdown",
+    "mdx",
+    "mdown",
+    "mkd",
+    "mkdn",
+    "mdwn",
+    "mdtxt",
+    "mdtext",
+    "mdoc",
+    "rmd",
+    "qmd",
+    "txt",
+    "text",
+    "rst",
+    "adoc",
+    "asciidoc",
+    "org",
+    "tex",
+    "bib",
+    "json",
+    "jsonc",
+    "json5",
+    "yaml",
+    "yml",
+    "toml",
+    "ini",
+    "cfg",
+    "conf",
+    "properties",
+    "env",
+    "csv",
+    "tsv",
+    "log",
+    "xml",
+    "html",
+    "htm",
+    "xhtml",
+    "svg",
+    "css",
+    "scss",
+    "sass",
+    "less",
+    "styl",
+    "js",
+    "mjs",
+    "cjs",
+    "jsx",
+    "ts",
+    "tsx",
+    "mts",
+    "cts",
+    "vue",
+    "svelte",
+    "astro",
+    "py",
+    "pyi",
+    "rb",
+    "go",
+    "rs",
+    "java",
+    "kt",
+    "kts",
+    "c",
+    "h",
+    "cc",
+    "cpp",
+    "cxx",
+    "hpp",
+    "hh",
+    "cs",
+    "php",
+    "swift",
+    "m",
+    "mm",
+    "scala",
+    "clj",
+    "cljs",
+    "ex",
+    "exs",
+    "erl",
+    "hrl",
+    "hs",
+    "lhs",
+    "lua",
+    "r",
+    "pl",
+    "pm",
+    "sh",
+    "bash",
+    "zsh",
+    "fish",
+    "ksh",
+    "ps1",
+    "bat",
+    "cmd",
+    "sql",
+    "graphql",
+    "gql",
+    "proto",
+    "dockerfile",
+    "makefile",
+    "cmake",
+    "gradle",
+    "lock",
+    "gitignore",
+    "gitattributes",
+    "editorconfig",
+    "nix",
+    "dart",
+    "sol",
+    "gleam",
+    "zig",
+    "nim",
+    "v",
+    "vala",
+    "purs",
+    "elm",
+    "wat",
+    "wgsl",
+    "glsl",
+    "shader",
+    "diff",
+    "patch",
+    "srt",
+    "vtt",
+    "po",
+    "pot",
+];
+
+/// Extensiones claramente binarias (no hace falta leerlas).
+const BINARY_EXTENSIONS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "ico", "icns", "tif", "tiff", "psd", "xcf",
+    "pdf", "zip", "gz", "tgz", "bz2", "xz", "7z", "rar", "tar", "zst", "lz4", "mp3", "m4a", "ogg",
+    "oga", "opus", "wav", "flac", "aac", "wma", "mp4", "m4v", "webm", "mov", "avi", "mkv", "wmv",
+    "flv", "woff", "woff2", "ttf", "otf", "eot", "wasm", "so", "dll", "dylib", "exe", "msi", "bin",
+    "class", "jar", "war", "pyc", "pyo", "o", "a", "lib", "obj", "sqlite", "sqlite3", "db", "mdb",
+    "dmg", "iso", "img", "deb", "rpm", "apk", "ipa", "blend", "fbx", "glb", "gltf", "stl", "heic",
+    "heif", "raw", "cr2", "nef", "arw",
+];
+
+/// Nombres sin extension que igual son texto.
+const TEXT_FILE_NAMES: &[&str] = &[
+    "dockerfile",
+    "makefile",
+    "license",
+    "licence",
+    "readme",
+    "changelog",
+    "notice",
+    "authors",
+    "contributing",
+    "codeowners",
+    "gemfile",
+    "rakefile",
+    "procfile",
+    "brewfile",
+    "justfile",
+];
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TreeEntry {
+    name: String,
+    path: String,
+    /// "dir" o "file".
+    kind: &'static str,
+    /// Solo tiene sentido para archivos: se puede abrir con el editor.
+    is_text: bool,
+    size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    children: Option<Vec<TreeEntry>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FolderTree {
+    root: TreeEntry,
+    /// true si se corto por cantidad de archivos o profundidad.
+    truncated: bool,
+}
+
+fn extension_of(path: &Path) -> String {
+    path.extension()
+        .map(|value| value.to_string_lossy().to_lowercase())
+        .unwrap_or_default()
+}
+
+/// Decide si un archivo se puede leer como texto, mirando la extension y, si
+/// no alcanza, los primeros bytes (sin NUL y UTF-8 valido).
+fn looks_like_text(path: &Path, size: u64) -> bool {
+    let extension = extension_of(path);
+    if !extension.is_empty() {
+        if TEXT_EXTENSIONS.contains(&extension.as_str()) {
+            return true;
+        }
+        if BINARY_EXTENSIONS.contains(&extension.as_str()) {
+            return false;
+        }
+    }
+
+    let name = path
+        .file_name()
+        .map(|value| value.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    if TEXT_FILE_NAMES
+        .iter()
+        .any(|candidate| name == *candidate || name.starts_with(&format!("{candidate}.")))
+    {
+        return true;
+    }
+
+    if size == 0 {
+        return true;
+    }
+    if size > 5 * 1024 * 1024 {
+        return false; // demasiado grande para el editor
+    }
+
+    let Ok(file) = fs::File::open(path) else {
+        return false;
+    };
+    let mut buffer = [0u8; 4096];
+    let mut limited = std::io::BufReader::new(file).take(4096);
+    let read = limited.read(&mut buffer).unwrap_or(0);
+    let sample = &buffer[..read];
+    if sample.contains(&0) {
+        return false;
+    }
+    std::str::from_utf8(sample).is_ok()
+}
+
+fn read_tree_dir(path: &Path, depth: u32, budget: &mut usize) -> (Vec<TreeEntry>, bool) {
+    let mut entries: Vec<TreeEntry> = Vec::new();
+    let mut truncated = false;
+
+    let Ok(reader) = fs::read_dir(path) else {
+        return (entries, truncated);
+    };
+
+    for item in reader.flatten() {
+        if *budget == 0 {
+            truncated = true;
+            break;
+        }
+
+        let Ok(metadata) = item.metadata() else {
+            continue;
+        };
+        // Los enlaces simbolicos se ignoran para no entrar en ciclos.
+        if item
+            .file_type()
+            .map(|kind| kind.is_symlink())
+            .unwrap_or(false)
+        {
+            continue;
+        }
+
+        let name = item.file_name().to_string_lossy().into_owned();
+        let child_path = item.path();
+        let path_string = child_path.to_string_lossy().into_owned();
+
+        if metadata.is_dir() {
+            if TREE_IGNORED_DIRS.contains(&name.as_str()) {
+                continue;
+            }
+            *budget -= 1;
+            let (children, cut) = if depth + 1 >= TREE_MAX_DEPTH {
+                (Vec::new(), true)
+            } else {
+                read_tree_dir(&child_path, depth + 1, budget)
+            };
+            truncated |= cut;
+            entries.push(TreeEntry {
+                name,
+                path: path_string,
+                kind: "dir",
+                is_text: true,
+                size: 0,
+                children: Some(children),
+            });
+        } else if metadata.is_file() {
+            *budget -= 1;
+            entries.push(TreeEntry {
+                name,
+                path: path_string,
+                kind: "file",
+                is_text: looks_like_text(&child_path, metadata.len()),
+                size: metadata.len(),
+                children: None,
+            });
+        }
+    }
+
+    entries.sort_by(|a, b| {
+        let kind = |entry: &TreeEntry| if entry.kind == "dir" { 0 } else { 1 };
+        kind(a)
+            .cmp(&kind(b))
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+
+    (entries, truncated)
+}
+
+fn build_folder_tree(path: String) -> Result<FolderTree, String> {
+    let root = PathBuf::from(&path);
+    if !root.is_dir() {
+        return Err(format!("Not a directory: {path}"));
+    }
+
+    let mut budget = TREE_MAX_ENTRIES;
+    let (children, truncated) = read_tree_dir(&root, 0, &mut budget);
+    let name = root
+        .file_name()
+        .map(|value| value.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.clone());
+
+    Ok(FolderTree {
+        root: TreeEntry {
+            name,
+            path,
+            kind: "dir",
+            is_text: true,
+            size: 0,
+            children: Some(children),
+        },
+        truncated,
+    })
+}
+
+/// Recorre una carpeta y devuelve el arbol completo (asincronico: no bloquea la UI).
+#[tauri::command]
+async fn read_tree(path: String) -> Result<FolderTree, String> {
+    build_folder_tree(path)
+}
 
 /// Archivos pedidos por linea de comandos que el frontend todavia no consumio.
 #[derive(Default)]
@@ -37,14 +398,36 @@ struct Document {
 /* Lectura y escritura                                                 */
 /* ------------------------------------------------------------------ */
 
+// Los comandos de archivos grandes son asincronicos: leer, serializar y
+// devolver varios megabytes por IPC no debe congelar la interfaz.
 #[tauri::command]
-fn read_document(path: String) -> Result<Document, String> {
+async fn read_document(path: String) -> Result<Document, String> {
+    read_document_impl(path)
+}
+
+#[tauri::command]
+async fn write_document(
+    path: String,
+    content: String,
+    eol: Option<String>,
+    bom: Option<bool>,
+) -> Result<(), String> {
+    write_document_impl(path, content, eol, bom)
+}
+
+#[tauri::command]
+async fn read_file_base64(path: String) -> Result<String, String> {
+    read_file_base64_impl(path)
+}
+
+/// Lectura de disco (bloqueante); el comando la corre fuera del hilo principal.
+fn read_document_impl(path: String) -> Result<Document, String> {
     let file = PathBuf::from(&path);
     if !file.is_file() {
-        return Err(format!("No se encontro el archivo: {path}"));
+        return Err(format!("File not found: {path}"));
     }
 
-    let bytes = fs::read(&file).map_err(|err| format!("No se pudo leer {path}: {err}"))?;
+    let bytes = fs::read(&file).map_err(|err| format!("Could not read {path}: {err}"))?;
     let (text, bom) = decode(&bytes);
 
     let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
@@ -62,8 +445,7 @@ fn read_document(path: String) -> Result<Document, String> {
     })
 }
 
-#[tauri::command]
-fn write_document(
+fn write_document_impl(
     path: String,
     content: String,
     eol: Option<String>,
@@ -95,7 +477,7 @@ fn write_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
 
     if !dir.exists() {
         fs::create_dir_all(&dir)
-            .map_err(|err| format!("No se pudo crear la carpeta {}: {err}", dir.display()))?;
+            .map_err(|err| format!("Could not create the folder {}: {err}", dir.display()))?;
     }
 
     let name = target
@@ -104,7 +486,7 @@ fn write_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
         .unwrap_or_else(|| String::from("documento.md"));
     let temp = dir.join(format!(".{name}.md-view.tmp"));
 
-    fs::write(&temp, bytes).map_err(|err| format!("No se pudo escribir {}: {err}", temp.display()))?;
+    fs::write(&temp, bytes).map_err(|err| format!("Could not write {}: {err}", temp.display()))?;
 
     // Conservamos permisos del archivo original cuando ya existia.
     if let Ok(metadata) = fs::metadata(target) {
@@ -113,8 +495,82 @@ fn write_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
 
     fs::rename(&temp, target).map_err(|err| {
         let _ = fs::remove_file(&temp);
-        format!("No se pudo guardar {}: {err}", target.display())
+        format!("Could not save {}: {err}", target.display())
     })
+}
+
+/* ------------------------------------------------------------------ */
+/* Exportacion                                                         */
+/* ------------------------------------------------------------------ */
+
+/// Escribe un archivo de texto cualquiera (HTML, SVG, TXT...).
+#[tauri::command]
+fn write_text_file(path: String, content: String) -> Result<(), String> {
+    write_atomically(Path::new(&path), content.as_bytes())
+}
+
+/// Escribe un archivo binario que llega como base64 (PNG, JPG, WebP...).
+#[tauri::command]
+fn write_base64_file(path: String, data: String) -> Result<(), String> {
+    let bytes = BASE64
+        .decode(data.as_bytes())
+        .map_err(|err| format!("Invalid binary data: {err}"))?;
+    write_atomically(Path::new(&path), &bytes)
+}
+
+/// Lee un archivo y lo devuelve en base64 (para incrustar imagenes al exportar).
+fn read_file_base64_impl(path: String) -> Result<String, String> {
+    let bytes = fs::read(&path).map_err(|err| format!("Could not read {path}: {err}"))?;
+    Ok(BASE64.encode(bytes))
+}
+
+/// Exporta la pagina actual a PDF con el motor de impresion de WebKitGTK.
+///
+/// Usa el backend "Print to File" de GTK y espera a que la operacion termine
+/// para avisar al frontend. En otros sistemas se usa el dialogo de impresion.
+#[cfg(target_os = "linux")]
+#[tauri::command]
+async fn export_pdf(window: tauri::WebviewWindow, path: String) -> Result<(), String> {
+    use webkit2gtk::PrintOperationExt;
+
+    let uri = gtk::glib::filename_to_uri(&path, None::<&str>)
+        .map_err(|err| format!("Invalid path: {err}"))?
+        .to_string();
+
+    let (sender, receiver) = std::sync::mpsc::channel::<Result<(), String>>();
+    let finished = sender.clone();
+
+    window
+        .with_webview(move |webview| {
+            let operation = webkit2gtk::PrintOperation::new(&webview.inner());
+
+            let settings = gtk::PrintSettings::new();
+            settings.set_printer("Print to File");
+            settings.set("output-uri", Some(&uri));
+            operation.set_print_settings(&settings);
+
+            operation.connect_finished(move |_| {
+                let _ = finished.send(Ok(()));
+            });
+            operation.connect_failed(move |_, error| {
+                let _ = sender.send(Err(format!("Could not print: {error}")));
+            });
+
+            operation.print();
+        })
+        .map_err(|err| format!("Could not start printing: {err}"))?;
+
+    receiver
+        .recv_timeout(std::time::Duration::from_secs(180))
+        .map_err(|_| String::from("PDF export timed out"))?
+}
+
+#[cfg(not(target_os = "linux"))]
+#[tauri::command]
+async fn export_pdf(_window: tauri::WebviewWindow, _path: String) -> Result<(), String> {
+    Err(String::from(
+        "Direct PDF export is not available on this system",
+    ))
 }
 
 /// Detecta BOM UTF-8 / UTF-16 y devuelve el texto como UTF-8.
@@ -149,6 +605,12 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> String {
 /* Utilidades del sistema                                              */
 /* ------------------------------------------------------------------ */
 
+/// Tamaño en bytes de un archivo (0 si no existe), para avisar antes de abrir.
+#[tauri::command]
+fn document_size(path: String) -> u64 {
+    fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0)
+}
+
 #[tauri::command]
 fn path_exists(path: String) -> bool {
     Path::new(&path).exists()
@@ -158,14 +620,14 @@ fn path_exists(path: String) -> bool {
 fn open_external(app: AppHandle, url: String) -> Result<(), String> {
     app.opener()
         .open_url(url, None::<&str>)
-        .map_err(|err| format!("No se pudo abrir el enlace: {err}"))
+        .map_err(|err| format!("Could not open the link: {err}"))
 }
 
 #[tauri::command]
 fn open_path(app: AppHandle, path: String) -> Result<(), String> {
     app.opener()
         .open_path(path, None::<&str>)
-        .map_err(|err| format!("No se pudo abrir el archivo: {err}"))
+        .map_err(|err| format!("Could not open the file: {err}"))
 }
 
 /* ------------------------------------------------------------------ */
@@ -287,9 +749,31 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(pending)
+        .setup(|app| {
+            // El "smooth scrolling" de WebKitGTK agrega un impulso que sigue
+            // frenandose despues de la rueda: lo dejamos apagado (default) para
+            // que el scroll responda seco, como en el navegador.
+            #[cfg(target_os = "linux")]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.with_webview(|webview| {
+                    use webkit2gtk::{SettingsExt, WebViewExt};
+
+                    if let Some(settings) = webview.inner().settings() {
+                        settings.set_enable_smooth_scrolling(false);
+                    }
+                });
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             read_document,
+            document_size,
+            read_tree,
             write_document,
+            write_text_file,
+            write_base64_file,
+            read_file_base64,
+            export_pdf,
             path_exists,
             open_external,
             open_path,
@@ -347,7 +831,10 @@ mod tests {
             dir.join("no-existe.md").to_string_lossy().into_owned(),
         ];
 
-        assert_eq!(files_from_args(args), vec![real.to_string_lossy().into_owned()]);
+        assert_eq!(
+            files_from_args(args),
+            vec![real.to_string_lossy().into_owned()]
+        );
     }
 
     #[test]
@@ -357,7 +844,10 @@ mod tests {
         fs::write(&ruta, "contenido").expect("escribir archivo");
 
         let url = format!("file://{}", ruta.to_string_lossy().replace(' ', "%20"));
-        assert_eq!(files_from_args(vec![String::from("md-view"), url]), vec![ruta.to_string_lossy().into_owned()]);
+        assert_eq!(
+            files_from_args(vec![String::from("md-view"), url]),
+            vec![ruta.to_string_lossy().into_owned()]
+        );
     }
 
     #[test]
@@ -366,7 +856,7 @@ mod tests {
         let destino = dir.join("salida.md");
         let ruta = destino.to_string_lossy().into_owned();
 
-        write_document(
+        write_document_impl(
             ruta.clone(),
             String::from("uno\ndos\n"),
             Some(String::from("\r\n")),
@@ -379,7 +869,7 @@ mod tests {
         assert_eq!(&bytes[3..], b"uno\r\ndos\r\n");
 
         // Y al reabrirlo se normaliza a LF, conservando el dato original.
-        let documento = read_document(ruta).expect("abrir");
+        let documento = read_document_impl(ruta).expect("abrir");
         assert_eq!(documento.content, "uno\ndos\n");
         assert_eq!(documento.eol, "\r\n");
         assert!(documento.bom);
@@ -387,8 +877,90 @@ mod tests {
     }
 
     #[test]
+    fn looks_like_text_usa_extension_y_contenido() {
+        let dir = temp_dir();
+
+        // Extension conocida: no hace falta leer.
+        let md = dir.join("doc.md");
+        fs::write(&md, "# hola").expect("escribir");
+        assert!(looks_like_text(&md, 6));
+
+        // Binaria conocida.
+        let png = dir.join("foto.png");
+        fs::write(&png, "contenido").expect("escribir");
+        assert!(!looks_like_text(&png, 9));
+
+        // Desconocida: se mira el contenido (sin NUL y UTF-8 valido).
+        let rara = dir.join("notas.weird");
+        fs::write(&rara, "hola\nmundo").expect("escribir");
+        assert!(looks_like_text(&rara, 10));
+
+        let binaria = dir.join("datos.weird");
+        fs::write(&binaria, [0x00, 0x01, 0x02]).expect("escribir");
+        assert!(!looks_like_text(&binaria, 3));
+
+        // Sin extension pero con nombre conocido.
+        let makefile = dir.join("Makefile");
+        fs::write(&makefile, "all:").expect("escribir");
+        assert!(looks_like_text(&makefile, 4));
+    }
+
+    #[test]
+    fn read_tree_ordena_y_omite_carpetas_pesadas() {
+        let dir = temp_dir().join("arbol");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("node_modules")).expect("carpeta");
+        fs::write(dir.join("node_modules/x.js"), "x").expect("escribir");
+        fs::create_dir_all(dir.join("docs")).expect("carpeta");
+        fs::write(dir.join("docs/guia.md"), "# guia").expect("escribir");
+        fs::write(dir.join("z.txt"), "texto").expect("escribir");
+        fs::write(dir.join("imagen.png"), [0x89, 0x50]).expect("escribir");
+
+        let tree = build_folder_tree(dir.to_string_lossy().into_owned()).expect("arbol");
+        let children = tree.root.children.expect("hijos");
+
+        let names: Vec<&str> = children.iter().map(|entry| entry.name.as_str()).collect();
+        assert_eq!(names, vec!["docs", "imagen.png", "z.txt"]);
+        assert!(!children.iter().any(|entry| entry.name == "node_modules"));
+
+        let docs = children
+            .iter()
+            .find(|entry| entry.name == "docs")
+            .expect("docs");
+        assert_eq!(docs.kind, "dir");
+        assert_eq!(docs.children.as_ref().map(Vec::len), Some(1));
+        assert!(docs.children.as_ref().unwrap()[0].is_text);
+
+        let png = children
+            .iter()
+            .find(|entry| entry.name == "imagen.png")
+            .expect("png");
+        assert!(!png.is_text);
+    }
+
+    #[test]
+    fn el_arbol_se_serializa_en_camel_case() {
+        let dir = temp_dir().join("camel");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("carpeta");
+        fs::write(dir.join("nota.md"), "# nota").expect("escribir");
+
+        let tree = build_folder_tree(dir.to_string_lossy().into_owned()).expect("arbol");
+        let json = serde_json::to_value(&tree).expect("json");
+        let children = json["root"]["children"].as_array().expect("hijos");
+
+        // El frontend lee `isText`; con `is_text` todos los archivos quedaban
+        // deshabilitados en el explorador.
+        assert!(children[0].get("isText").is_some());
+        assert!(children[0].get("is_text").is_none());
+        assert_eq!(children[0]["isText"], serde_json::json!(true));
+        assert!(json["root"]["children"].is_array());
+        assert!(json.get("truncated").is_some());
+    }
+
+    #[test]
     fn read_document_falla_con_ruta_inexistente() {
-        assert!(read_document(String::from("/no/existe/archivo.md")).is_err());
+        assert!(read_document_impl(String::from("/no/existe/archivo.md")).is_err());
     }
 
     #[test]

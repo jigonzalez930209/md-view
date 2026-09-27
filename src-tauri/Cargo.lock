@@ -2026,6 +2026,8 @@ dependencies = [
 name = "md-view"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
+ "gtk",
  "serde",
  "serde_json",
  "tauri",
@@ -2033,6 +2035,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
+ "webkit2gtk",
 ]
 
 [[package]]
