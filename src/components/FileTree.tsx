@@ -50,7 +50,7 @@ function iconFor(entry: TreeEntry, expanded: boolean) {
   return <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />;
 }
 
-/** Busca la ruta en el arbol y devuelve las carpetas que la contienen. */
+/** Looks up the path in the tree and returns the folders that contain it. */
 function ancestorsOf(root: TreeEntry, path: string): string[] | null {
   for (const child of root.children ?? []) {
     if (child.path === path) return [root.path];
@@ -133,19 +133,19 @@ function compactPath(path: string): string {
 }
 
 /**
- * Explorador de archivos al estilo VS Code: carpetas plegables y archivos.
- * Solo los archivos de texto se pueden abrir; el resto queda deshabilitado.
+ * VS Code-style file explorer: collapsible folders and files.
+ * Only text files can be opened; the rest stay disabled.
  */
 function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onClose }: FileTreeProps) {
   const { t, plural } = useI18n();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set([tree.root.path]));
 
-  // Al cambiar de carpeta, arrancamos con la raiz abierta.
+  // When the folder changes, we start with the root expanded.
   useEffect(() => {
     setExpanded(new Set([tree.root.path]));
   }, [tree.root.path]);
 
-  // Si el archivo activo viene de otro lado, abrimos sus carpetas.
+  // If the active file comes from elsewhere, we expand its folders.
   useEffect(() => {
     if (!activePath) return;
     const chain = ancestorsOf(tree.root, activePath);
@@ -188,7 +188,7 @@ function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onC
       style={{ width }}
       aria-label={t('tree.label')}
     >
-      {/* Banda superior (misma altura que la tira de pestanas) con la ruta. */}
+      {/* Top band (same height as the tab strip) with the path. */}
       <div
         className="flex h-[29px] shrink-0 items-center px-3 text-[10.5px] text-subtle-foreground"
         title={tree.root.path}
@@ -260,5 +260,5 @@ function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onC
   );
 }
 
-/** Memoizado: con repos grandes no se re-renderiza en cada tecla o cursor. */
+/** Memoized: with large repos it does not re-render on every keystroke or cursor move. */
 export const FileTree = memo(FileTreeComponent);

@@ -23,7 +23,7 @@ interface EditorProps {
   lineNumbers: boolean;
   wrap: boolean;
   onChange: (value: string) => void;
-  /** En documentos enormes no se copia el texto: solo se avisa del cambio. */
+  /** For huge documents the text is not copied: only the change is reported. */
   onDirty: () => void;
   captureContent: boolean;
   onCursorChange: (position: CursorPosition) => void;
@@ -38,8 +38,8 @@ function cursorPosition(view: EditorView): CursorPosition {
 }
 
 /**
- * Un editor por pestana (como en VS Code): cambiar de pestana es solo
- * mostrar/ocultar, sin instalar estados ni perder scroll ni historial.
+ * One editor per tab (like in VS Code): switching tabs only shows/hides,
+ * without reinstalling state or losing scroll or history.
  */
 export function Editor({
   value,
@@ -69,7 +69,7 @@ export function Editor({
     onDestroy,
     ariaLabel: t('editor.ariaLabel'),
   });
-  /** Ultimo texto que le pasamos a la app: comparar por referencia no copia. */
+  /** Last text we reported to the app: comparing by reference does not copy. */
   const reportedRef = useRef<string | null>(null);
 
   callbacks.current = {
@@ -82,7 +82,7 @@ export function Editor({
     ariaLabel: t('editor.ariaLabel'),
   };
 
-  // Crear la vista una sola vez por pestana.
+  // Create the view only once per tab.
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -120,16 +120,16 @@ export function Editor({
       view.destroy();
       callbacks.current.onDestroy?.();
     };
-    // Solo en el montaje: los cambios de contenido/tema van en los efectos de abajo.
+    // Mount only: content/theme changes go in the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Cambios que vienen de afuera (por ejemplo al revertir o recargar el archivo).
+  // Changes coming from outside (for example when reverting or reloading the file).
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
-    // Si es el mismo texto que le reportamos a la app no hay nada que hacer
-    // (comparar por referencia evita copiar el documento entero en cada tecla).
+    // If it is the same text we reported to the app there is nothing to do
+    // (comparing by reference avoids copying the whole document on every keystroke).
     if (value === reportedRef.current) return;
     if (value.length > HUGE_DOC_LIMIT) return;
     const current = view.state.doc.toString();

@@ -96,7 +96,7 @@ interface HeaderBarProps {
   onClearRecents: () => void;
 }
 
-/** Icono de cada formato de exportacion. */
+/** Icon for each export format. */
 const EXPORT_ICONS: Record<ExportFormat, React.ReactNode> = {
   pdf: <FileType />,
   html: <FileCode />,
@@ -169,7 +169,7 @@ export function HeaderBar({
 
   const mod = navigator.platform.toLowerCase().includes('mac') ? '⌘' : 'Ctrl';
 
-  // La ventana no tiene marco: seguimos el estado real para elegir el icono.
+  // The window has no frame: we track the real state to choose the icon.
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | null = null;

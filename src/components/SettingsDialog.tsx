@@ -136,7 +136,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-/** Dialogo con todas las preferencias; los accesos rapidos del menu siguen. */
+/** Dialog with all the preferences; the quick actions in the menu remain. */
 export function SettingsDialog({
   open,
   onOpenChange,
@@ -163,8 +163,10 @@ export function SettingsDialog({
           <DialogDescription>{t('settings.description')}</DialogDescription>
         </DialogHeader>
 
-        {/* La lista scrollea; el pie con Restablecer/Listo queda siempre visible. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+        {/* The list scrolls; the footer with Reset/Done stays always visible.
+            The right gutter keeps the text clear of the scrollbar and the
+            bottom padding keeps the last row away from the footer buttons. */}
+        <div className="mb-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-3 pb-4 [scrollbar-gutter:stable]">
           <Section title={t('settings.appearance')}>
             <Row label={t('settings.theme')}>
               <Segmented<ThemeMode>

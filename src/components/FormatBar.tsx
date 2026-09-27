@@ -56,7 +56,7 @@ function FormatButton({ action, viewRef }: { action: FormatAction; viewRef: RefO
           size="icon-sm"
           className="text-muted-foreground hover:text-foreground"
           aria-label={action.label}
-          // Evita que el boton se lleve el foco: la seleccion del editor queda intacta.
+          // Prevents the button from taking focus: the editor selection stays intact.
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
             const view = viewRef.current;
@@ -75,8 +75,8 @@ function FormatButton({ action, viewRef }: { action: FormatAction; viewRef: RefO
 }
 
 /**
- * Barra de formato Markdown que se muestra arriba del editor en los modos
- * edicion y dividido. Cada boton actua sobre la seleccion de CodeMirror.
+ * Markdown format bar shown above the editor in edit and split modes.
+ * Each button acts on the CodeMirror selection.
  */
 function FormatBarComponent({ viewRef }: FormatBarProps) {
   const { t } = useI18n();
@@ -125,5 +125,5 @@ function FormatBarComponent({ viewRef }: FormatBarProps) {
   );
 }
 
-/** La barra no depende de nada que cambie: se memoiza entera. */
+/** The bar does not depend on anything that changes: it is memoized as a whole. */
 export const FormatBar = memo(FormatBarComponent);

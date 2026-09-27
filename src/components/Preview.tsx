@@ -15,9 +15,9 @@ type PreviewView = 'markdown' | 'code';
 
 interface PreviewProps extends PreviewHandlers {
   content: string;
-  /** true si `content` es solo la ventana inicial de un documento enorme. */
+  /** true if `content` is only the initial window of a huge document. */
   windowed?: boolean;
-  /** Tamaño total del documento (para el aviso). */
+  /** Total document size (for the notice). */
   totalLength?: number;
   theme: Theme;
   palette: Palette;
@@ -31,7 +31,7 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Vista de codigo: monoespaciada, con el resaltado del lenguaje si se conoce. */
+/** Code view: monospaced, with language highlighting when known. */
 function renderCodeView(content: string, docPath: string | null): string {
   const language = languageOfPath(docPath);
   const highlighted =
@@ -59,36 +59,36 @@ function PreviewComponent({
   const articleRef = useRef<HTMLElement | null>(null);
   const mdx = isMdxPath(docPath);
   const markdownDefault = isMarkdownRenderable(docPath);
-  // Los documentos enormes se muestran por ventana (las primeras lineas).
+  // Huge documents are shown windowed (the first lines).
   const windowed = windowedProp || previewNeedsWindow(content);
   const simplified = isSimplified(content) && !windowed;
   const [html, setHtml] = useState('');
   const [viewOverride, setViewOverride] = useState<PreviewView | null>(null);
 
-  /** Los archivos que no son Markdown se ven como codigo, salvo que se elija lo contrario. */
+  /** Non-Markdown files are shown as code, unless the opposite is chosen. */
   const view: PreviewView = viewOverride ?? (markdownDefault ? 'markdown' : 'code');
 
-  // Al cambiar de documento volvemos a la vista que corresponde.
+  // When the document changes we return to the matching view.
   useEffect(() => {
     setViewOverride(null);
   }, [docPath]);
 
   /*
-   * Documentos enormes: primero se pinta el aviso y el HTML se calcula en el
-   * siguiente tick. Asi la ventana aparece con el editor usable en lugar de
-   * quedarse congelada mientras markdown-it + DOMPurify hacen su trabajo.
+   * Huge documents: the notice is painted first and the HTML is computed on the
+   * next tick. That way the window appears with a usable editor instead of
+   * freezing while markdown-it + DOMPurify do their work.
    */
   useEffect(() => {
     let cancelled = false;
 
     const compose = () => {
-      // Documentos enormes: renderizamos solo la ventana inicial.
+      // Huge documents: we render only the initial window.
       const source = windowed ? headWindow(content, PREVIEW_WINDOW_LINES) : content;
       if (view === 'code') {
         setHtml(renderCodeView(source, docPath));
         return;
       }
-      // En documentos grandes el nucleo se renderiza en el worker.
+      // For large documents the core is rendered in the worker.
       void renderMarkdownAsync(source, { mdx }).then((next) => {
         if (!cancelled) setHtml(next);
       });
@@ -113,7 +113,7 @@ function PreviewComponent({
     const article = articleRef.current;
     if (!article || !html) return;
 
-    // `html` ya viene sanitizado por DOMPurify dentro de renderMarkdown.
+    // `html` is already sanitized by DOMPurify inside renderMarkdown.
     article.innerHTML = html;
     void enhance(article, {
       docPath,
@@ -203,7 +203,7 @@ function PreviewComponent({
 }
 
 /**
- * Memoizado: los props son estables mientras se escribe, asi el preview (y su
- * HTML ya generado) no se vuelve a reconciliar en cada tecla o movimiento.
+ * Memoized: the props are stable while typing, so the preview (and its
+ * already generated HTML) is not reconciled again on every keystroke or move.
  */
 export const Preview = memo(PreviewComponent);

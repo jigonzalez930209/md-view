@@ -14,8 +14,8 @@ const HANDLES: Array<[suffix: string, direction: WindowResizeDirection, classes:
 ];
 
 /**
- * La ventana no tiene marco nativo, asi que ofrecemos los bordes como zonas
- * invisibles de redimensionado (unos pocos pixeles sobre los extremos).
+ * The window has no native frame, so we expose the edges as invisible resize
+ * zones (a few pixels over the borders).
  */
 export function WindowResizeHandles() {
   if (!backend.isTauri) return null;

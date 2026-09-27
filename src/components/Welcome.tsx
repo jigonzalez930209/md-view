@@ -13,7 +13,7 @@ interface WelcomeProps {
   onClearRecents: () => void;
 }
 
-/** Logotipo de Markdown (no existe en Lucide). */
+/** Markdown logo (not available in Lucide). */
 function LogoMarkdown({ size = 34 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true" className="text-foreground">
@@ -71,7 +71,7 @@ export function Welcome({
               {t('welcome.recents')}
             </div>
             <div className="overflow-hidden rounded-xl border">
-              {/* La lista se limita sola: asi el resto del inicio nunca queda tapado. */}
+              {/* The list caps its own height, so the rest of the welcome screen never gets covered. */}
               <div className="max-h-56 overflow-y-auto">
                 {recents.map((path) => (
                   <button

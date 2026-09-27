@@ -20,15 +20,15 @@ interface TabBarProps {
 }
 
 /**
- * Pestanas al estilo Chrome: bajas, con las esquinas de arriba redondeadas y la
- * activa del mismo color que el contenido (se siente parte de el). La linea de
- * abajo es una sombra interna de la tira, asi la pestana activa la tapa.
+ * Chrome-style tabs: short, with rounded top corners and the active one in the
+ * same color as the content (it feels part of it). The bottom line is an inner
+ * shadow of the strip, so the active tab covers it.
  */
 function TabBarComponent({ tabs, activeId, onSelect, onClose }: TabBarProps) {
   const { t } = useI18n();
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Al cambiar de pestana, la traemos a la vista si quedo fuera del scroll.
+  // When the tab changes, we bring it into view if it was scrolled out.
   useEffect(() => {
     const active = listRef.current?.querySelector('[data-state="active"]');
     active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -63,7 +63,7 @@ function TabBarComponent({ tabs, activeId, onSelect, onClose }: TabBarProps) {
               'focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none',
             )}
             onAuxClick={(event) => {
-              // El clic central cierra la pestana, como en cualquier navegador.
+              // Middle click closes the tab, like in any browser.
               if (event.button === 1) {
                 event.preventDefault();
                 onClose(tab.id);
@@ -106,5 +106,5 @@ function TabBarComponent({ tabs, activeId, onSelect, onClose }: TabBarProps) {
   );
 }
 
-/** Memoizado: los props son estables salvo que cambie algo visible del tab. */
+/** Memoized: the props are stable unless something visible in the tab changes. */
 export const TabBar = memo(TabBarComponent);
