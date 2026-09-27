@@ -2,7 +2,10 @@
 name = "md-view"
 version = "0.2.0"
 description = "Minimalist Markdown viewer and editor"
-authors = ["md-view"]
+license = "MIT"
+homepage = "https://jigonzalez930209.github.io/md-view/"
+repository = "https://github.com/jigonzalez930209/md-view"
+authors = ["jigonzalez930209"]
 edition = "2021"
 rust-version = "1.77.2"
 

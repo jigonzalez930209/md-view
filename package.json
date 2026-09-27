@@ -72,5 +72,14 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "license": "MIT",
+  "homepage": "https://jigonzalez930209.github.io/md-view/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jigonzalez930209/md-view.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jigonzalez930209/md-view/issues"
   }
 }

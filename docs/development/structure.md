@@ -53,12 +53,16 @@ src-tauri/
 docs/                         This documentation site (VitePress)
 scripts/
   generate-icons.py           Draws the app icon and exports every size
-  release.sh                  Version bump + tag + push
+  changelog.mjs               Builds a version's changelog entry from the commits
+  release.sh                  Version bump + changelog + tag + push
+  fix-deb-depends.sh          Rewrites the .deb dependencies after Tauri builds it
 .github/
   workflows/ci.yml            Typecheck, build, fmt and tests
   workflows/release.yml       Installers per platform
   workflows/docs.yml          Build and deploy this documentation
   RELEASING.md                Quick release reference
+LICENSE                       MIT
+CHANGELOG.md                  Keep a Changelog entries, one per version
 ```
 
 ## Conventions worth knowing
