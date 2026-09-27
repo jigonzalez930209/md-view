@@ -25,8 +25,8 @@
 ## Comments and naming
 
 - **File names, identifiers and every user-facing string are in English.**
-- Comments are currently written in **Spanish** (the project started in Spanish); translating
-  them is a welcome, self-contained contribution. Keep the "why", not the "what".
+- Comments are written in **English**, like identifiers and user-facing strings. Keep the
+  "why", not the "what".
 - Keep comments close to the code they explain and prefer a short paragraph over a wall of
   bullet points.
 

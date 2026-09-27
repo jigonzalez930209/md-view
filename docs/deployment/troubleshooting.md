@@ -67,6 +67,13 @@ the system print dialog, where you choose *Save as PDF*.
 The SVG embeds the KaTeX fonts; system fonts (emoji) depend on the viewer. Open it in a browser
 or in Inkscape with the fonts installed.
 
+**The dialog text looks blurry**
+On WebKitGTK a `backdrop-filter` on the dialog overlay or a scale/zoom animation on the
+panel leaves the content at half-pixel positions and the text looks soft. That is why the
+dialog overlay only dims the background (`bg-black/50`) and the panel is centered by a flex
+wrapper instead of `top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2` plus
+`zoom-in-95`: keep it that way when touching `components/ui/dialog.tsx`.
+
 **Where are the recent files stored?**
 In the app configuration folder (`recents.json`); in the browser, in `localStorage`. The
 preferences live in `localStorage` under `md-view:prefs`.

@@ -57,7 +57,7 @@ See [Development setup](/development/setup) for requirements and the browser mod
 
 ## Good first issues
 
-- Translate the code comments to English (they are in Spanish today).
+- Improve the documentation of a feature you know well (a guide page or the reference).
 - Add a palette (Dracula's Alucard is already there; a fourth one is a CSS-only change).
 - Add a language dictionary.
 - Improve the KaTeX rendering of a specific construct in the demo document.
