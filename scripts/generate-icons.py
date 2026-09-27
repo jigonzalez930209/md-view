@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Genera los iconos de la app (PNG, ICO e ICNS) sin dependencias externas al proyecto.
+"""Generate the app icons (PNG, ICO and ICNS) without external project dependencies.
 
-Se ejecuta una sola vez; los archivos quedan en src-tauri/icons/.
-Requiere Pillow (python3 -m pip install pillow).
+Run it once; the files land in src-tauri/icons/.
+Requires Pillow (python3 -m pip install pillow).
 """
 
 from __future__ import annotations
@@ -16,15 +16,15 @@ from PIL import Image, ImageDraw
 OUT = Path(__file__).resolve().parent.parent / "src-tauri" / "icons"
 SIZE = 1024
 
-# Paleta del icono: fondo oscuro con degradado azul -> violeta (los mismos
-# acentos que usa la interfaz en tema oscuro).
+# Icon palette: dark background with a blue -> purple gradient (the same
+# accents the interface uses in the dark theme).
 TOP = (31, 111, 235)
 BOTTOM = (163, 113, 247)
 TILE = (13, 17, 23)
 
 
 def rounded_gradient(size: int, radius: int) -> Image.Image:
-    """Cuadrado redondeado con degradado vertical."""
+    """Rounded square with a vertical gradient."""
     base = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     gradient = Image.new("RGBA", (size, size))
     pixels = gradient.load()
@@ -43,7 +43,7 @@ def rounded_gradient(size: int, radius: int) -> Image.Image:
 
 
 def draw_mark(image: Image.Image, scale: float = 1.0) -> None:
-    """Dibuja la marca 'M' con la flecha hacia abajo en blanco."""
+    """Draw the white 'M' mark with the down arrow."""
     draw = ImageDraw.Draw(image)
     white = (255, 255, 255, 255)
     stroke = int(58 * scale)
@@ -53,13 +53,13 @@ def draw_mark(image: Image.Image, scale: float = 1.0) -> None:
     mid = (left + right) // 2
     valley = int(top + (bottom - top) * 0.42)
 
-    # Letra M (trazo grueso con uniones redondeadas).
+    # Letter M (thick stroke with rounded joints).
     draw.line([(left, bottom), (left, top)], fill=white, width=stroke, joint="curve")
     draw.line([(left, top), (mid, valley)], fill=white, width=stroke, joint="curve")
     draw.line([(mid, valley), (right, top)], fill=white, width=stroke, joint="curve")
     draw.line([(right, top), (right, bottom)], fill=white, width=stroke, joint="curve")
 
-    # Flecha hacia abajo.
+    # Down arrow.
     arrow_x = int(724 * scale)
     shaft_top, shaft_bottom = int(360 * scale), int(596 * scale)
     draw.line([(arrow_x, shaft_top), (arrow_x, shaft_bottom)], fill=white, width=stroke)
@@ -83,7 +83,7 @@ def draw_mark(image: Image.Image, scale: float = 1.0) -> None:
 
 def master() -> Image.Image:
     image = rounded_gradient(SIZE, radius=int(SIZE * 0.22))
-    # Un latido de transparencia para que el fondo respire dentro de la marca.
+    # A quiet inner tile so the mark breathes inside the gradient.
     inner = ImageDraw.Draw(image)
     inner.rounded_rectangle(
         (int(SIZE * 0.085), int(SIZE * 0.085), int(SIZE * 0.915), int(SIZE * 0.915)),
@@ -101,7 +101,7 @@ def png_bytes(image: Image.Image) -> bytes:
 
 
 def write_icns(path: Path, sources: dict[str, Image.Image]) -> None:
-    """Arma un .icns con PNG embebidos (formato aceptado por macOS moderno)."""
+    """Build an .icns with embedded PNGs (the format modern macOS accepts)."""
     chunks = b""
     for kind, image in sources.items():
         payload = png_bytes(image)
@@ -116,13 +116,13 @@ def main() -> None:
     for size, name in ((32, "32x32.png"), (128, "128x128.png"), (256, "128x128@2x.png"), (512, "icon.png")):
         base.resize((size, size), Image.LANCZOS).save(OUT / name)
 
-    # Windows: .ico multi-resolucion.
+    # Windows: multi-resolution .ico.
     base.resize((256, 256), Image.LANCZOS).save(
         OUT / "icon.ico",
         sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
     )
 
-    # macOS: .icns con PNG por tamano.
+    # macOS: .icns with one PNG per size (ic13/ic14 are the retina variants).
     write_icns(
         OUT / "icon.icns",
         {
@@ -137,7 +137,7 @@ def main() -> None:
         },
     )
 
-    print(f"Iconos generados en {OUT}")
+    print(f"Icons written to {OUT}")
 
 
 if __name__ == "__main__":
