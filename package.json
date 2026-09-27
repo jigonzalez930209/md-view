@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Visor y editor de Markdown minimalista: tablas, formulas LaTeX, diagramas Mermaid, SVG y resaltado de codigo estilo GitHub.",
+  "description": "Minimalist Markdown viewer and editor: tables, LaTeX formulas, Mermaid diagrams, SVG and GitHub-style code highlighting.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -13,7 +13,10 @@
     "tauri": "tauri",
     "app": "tauri dev",
     "app:build": "tauri build",
-    "release": "bash scripts/release.sh"
+    "release": "bash scripts/release.sh",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

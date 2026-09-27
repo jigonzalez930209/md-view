@@ -14,3 +14,7 @@ src-tauri/gen/schemas/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Documentacion (VitePress)
+docs/.vitepress/cache/
+docs/.vitepress/dist/
