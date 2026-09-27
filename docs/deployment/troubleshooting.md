@@ -74,6 +74,12 @@ dialog overlay only dims the background (`bg-black/50`) and the panel is centere
 wrapper instead of `top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2` plus
 `zoom-in-95`: keep it that way when touching `components/ui/dialog.tsx`.
 
+**The window can't be dragged by the title bar**
+The header uses `data-tauri-drag-region="deep"` (`components/HeaderBar.tsx`). Tauri walks the
+composed path (`window/scripts/drag.js`) and the **bare** attribute only drags when the click
+lands exactly on that element, while a nested bare attribute stops the walk; with `deep` the
+whole bar drags and buttons, links and menus still take their click.
+
 **Where are the recent files stored?**
 In the app configuration folder (`recents.json`); in the browser, in `localStorage`. The
 preferences live in `localStorage` under `md-view:prefs`.
