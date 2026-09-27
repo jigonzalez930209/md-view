@@ -132,6 +132,8 @@ def main() -> None:
             "ic08": base.resize((256, 256), Image.LANCZOS),
             "ic09": base.resize((512, 512), Image.LANCZOS),
             "ic10": base.resize((1024, 1024), Image.LANCZOS),
+            "ic13": base.resize((512, 512), Image.LANCZOS),
+            "ic14": base.resize((1024, 1024), Image.LANCZOS),
         },
     )
 
