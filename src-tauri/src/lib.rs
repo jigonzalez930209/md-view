@@ -797,7 +797,7 @@ mod tests {
     }
 
     #[test]
-    fn percent_decode_resuelve_escapes_y_deja_lo_invalido() {
+    fn percent_decode_resolves_escapes_and_keeps_invalid() {
         assert_eq!(percent_decode("hola%20mundo.md"), "hola mundo.md");
         assert_eq!(percent_decode("%C3%B1andu.md"), "ñandu.md");
         assert_eq!(percent_decode("100%.md"), "100%.md");
@@ -805,7 +805,7 @@ mod tests {
     }
 
     #[test]
-    fn decode_detecta_bom_y_utf16() {
+    fn decode_detects_bom_and_utf16() {
         let (texto, bom) = decode(&[0xEF, 0xBB, 0xBF, b'h', b'o', b'l', b'a']);
         assert_eq!((texto.as_str(), bom), ("hola", true));
 
@@ -819,7 +819,7 @@ mod tests {
     }
 
     #[test]
-    fn files_from_args_ignora_banderas_y_archivos_inexistentes() {
+    fn files_from_args_ignores_flags_and_missing_files() {
         let dir = temp_dir();
         let real = dir.join("documento.md");
         fs::write(&real, "# hola").expect("escribir archivo");
@@ -838,7 +838,7 @@ mod tests {
     }
 
     #[test]
-    fn files_from_args_entiende_urls_file() {
+    fn files_from_args_understands_file_urls() {
         let dir = temp_dir();
         let ruta = dir.join("con espacio.md");
         fs::write(&ruta, "contenido").expect("escribir archivo");
@@ -851,7 +851,7 @@ mod tests {
     }
 
     #[test]
-    fn write_document_respeta_crlf_bom_y_crea_carpetas() {
+    fn write_document_keeps_crlf_bom_and_creates_folders() {
         let dir = temp_dir().join("anidada").join("sub");
         let destino = dir.join("salida.md");
         let ruta = destino.to_string_lossy().into_owned();
@@ -877,7 +877,7 @@ mod tests {
     }
 
     #[test]
-    fn looks_like_text_usa_extension_y_contenido() {
+    fn looks_like_text_uses_extension_and_content() {
         let dir = temp_dir();
 
         // Extension conocida: no hace falta leer.
@@ -906,7 +906,7 @@ mod tests {
     }
 
     #[test]
-    fn read_tree_ordena_y_omite_carpetas_pesadas() {
+    fn read_tree_sorts_and_skips_heavy_folders() {
         let dir = temp_dir().join("arbol");
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("node_modules")).expect("carpeta");
@@ -939,7 +939,7 @@ mod tests {
     }
 
     #[test]
-    fn el_arbol_se_serializa_en_camel_case() {
+    fn tree_serializes_in_camel_case() {
         let dir = temp_dir().join("camel");
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("carpeta");
@@ -959,12 +959,12 @@ mod tests {
     }
 
     #[test]
-    fn read_document_falla_con_ruta_inexistente() {
+    fn read_document_fails_with_missing_path() {
         assert!(read_document_impl(String::from("/no/existe/archivo.md")).is_err());
     }
 
     #[test]
-    fn write_atomically_no_deja_temporales() {
+    fn write_atomically_leaves_no_temp_files() {
         let dir = temp_dir().join("atomico");
         let destino = dir.join("doc.md");
         write_atomically(&destino, b"hola").expect("escribir");
