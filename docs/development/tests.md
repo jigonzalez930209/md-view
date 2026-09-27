@@ -6,7 +6,7 @@
 cd src-tauri && cargo test
 ```
 
-Ten unit tests cover the logic that is worth protecting:
+Eleven unit tests cover the logic that is worth protecting:
 
 | Test | What it checks |
 | --- | --- |
@@ -19,6 +19,7 @@ Ten unit tests cover the logic that is worth protecting:
 | `read_tree_sorts_and_skips_heavy_folders` | Folders first, `node_modules` skipped, `isText` flags |
 | `tree_serializes_in_camel_case` | The JSON the frontend consumes uses `isText`, not `is_text` |
 | `read_document_fails_with_missing_path` | Error path |
+| `files_from_urls_keeps_existing_files` | macOS' "Opened" event: `file://` URLs (with escapes) become paths, and anything missing or non-file is dropped |
 | `write_atomically_leaves_no_temp_files` | Atomic writes leave no `.tmp` behind |
 
 Formatting is part of the gate:

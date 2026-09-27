@@ -60,6 +60,10 @@ Each job installs its system dependencies, sets up pnpm and Node 24, restores th
 and runs [`tauri-apps/tauri-action`](https://github.com/tauri-apps/tauri-action) with the
 `releaseId` from the first job, so the assets land in the same draft without a race.
 
+On Linux, a last step rewrites the `.deb` dependencies
+(`scripts/fix-deb-depends.sh`, see [Publishing releases](/deployment/releases#what-each-package-declares))
+and replaces the uploaded asset with `gh release upload --clobber`.
+
 ::: info Actions used
 `actions/checkout@v7`, `actions/setup-node@v7`, `actions/github-script@v9`,
 `pnpm/action-setup@v6`, `tauri-apps/tauri-action@action-v1.0.0`,
