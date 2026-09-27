@@ -1,92 +1,92 @@
 # md-view
 
-Visor y editor de Markdown pensado para leer documentación técnica: **renderiza igual
-que GitHub** y agrega lo que un README suele necesitar.
+A Markdown viewer and editor built for reading technical documentation: it **renders the
+same as GitHub** and adds what a README usually needs.
 
 > [!NOTE]
-> Este documento es la demo que trae la app. Podés editar el panel de la izquierda y la
-> vista previa se actualiza al instante. Para guardarlo, usá *Guardar como*.
+> This is the demo document that ships with the app. Edit the left pane and the preview
+> updates instantly. To keep your changes, use *Save as*.
 
 ---
 
-## 1. Formato de texto
+## 1. Text formatting
 
-Texto con **negrita**, *cursiva*, ***negrita y cursiva***, ~~tachado~~, `código inline`,
-un [enlace externo](https://tauri.app), un enlace roto a un archivo local
-(`./no-existe.md`) y una URL suelta autodetectada: https://github.com/markdown-it/markdown-it
+Text with **bold**, *italic*, ***bold and italic***, ~~strikethrough~~, `inline code`,
+an [external link](https://tauri.app), a broken link to a local file (`./does-not-exist.md`)
+and a bare autodetected URL: https://github.com/markdown-it/markdown-it
 
-También hay abreviaturas en emoji :rocket: :sparkles:, teclas como <kbd>Ctrl</kbd> +
-<kbd>Shift</kbd> + <kbd>P</kbd> y bloques plegables:
+There are also emoji shortcodes :rocket: :sparkles:, keys like <kbd>Ctrl</kbd> +
+<kbd>Shift</kbd> + <kbd>P</kbd>, and collapsible blocks:
 
 <details>
-<summary>Ver detalles del motor de render</summary>
+<summary>Show rendering engine details</summary>
 
-markdown-it + KaTeX + Mermaid + highlight.js, y el HTML final pasa por DOMPurify.
+markdown-it + KaTeX + Mermaid + highlight.js, and the final HTML goes through DOMPurify.
 
 </details>
 
-## 2. Listas
+## 2. Lists
 
-1. Listas ordenadas
-2. Con sublistas anidadas
-   - Un nivel más
-     - Y otro más
-3. Mezclando viñetas
+1. Ordered lists
+2. With nested sublists
+   - One level deeper
+     - And another one
+3. Mixing bullets
 
-- [x] Tablas GFM
-- [x] Listas de tareas
-- [x] Fórmulas LaTeX
-- [ ] Modo colaborativo (no está en el plan :wink:)
+- [x] GFM tables
+- [x] Task lists
+- [x] LaTeX formulas
+- [ ] Collaborative mode (not on the roadmap :wink:)
 
-## 3. Tablas
+## 3. Tables
 
-| Característica | Estado | Notas |
+| Feature | Status | Notes |
 | :--- | :---: | ---: |
-| Tablas GFM | ✅ | alineación por columnas |
-| Fórmulas | ✅ | `$inline$` y bloque |
-| Mermaid | ✅ | se redibuja al cambiar el tema |
-| SVG animado | ✅ | dentro de `<img>` |
-| Código | ✅ | 30+ lenguajes |
+| GFM tables | ✅ | per-column alignment |
+| Formulas | ✅ | `$inline$` and blocks |
+| Mermaid | ✅ | redraws on theme change |
+| Animated SVG | ✅ | inside `<img>` |
+| Code | ✅ | 30+ languages |
 
-| Izquierda | Centro | Derecha |
+| Left | Center | Right |
 | :-------- | :----: | ------: |
 | `a` | `bb` | `333` |
-| texto largo que ocupa espacio | x | 1.234 |
+| a long piece of text | x | 1,234 |
 
-## 4. Alertas
+## 4. Alerts
 
 > [!NOTE]
-> Información útil para tener en cuenta mientras se lee.
+> Useful information to keep in mind while reading.
 
 > [!TIP]
-> Atajo: <kbd>Ctrl</kbd> + <kbd>2</kbd> muestra editor y vista previa a la vez.
+> Shortcut: <kbd>Ctrl</kbd> + <kbd>2</kbd> shows the editor and the preview at once.
 
 > [!IMPORTANT]
-> El archivo se guarda respetando el fin de línea original (LF o CRLF).
+> Files are saved respecting the original line ending (LF or CRLF).
 
 > [!WARNING]
-> Un documento Markdown puede contener HTML; acá se sanitiza antes de mostrarlo.
+> A Markdown document can contain HTML; here it is sanitized before rendering.
 
 > [!CAUTION]
-> Si cerrás la ventana con cambios sin guardar, te vamos a preguntar.
+> If you close the window with unsaved changes, we will ask you first.
 
-> Una cita normal, sin marcador, para comparar el estilo.
+> A regular quote, without a marker, to compare the style.
 
-## 5. Código
+## 5. Code
 
 ```ts
-type Estado = 'borrador' | 'listo';
+type State = 'draft' | 'ready';
 
-interface Documento {
-  ruta: string;
-  contenido: string;
-  fecha: Date;
+interface Document {
+  path: string;
+  content: string;
+  updatedAt: Date;
 }
 
-export async function guardar(doc: Documento): Promise<Estado> {
-  if (!doc.contenido.trim()) throw new Error('documento vacío');
-  await fs.writeFile(doc.ruta, doc.contenido, 'utf8');
-  return 'listo';
+export async function save(doc: Document): Promise<State> {
+  if (!doc.content.trim()) throw new Error('empty document');
+  await fs.writeFile(doc.path, doc.content, 'utf8');
+  return 'ready';
 }
 ```
 
@@ -94,16 +94,16 @@ export async function guardar(doc: Documento): Promise<Estado> {
 from dataclasses import dataclass
 
 @dataclass
-class Documento:
-    ruta: str
-    contenido: str
+class Document:
+    path: str
+    content: str
 
-    def palabras(self) -> int:
-        return len(self.contenido.split())
+    def words(self) -> int:
+        return len(self.content.split())
 ```
 
 ```bash
-# Instalar dependencias del sistema y arrancar en modo desarrollo
+# Install the system dependencies and start in development mode
 sudo apt install libwebkit2gtk-4.1-dev build-essential
 pnpm install && pnpm app
 ```
@@ -113,26 +113,26 @@ pnpm install && pnpm app
 ```
 
 ```diff
-- temas: solo claro
-+ temas: claro y oscuro
-+ sinais de scroll sincronizados
+- themes: light only
++ themes: light and dark
++ synchronized scroll panes
 ```
 
 ```
-Bloque sin lenguaje: se muestra como texto plano.
+Block without a language: shown as plain text.
 ```
 
-## 6. Fórmulas (LaTeX / KaTeX)
+## 6. Formulas (LaTeX / KaTeX)
 
-En línea: la energía en reposo es $E = mc^2$ y el área de un círculo es $A = \pi r^2$.
+Inline: the rest energy is $E = mc^2$ and the area of a circle is $A = \pi r^2$.
 
-En bloque:
+As a block:
 
 $$
 \int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
 $$
 
-Sistema de ecuaciones:
+System of equations:
 
 $$
 \begin{aligned}
@@ -141,7 +141,7 @@ $$
 \end{aligned}
 $$
 
-Matriz:
+Matrix:
 
 $$
 \mathbf{A} =
@@ -154,87 +154,87 @@ a_{21} & a_{22} & a_{23}
 \prod_{i=1}^{n} a_{i,\sigma(i)}
 $$
 
-También se acepta un bloque con fence:
+A fenced block works too:
 
 ```math
 f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!}(x-a)^n
 ```
 
-## 7. Diagramas Mermaid
+## 7. Mermaid diagrams
 
 ```mermaid
 flowchart TD
-    A[Archivo .md] --> B{¿Tiene diagramas?}
-    B -- Sí --> C[Cargar Mermaid]
+    A[.md file] --> B{Has diagrams?}
+    B -- Yes --> C[Load Mermaid]
     B -- No --> D[Render Markdown]
     C --> D
-    D --> E[Sanitizar con DOMPurify]
-    E --> F[Vista previa]
-    F --> G[Tema claro / oscuro]
+    D --> E[Sanitize with DOMPurify]
+    E --> F[Preview]
+    F --> G[Light / dark theme]
     G --> F
 ```
 
 ```mermaid
 sequenceDiagram
-    participant U as Usuario
+    participant U as User
     participant A as App
-    participant D as Disco
+    participant D as Disk
     U->>A: Ctrl + S
-    A->>D: write_document(path, contenido)
+    A->>D: write_document(path, content)
     D-->>A: ok
-    A-->>U: "Guardado"
+    A-->>U: "Saved"
 ```
 
 ```mermaid
 classDiagram
-    class Documento {
-        +String ruta
-        +String contenido
-        +guardar()
-        +renderizar()
+    class Document {
+        +String path
+        +String content
+        +save()
+        +render()
     }
-    class Vista {
-        +tema
-        +modo
+    class View {
+        +theme
+        +mode
     }
-    Documento --> Vista : se muestra en
+    Document --> View : shown in
 ```
 
 ```mermaid
-pie title Diagramas del README
-    "Flujo" : 45
-    "Secuencia" : 25
-    "Clases" : 20
+pie title README diagrams
+    "Flowchart" : 45
+    "Sequence" : 25
+    "Classes" : 20
     "Gantt" : 10
 ```
 
-## 8. Imágenes y SVG
+## 8. Images and SVG
 
-Un SVG animado con animaciones SMIL, referenciado como imagen normal:
+An animated SVG with SMIL animations, referenced as a regular image:
 
-![SVG animado de ejemplo](/demo-animado.svg)
+![Example animated SVG](/demo-animado.svg)
 
-O incrustado con HTML para controlar el tamaño:
+Or embedded with HTML to control the size:
 
-<img src="/demo-animado.svg" alt="SVG animado" width="420">
+<img src="/demo-animado.svg" alt="Animated SVG" width="420">
 
-Los `.gif`, `.webp`, `.avif` y también `<video>` funcionan igual:
+`.gif`, `.webp`, `.avif` and `<video>` work the same way:
 
 ```html
-<img src="./captura.png" alt="captura" width="600">
+<img src="./screenshot.png" alt="screenshot" width="600">
 ```
 
-> En un documento real, las rutas relativas (`./img/x.png`, `../comun/logo.svg`) se
-> resuelven contra la carpeta del archivo abierto.
+> In a real document, relative paths (`./img/x.png`, `../shared/logo.svg`) are resolved
+> against the folder of the file you opened.
 
-## 9. Notas al pie
+## 9. Footnotes
 
-El render respeta el fin de línea del archivo[^eol] y el BOM si lo tenía[^bom].
+The render respects the file line ending[^eol] and the BOM if it had one[^bom].
 
-[^eol]: Se guarda tal como estaba: LF en Linux/macOS, CRLF en Windows.
-[^bom]: El marcador de orden de bytes de UTF-8, para no romper archivos de otras herramientas.
+[^eol]: Saved exactly as it was: LF on Linux/macOS, CRLF on Windows.
+[^bom]: The UTF-8 byte order mark, kept so other tools don't break.
 
 ---
 
-Hecho con [Tauri](https://tauri.app), [markdown-it](https://github.com/markdown-it/markdown-it),
-[KaTeX](https://katex.org) y [Mermaid](https://mermaid.js.org).
+Built with [Tauri](https://tauri.app), [markdown-it](https://github.com/markdown-it/markdown-it),
+[KaTeX](https://katex.org) and [Mermaid](https://mermaid.js.org).
