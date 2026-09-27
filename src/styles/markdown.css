@@ -76,7 +76,7 @@
 }
 
 .markdown-body a {
-  color: var(--accent);
+  color: var(--primary);
   text-decoration: none;
 }
 
@@ -143,15 +143,61 @@
 }
 
 .markdown-body .md-anchor:hover {
-  color: var(--accent);
+  color: var(--primary);
   text-decoration: none;
+}
+
+/* ------------------------------- Vista de codigo --------------------------- */
+
+/*
+ * Para archivos de texto que no son Markdown (un .ts, un .json, un .yaml)
+ * mostramos el contenido tal cual, monoespaciado, sin convertirlo en parrafos.
+ */
+.markdown-body .code-view {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  tab-size: 4;
+}
+
+.markdown-body .code-view code {
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
 }
 
 /* --------------------------------- Listas ---------------------------------- */
 
 .markdown-body ul,
 .markdown-body ol {
+  margin-top: 0;
+  margin-bottom: 16px;
   padding-left: 2em;
+}
+
+/*
+ * Tailwind Preflight quita los marcadores de las listas; los reponemos para
+ * que la vista previa se vea como GitHub (y no como texto suelto).
+ */
+.markdown-body ul {
+  list-style-type: disc;
+}
+
+.markdown-body ul ul {
+  list-style-type: circle;
+}
+
+.markdown-body ul ul ul {
+  list-style-type: square;
+}
+
+.markdown-body ol {
+  list-style-type: decimal;
 }
 
 .markdown-body ul ul,
@@ -178,10 +224,12 @@
   padding-left: 2em;
 }
 
-.markdown-body .task-list-item input[type='checkbox'] {
+.markdown-body .task-list-item input[type='checkbox'],
+.markdown-body .task-list-item .svg-checkbox {
+  display: inline-block;
   margin: 0 0.35em 0.25em -1.45em;
   vertical-align: middle;
-  accent-color: var(--accent);
+  accent-color: var(--primary);
   width: 13px;
   height: 13px;
 }

@@ -1,52 +1,110 @@
 /*
  * Paleta de md-view.
  *
- * Todos los colores viven en variables CSS sobre :root[data-theme="..."].
- * Cambiar de tema es solo cambiar el atributo data-theme del <html>: no hay
- * que re-renderizar nada ni recargar la app.
+ * Tres paletas (GitHub, One Dark, Dracula) con variante clara y oscura.
+ * El <html> lleva data-theme="light|dark" y data-palette="github|onedark|dracula";
+ * cambiar cualquiera de los dos es solo cambiar el atributo: todo lo que sigue
+ * son variables CSS y no hay que re-renderizar React.
+ *
+ * Los nombres `--background`, `--primary`, etc. son los de shadcn/Tailwind;
+ * los `--bg`, `--fg`, `--hl-*` son los que usan markdown.css y CodeMirror.
  */
 
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-border-muted: var(--border-muted);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial,
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
+    monospace;
+}
+
+:root {
+  --radius: 0.625rem;
+}
+
+/* ------------------------------- GitHub (claro) ------------------------------ */
+
 :root,
-:root[data-theme='light'] {
+:root[data-palette='github'][data-theme='light'] {
   color-scheme: light;
 
-  /* Superficies */
-  --bg: #ffffff;
-  --bg-subtle: #f6f8fa;
-  --bg-inset: #f6f8fa;
-  --bg-hover: #818b981f;
-  --bg-active: #818b9826;
-
-  /* Texto */
-  --fg: #1f2328;
-  --fg-muted: #59636e;
-  --fg-subtle: #818b98;
-
-  /* Bordes y sombras */
+  --background: #ffffff;
+  --foreground: #1f2328;
+  --card: #f6f8fa;
+  --card-foreground: #1f2328;
+  --popover: #ffffff;
+  --popover-foreground: #1f2328;
+  --primary: #0969da;
+  --primary-foreground: #ffffff;
+  --primary-subtle: #ddf4ff;
+  --secondary: #f6f8fa;
+  --secondary-foreground: #1f2328;
+  --muted: #f6f8fa;
+  --muted-foreground: #59636e;
+  --subtle-foreground: #818b98;
+  --accent: #818b981f;
+  --accent-foreground: #1f2328;
+  --destructive: #d1242f;
+  --destructive-foreground: #ffffff;
+  --success: #1a7f37;
+  --warning: #9a6700;
   --border: #d1d9e0;
   --border-muted: #d8dee4;
+  --input: #d1d9e0;
+  --ring: #0969da;
+  --selection: #b4d8fe;
+  --scrollbar: #c8d1da;
   --shadow-sm: 0 1px 0 rgba(31, 35, 40, 0.04);
   --shadow-md: 0 8px 24px rgba(66, 74, 83, 0.12);
-  --scrollbar: #c8d1da;
 
-  /* Acentos */
-  --accent: #0969da;
+  /* Alias heredados (markdown.css / CodeMirror) */
+  --bg: var(--background);
+  --bg-subtle: var(--card);
+  --bg-inset: var(--muted);
+  --bg-hover: var(--accent);
+  --bg-active: #818b9826;
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: var(--subtle-foreground);
   --accent-hover: #0550ae;
-  --accent-subtle: #ddf4ff;
-  --accent-fg: #ffffff;
-  --danger: #d1242f;
+  --accent-fg: var(--primary-foreground);
+  --danger: var(--destructive);
   --danger-subtle: #ffebe9;
-  --success: #1a7f37;
+  --code-bg: var(--muted);
+  --code-fg: var(--foreground);
+  --row-alt: var(--muted);
 
-  /* Codigo */
-  --code-bg: #f6f8fa;
-  --code-fg: #1f2328;
-  --row-alt: #f6f8fa;
-
-  /* Seleccion */
-  --selection: #b4d8fe;
-
-  /* Colores de resaltado de sintaxis (tema github.css de highlight.js) */
   --hl-keyword: #cf222e;
   --hl-entity: #6639ba;
   --hl-constant: #0550ae;
@@ -62,7 +120,6 @@
   --hl-del-fg: #82071e;
   --hl-del-bg: #ffebe9;
 
-  /* Alertas de GitHub */
   --alert-note: #0969da;
   --alert-tip: #1a7f37;
   --alert-important: #8250df;
@@ -70,40 +127,54 @@
   --alert-caution: #d1242f;
 }
 
+/* ------------------------------- GitHub (oscuro) ----------------------------- */
+
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0d1117;
-  --bg-subtle: #151b23;
-  --bg-inset: #151b23;
-  --bg-hover: #656c7633;
-  --bg-active: #656c7640;
-
-  --fg: #f0f6fc;
-  --fg-muted: #9198a1;
-  --fg-subtle: #6e7681;
-
+  --background: #0d1117;
+  --foreground: #f0f6fc;
+  --card: #151b23;
+  --card-foreground: #f0f6fc;
+  --popover: #151b23;
+  --popover-foreground: #f0f6fc;
+  --primary: #4493f8;
+  --primary-foreground: #ffffff;
+  --primary-subtle: #388bfd1a;
+  --secondary: #151b23;
+  --secondary-foreground: #f0f6fc;
+  --muted: #151b23;
+  --muted-foreground: #9198a1;
+  --subtle-foreground: #6e7681;
+  --accent: #656c7633;
+  --accent-foreground: #f0f6fc;
+  --destructive: #f85149;
+  --destructive-foreground: #ffffff;
+  --success: #3fb950;
+  --warning: #d29922;
   --border: #3d444d;
   --border-muted: #262c36;
+  --input: #3d444d;
+  --ring: #4493f8;
+  --selection: #264f78;
+  --scrollbar: #3d444d;
   --shadow-sm: 0 0 transparent;
   --shadow-md: 0 8px 24px rgba(1, 4, 9, 0.6);
-  --scrollbar: #3d444d;
 
-  --accent: #4493f8;
+  --bg-inset: var(--muted);
+  --bg-hover: var(--accent);
+  --bg-active: #656c7640;
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: var(--subtle-foreground);
   --accent-hover: #58a6ff;
-  --accent-subtle: #388bfd1a;
-  --accent-fg: #ffffff;
-  --danger: #f85149;
+  --accent-fg: var(--primary-foreground);
+  --danger: var(--destructive);
   --danger-subtle: #67060c;
-  --success: #3fb950;
+  --code-bg: var(--muted);
+  --code-fg: var(--foreground);
+  --row-alt: var(--muted);
 
-  --code-bg: #151b23;
-  --code-fg: #f0f6fc;
-  --row-alt: #151b23;
-
-  --selection: #264f78;
-
-  /* Colores de resaltado de sintaxis (tema github-dark.css de highlight.js) */
   --hl-keyword: #ff7b72;
   --hl-entity: #d2a8ff;
   --hl-constant: #79c0ff;
@@ -126,33 +197,290 @@
   --alert-caution: #f85149;
 }
 
-::selection {
-  background: var(--selection);
+/* ------------------------------ One Dark (claro) ----------------------------- */
+
+:root[data-palette='onedark'][data-theme='light'] {
+  color-scheme: light;
+
+  --background: #fafafa;
+  --foreground: #383a42;
+  --card: #f0f0f1;
+  --card-foreground: #383a42;
+  --popover: #ffffff;
+  --popover-foreground: #383a42;
+  --primary: #4078f2;
+  --primary-foreground: #ffffff;
+  --primary-subtle: #dce7fe;
+  --secondary: #f0f0f1;
+  --secondary-foreground: #383a42;
+  --muted: #f0f0f1;
+  --muted-foreground: #696c77;
+  --subtle-foreground: #a0a1a7;
+  --accent: #383a4214;
+  --accent-foreground: #383a42;
+  --destructive: #e45649;
+  --destructive-foreground: #ffffff;
+  --success: #50a14f;
+  --warning: #c18401;
+  --border: #d4d4d5;
+  --border-muted: #e5e5e6;
+  --input: #d4d4d5;
+  --ring: #4078f2;
+  --selection: #bcd8ff;
+  --scrollbar: #c8c8c9;
+  --shadow-sm: 0 1px 0 rgba(56, 58, 66, 0.04);
+  --shadow-md: 0 8px 24px rgba(56, 58, 66, 0.14);
+
+  --bg: var(--background);
+  --bg-subtle: var(--card);
+  --bg-inset: var(--muted);
+  --bg-hover: var(--accent);
+  --bg-active: #383a4221;
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: var(--subtle-foreground);
+  --accent-hover: #2f63d8;
+  --accent-fg: var(--primary-foreground);
+  --danger: var(--destructive);
+  --danger-subtle: #ffe9e6;
+  --code-bg: var(--muted);
+  --code-fg: var(--foreground);
+  --row-alt: var(--muted);
+
+  --hl-keyword: #a626a4;
+  --hl-entity: #4078f2;
+  --hl-constant: #986801;
+  --hl-string: #50a14f;
+  --hl-variable: #e45649;
+  --hl-comment: #a0a1a7;
+  --hl-tag: #e45649;
+  --hl-subst: #383a42;
+  --hl-section: #4078f2;
+  --hl-bullet: #c18401;
+  --hl-add-fg: #50a14f;
+  --hl-add-bg: #e6ffea;
+  --hl-del-fg: #e45649;
+  --hl-del-bg: #ffe9e6;
+
+  --alert-note: #4078f2;
+  --alert-tip: #50a14f;
+  --alert-important: #a626a4;
+  --alert-warning: #c18401;
+  --alert-caution: #e45649;
 }
 
-/* Scrollbars finas y discretas, en linea con el resto de la interfaz. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar) transparent;
+/* ------------------------------ One Dark (oscuro) ---------------------------- */
+
+:root[data-palette='onedark'][data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: #282c34;
+  --foreground: #abb2bf;
+  --card: #21252b;
+  --card-foreground: #abb2bf;
+  --popover: #21252b;
+  --popover-foreground: #abb2bf;
+  --primary: #61afef;
+  --primary-foreground: #16181d;
+  --primary-subtle: #61afef29;
+  --secondary: #2c313a;
+  --secondary-foreground: #abb2bf;
+  --muted: #21252b;
+  --muted-foreground: #7f848e;
+  --subtle-foreground: #5c6370;
+  --accent: #abb2bf24;
+  --accent-foreground: #d7dae0;
+  --destructive: #e06c75;
+  --destructive-foreground: #16181d;
+  --success: #98c379;
+  --warning: #d19a66;
+  --border: #3e4451;
+  --border-muted: #2c313a;
+  --input: #3e4451;
+  --ring: #61afef;
+  --selection: #3e4451;
+  --scrollbar: #3e4451;
+  --shadow-sm: 0 0 transparent;
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  --bg: var(--background);
+  --bg-subtle: var(--card);
+  --bg-inset: var(--muted);
+  --bg-hover: var(--accent);
+  --bg-active: #abb2bf33;
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: var(--subtle-foreground);
+  --accent-hover: #7cc0f5;
+  --accent-fg: var(--primary-foreground);
+  --danger: var(--destructive);
+  --danger-subtle: #e06c752e;
+  --code-bg: var(--muted);
+  --code-fg: var(--foreground);
+  --row-alt: var(--muted);
+
+  --hl-keyword: #c678dd;
+  --hl-entity: #61afef;
+  --hl-constant: #d19a66;
+  --hl-string: #98c379;
+  --hl-variable: #e06c75;
+  --hl-comment: #5c6370;
+  --hl-tag: #e06c75;
+  --hl-subst: #abb2bf;
+  --hl-section: #61afef;
+  --hl-bullet: #d19a66;
+  --hl-add-fg: #98c379;
+  --hl-add-bg: #98c37926;
+  --hl-del-fg: #e06c75;
+  --hl-del-bg: #e06c7526;
+
+  --alert-note: #61afef;
+  --alert-tip: #98c379;
+  --alert-important: #c678dd;
+  --alert-warning: #d19a66;
+  --alert-caution: #e06c75;
 }
 
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+/* ------------------------------ Dracula (claro) ------------------------------ */
+
+:root[data-palette='dracula'][data-theme='light'] {
+  color-scheme: light;
+
+  --background: #f7f7f7;
+  --foreground: #1f1f1f;
+  --card: #efefef;
+  --card-foreground: #1f1f1f;
+  --popover: #ffffff;
+  --popover-foreground: #1f1f1f;
+  --primary: #644ac9;
+  --primary-foreground: #ffffff;
+  --primary-subtle: #e6ddfb;
+  --secondary: #efefef;
+  --secondary-foreground: #1f1f1f;
+  --muted: #efefef;
+  --muted-foreground: #58585a;
+  --subtle-foreground: #6c664b;
+  --accent: #1f1f1f12;
+  --accent-foreground: #1f1f1f;
+  --destructive: #cb3a2a;
+  --destructive-foreground: #ffffff;
+  --success: #14710a;
+  --warning: #a34d14;
+  --border: #dcdcdc;
+  --border-muted: #e6e6e6;
+  --input: #dcdcdc;
+  --ring: #644ac9;
+  --selection: #dcc9f5;
+  --scrollbar: #cfcfcf;
+  --shadow-sm: 0 1px 0 rgba(31, 31, 31, 0.04);
+  --shadow-md: 0 8px 24px rgba(31, 31, 31, 0.14);
+
+  --bg: var(--background);
+  --bg-subtle: var(--card);
+  --bg-inset: var(--muted);
+  --bg-hover: var(--accent);
+  --bg-active: #1f1f1f1f;
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: var(--subtle-foreground);
+  --accent-hover: #5137ad;
+  --accent-fg: var(--primary-foreground);
+  --danger: var(--destructive);
+  --danger-subtle: #fbe3e0;
+  --code-bg: var(--muted);
+  --code-fg: var(--foreground);
+  --row-alt: var(--muted);
+
+  --hl-keyword: #644ac9;
+  --hl-entity: #036a96;
+  --hl-constant: #a34d14;
+  --hl-string: #14710a;
+  --hl-variable: #cb3a2a;
+  --hl-comment: #6c664b;
+  --hl-tag: #cb3a2a;
+  --hl-subst: #1f1f1f;
+  --hl-section: #036a96;
+  --hl-bullet: #a34d14;
+  --hl-add-fg: #14710a;
+  --hl-add-bg: #e3f6e0;
+  --hl-del-fg: #cb3a2a;
+  --hl-del-bg: #fbe3e0;
+
+  --alert-note: #036a96;
+  --alert-tip: #14710a;
+  --alert-important: #644ac9;
+  --alert-warning: #a34d14;
+  --alert-caution: #cb3a2a;
 }
 
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ------------------------------ Dracula (oscuro) ----------------------------- */
 
-*::-webkit-scrollbar-thumb {
-  background: var(--scrollbar);
-  border: 3px solid transparent;
-  border-radius: 8px;
-  background-clip: content-box;
-}
+:root[data-palette='dracula'][data-theme='dark'] {
+  color-scheme: dark;
 
-*::-webkit-scrollbar-thumb:hover {
-  background: var(--fg-subtle);
-  background-clip: content-box;
+  --background: #282a36;
+  --foreground: #f8f8f2;
+  --card: #21222c;
+  --card-foreground: #f8f8f2;
+  --popover: #21222c;
+  --popover-foreground: #f8f8f2;
+  --primary: #bd93f9;
+  --primary-foreground: #21222c;
+  --primary-subtle: #bd93f92e;
+  --secondary: #343746;
+  --secondary-foreground: #f8f8f2;
+  --muted: #21222c;
+  --muted-foreground: #8b93b8;
+  --subtle-foreground: #6272a4;
+  --accent: #f8f8f21f;
+  --accent-foreground: #f8f8f2;
+  --destructive: #ff5555;
+  --destructive-foreground: #21222c;
+  --success: #50fa7b;
+  --warning: #f1fa8c;
+  --border: #44475a;
+  --border-muted: #343746;
+  --input: #44475a;
+  --ring: #bd93f9;
+  --selection: #44475a;
+  --scrollbar: #44475a;
+  --shadow-sm: 0 0 transparent;
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+
+  --bg: var(--background);
+  --bg-subtle: var(--card);
+  --bg-inset: var(--muted);
+  --bg-hover: var(--accent);
+  --bg-active: #f8f8f22e;
+  --fg: var(--foreground);
+  --fg-muted: var(--muted-foreground);
+  --fg-subtle: var(--subtle-foreground);
+  --accent-hover: #cbaaf9;
+  --accent-fg: var(--primary-foreground);
+  --danger: var(--destructive);
+  --danger-subtle: #ff55552e;
+  --code-bg: var(--muted);
+  --code-fg: var(--foreground);
+  --row-alt: var(--muted);
+
+  --hl-keyword: #ff79c6;
+  --hl-entity: #50fa7b;
+  --hl-constant: #bd93f9;
+  --hl-string: #f1fa8c;
+  --hl-variable: #ffb86c;
+  --hl-comment: #6272a4;
+  --hl-tag: #ff79c6;
+  --hl-subst: #f8f8f2;
+  --hl-section: #8be9fd;
+  --hl-bullet: #f1fa8c;
+  --hl-add-fg: #50fa7b;
+  --hl-add-bg: #50fa7b24;
+  --hl-del-fg: #ff5555;
+  --hl-del-bg: #ff555524;
+
+  --alert-note: #8be9fd;
+  --alert-tip: #50fa7b;
+  --alert-important: #bd93f9;
+  --alert-warning: #f1fa8c;
+  --alert-caution: #ff5555;
 }

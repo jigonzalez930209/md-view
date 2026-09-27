@@ -1,4 +1,154 @@
 /* Punto de entrada de estilos (el orden importa: variables primero). */
+@import 'tailwindcss';
+@import 'tw-animate-css';
 @import './theme.css';
-@import './app.css';
 @import './markdown.css';
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    @apply bg-background text-foreground overflow-hidden text-sm antialiased;
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::selection {
+    background: var(--selection);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -1px;
+  }
+
+  /* Scrollbars finas y discretas, en linea con el resto de la interfaz. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar);
+    border: 3px solid transparent;
+    border-radius: 8px;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--fg-subtle);
+    background-clip: content-box;
+  }
+}
+
+/*
+ * Al exportar a PDF se imprime esta misma pagina: dejamos solo la vista
+ * previa, sin interfaz, y con la altura completa para que pagine bien.
+ * (Sin @layer: asi estas reglas le ganan a las utilidades de Tailwind.)
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .app-shell {
+    display: block !important;
+    height: auto !important;
+  }
+
+  .headerbar,
+  .tabbar,
+  .statusbar,
+  .formatbar,
+  .pane-splitter,
+  .tree-splitter,
+  .file-tree,
+  .preview-note,
+  .preview-header,
+  .resize-handle,
+  .dropzone,
+  .code-copy,
+  .md-anchor {
+    display: none !important;
+  }
+
+  .workspace-row {
+    display: block !important;
+  }
+
+  .workspace {
+    display: block !important;
+    background: none !important;
+    gap: 0 !important;
+  }
+
+  .pane-editor {
+    display: none !important;
+  }
+
+  .pane-preview,
+  .preview-scroll {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .markdown-body {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .markdown-body pre,
+  .markdown-body blockquote,
+  .markdown-body table,
+  .markdown-body img,
+  .markdown-body svg,
+  .markdown-body .mermaid-block {
+    break-inside: avoid;
+  }
+
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4 {
+    break-after: avoid;
+  }
+
+  .markdown-body a {
+    color: inherit !important;
+  }
+}
