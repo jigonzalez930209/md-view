@@ -1,0 +1,76 @@
+# Troubleshooting
+
+## Releases
+
+**`The tag (vX) does not match package.json (vY)`**
+The version was edited by hand in one file only. Fix it with `pnpm release X` (it updates the
+three files) or delete the tag (`git tag -d vX && git push origin :refs/tags/vX`) and push a
+correct one.
+
+**`pnpm install --frozen-lockfile` fails**
+`pnpm-lock.yaml` is out of sync with `package.json`. Run `pnpm install` locally and commit the
+lockfile.
+
+**The Linux job fails installing dependencies**
+Check that the package exists on the runner's Ubuntu version. Real example: on 26.04
+`libayatana-appindicator3-dev` no longer exists, and md-view doesn't need it (no tray icon).
+
+**macOS takes very long or fails building the universal binary**
+That job compiles twice (Intel + Apple Silicon). Make sure `dtolnay/rust-toolchain` installs
+both targets — it is already in the workflow; a network hiccup downloading them is the usual
+cause, so re-run the job.
+
+**Windows fails with WiX/NSIS**
+Tauri downloads those tools at build time. Re-run the job; if it persists, pin
+`@tauri-apps/cli` to a known version.
+
+**The release exists but assets are missing**
+Each platform job uploads independently. Open the failed job under **Actions** and use
+**Re-run failed jobs**; the assets will be added to the same draft.
+
+**I want to version without publishing**
+Use `gh workflow run release.yml -f tag=vX` and leave the draft unpublished (or delete it with
+`gh release delete vX`).
+
+## Documentation
+
+**The site loads without styles or with broken links**
+Check `base` in `docs/.vitepress/config.ts`: it must match the repository name for GitHub Pages
+project sites (`/md-view/`).
+
+**`pnpm docs:build` fails on a dead link**
+VitePress validates internal links. The error names the file and the missing target; fix the
+link or create the page.
+
+## Application
+
+**A change doesn't show up while developing**
+Reload the window (`Ctrl + R`). Vite occasionally serves a stale transformed module after big
+refactors; restarting `pnpm app` fixes it for good.
+
+**The window is stuck / a huge document freezes the UI**
+It shouldn't: documents over 500 KB render in a worker and the editor goes plain over 1.2 MB.
+If you reproduce a freeze, please include the file size and the content shape (many lines or
+one huge line) in the issue.
+
+**Images from a document don't show**
+Relative paths are resolved against the document folder. If neither interpretation exists on
+disk, md-view keeps the original path, which is what makes app-served paths like
+`/demo-animated.svg` work. A path with `file://` or an unsupported scheme is left to the webview
+and may be blocked by the CSP.
+
+**The PDF is empty or the print dialog opens instead**
+The direct PDF path uses WebKitGTK and only works on Linux. On macOS and Windows md-view opens
+the system print dialog, where you choose *Save as PDF*.
+
+**Spanish accents or emoji look wrong in the exported SVG**
+The SVG embeds the KaTeX fonts; system fonts (emoji) depend on the viewer. Open it in a browser
+or in Inkscape with the fonts installed.
+
+**Where are the recent files stored?**
+In the app configuration folder (`recents.json`); in the browser, in `localStorage`. The
+preferences live in `localStorage` under `md-view:prefs`.
+
+**Does md-view phone home?**
+No. There is no telemetry, no account and no network request except the links you explicitly
+open.
