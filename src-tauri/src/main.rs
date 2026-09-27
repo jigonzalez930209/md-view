@@ -1,4 +1,4 @@
-// En release no queremos una consola extra detras de la ventana en Windows.
+// In release we do not want an extra console behind the window on Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {

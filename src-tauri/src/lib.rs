@@ -1,8 +1,8 @@
-//! Backend de md-view.
+//! md-view backend.
 //!
-//! El frontend (React) se encarga del render; aca solo vive lo que necesita
-//! acceso al sistema: leer y escribir archivos, recordar los recientes,
-//! abrir enlaces con el navegador y recibir archivos desde la linea de comandos.
+//! The frontend (React) handles rendering; only what needs access to the
+//! system lives here: reading and writing files, remembering recents,
+//! opening links with the browser and receiving files from the command line.
 
 use std::fs;
 use std::io::Read;
@@ -14,13 +14,13 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
-/// Cuantos archivos recordamos en la lista de recientes.
+/// How many files we remember in the recent list.
 const RECENT_LIMIT: usize = 12;
-/// Limites del arbol de carpetas, para no congelar la app con repos enormes.
+/// Folder tree limits, so the app does not freeze on huge repos.
 const TREE_MAX_ENTRIES: usize = 20_000;
 const TREE_MAX_DEPTH: u32 = 16;
 
-/// Carpetas que no aportan y suelen ser gigantes.
+/// Folders that add nothing and are usually huge.
 const TREE_IGNORED_DIRS: &[&str] = &[
     ".git",
     ".hg",
@@ -38,7 +38,7 @@ const TREE_IGNORED_DIRS: &[&str] = &[
     ".idea",
 ];
 
-/// Extensiones que consideramos texto sin mirar el contenido.
+/// Extensions we consider text without reading the content.
 const TEXT_EXTENSIONS: &[&str] = &[
     "md",
     "markdown",
@@ -170,7 +170,7 @@ const TEXT_EXTENSIONS: &[&str] = &[
     "pot",
 ];
 
-/// Extensiones claramente binarias (no hace falta leerlas).
+/// Clearly binary extensions (no need to read them).
 const BINARY_EXTENSIONS: &[&str] = &[
     "png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "ico", "icns", "tif", "tiff", "psd", "xcf",
     "pdf", "zip", "gz", "tgz", "bz2", "xz", "7z", "rar", "tar", "zst", "lz4", "mp3", "m4a", "ogg",
@@ -181,7 +181,7 @@ const BINARY_EXTENSIONS: &[&str] = &[
     "heif", "raw", "cr2", "nef", "arw",
 ];
 
-/// Nombres sin extension que igual son texto.
+/// Names without an extension that are still text.
 const TEXT_FILE_NAMES: &[&str] = &[
     "dockerfile",
     "makefile",
@@ -205,9 +205,9 @@ const TEXT_FILE_NAMES: &[&str] = &[
 struct TreeEntry {
     name: String,
     path: String,
-    /// "dir" o "file".
+    /// "dir" or "file".
     kind: &'static str,
-    /// Solo tiene sentido para archivos: se puede abrir con el editor.
+    /// Only meaningful for files: it can be opened with the editor.
     is_text: bool,
     size: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -218,7 +218,7 @@ struct TreeEntry {
 #[serde(rename_all = "camelCase")]
 struct FolderTree {
     root: TreeEntry,
-    /// true si se corto por cantidad de archivos o profundidad.
+    /// true if it was cut short by file count or depth.
     truncated: bool,
 }
 
@@ -228,8 +228,8 @@ fn extension_of(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// Decide si un archivo se puede leer como texto, mirando la extension y, si
-/// no alcanza, los primeros bytes (sin NUL y UTF-8 valido).
+/// Decides whether a file can be read as text, looking at the extension and, if
+/// that is not enough, the first bytes (no NUL and valid UTF-8).
 fn looks_like_text(path: &Path, size: u64) -> bool {
     let extension = extension_of(path);
     if !extension.is_empty() {
@@ -256,7 +256,7 @@ fn looks_like_text(path: &Path, size: u64) -> bool {
         return true;
     }
     if size > 5 * 1024 * 1024 {
-        return false; // demasiado grande para el editor
+        return false; // too large for the editor
     }
 
     let Ok(file) = fs::File::open(path) else {
@@ -289,7 +289,7 @@ fn read_tree_dir(path: &Path, depth: u32, budget: &mut usize) -> (Vec<TreeEntry>
         let Ok(metadata) = item.metadata() else {
             continue;
         };
-        // Los enlaces simbolicos se ignoran para no entrar en ciclos.
+        // Symbolic links are ignored to avoid cycles.
         if item
             .file_type()
             .map(|kind| kind.is_symlink())
@@ -370,36 +370,36 @@ fn build_folder_tree(path: String) -> Result<FolderTree, String> {
     })
 }
 
-/// Recorre una carpeta y devuelve el arbol completo (asincronico: no bloquea la UI).
+/// Walks a folder and returns the full tree (async: does not block the UI).
 #[tauri::command]
 async fn read_tree(path: String) -> Result<FolderTree, String> {
     build_folder_tree(path)
 }
 
-/// Archivos pedidos por linea de comandos que el frontend todavia no consumio.
+/// Files requested from the command line that the frontend has not consumed yet.
 #[derive(Default)]
 struct PendingOpen(Mutex<Vec<String>>);
 
 #[derive(Debug, Serialize)]
 struct Document {
-    /// Ruta absoluta del archivo.
+    /// Absolute path of the file.
     path: String,
-    /// Nombre del archivo, sin carpetas.
+    /// File name, without folders.
     name: String,
-    /// Contenido normalizado a LF (el editor trabaja siempre con LF).
+    /// Content normalized to LF (the editor always works with LF).
     content: String,
-    /// Fin de linea original: "\n" o "\r\n".
+    /// Original end of line: "\n" or "\r\n".
     eol: String,
-    /// Si el archivo empezaba con BOM UTF-8.
+    /// Whether the file started with a UTF-8 BOM.
     bom: bool,
 }
 
 /* ------------------------------------------------------------------ */
-/* Lectura y escritura                                                 */
+/* Reading and writing                                                 */
 /* ------------------------------------------------------------------ */
 
-// Los comandos de archivos grandes son asincronicos: leer, serializar y
-// devolver varios megabytes por IPC no debe congelar la interfaz.
+// Large-file commands are async: reading, serializing and sending back
+// several megabytes over IPC must not freeze the interface.
 #[tauri::command]
 async fn read_document(path: String) -> Result<Document, String> {
     read_document_impl(path)
@@ -420,7 +420,7 @@ async fn read_file_base64(path: String) -> Result<String, String> {
     read_file_base64_impl(path)
 }
 
-/// Lectura de disco (bloqueante); el comando la corre fuera del hilo principal.
+/// Disk read (blocking); the command runs it off the main thread.
 fn read_document_impl(path: String) -> Result<Document, String> {
     let file = PathBuf::from(&path);
     if !file.is_file() {
@@ -468,7 +468,7 @@ fn write_document_impl(
     write_atomically(&target, &bytes)
 }
 
-/// Escribe en un temporal y renombra: si algo falla, el archivo original queda intacto.
+/// Writes to a temp file and renames: if anything fails, the original file stays intact.
 fn write_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
     let dir = match target.parent() {
         Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
@@ -483,12 +483,12 @@ fn write_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
     let name = target
         .file_name()
         .map(|value| value.to_string_lossy().into_owned())
-        .unwrap_or_else(|| String::from("documento.md"));
+        .unwrap_or_else(|| String::from("document.md"));
     let temp = dir.join(format!(".{name}.md-view.tmp"));
 
     fs::write(&temp, bytes).map_err(|err| format!("Could not write {}: {err}", temp.display()))?;
 
-    // Conservamos permisos del archivo original cuando ya existia.
+    // We keep the original file's permissions when it already existed.
     if let Ok(metadata) = fs::metadata(target) {
         let _ = fs::set_permissions(&temp, metadata.permissions());
     }
@@ -500,16 +500,16 @@ fn write_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Exportacion                                                         */
+/* Export                                                              */
 /* ------------------------------------------------------------------ */
 
-/// Escribe un archivo de texto cualquiera (HTML, SVG, TXT...).
+/// Writes any text file (HTML, SVG, TXT...).
 #[tauri::command]
 fn write_text_file(path: String, content: String) -> Result<(), String> {
     write_atomically(Path::new(&path), content.as_bytes())
 }
 
-/// Escribe un archivo binario que llega como base64 (PNG, JPG, WebP...).
+/// Writes a binary file that arrives as base64 (PNG, JPG, WebP...).
 #[tauri::command]
 fn write_base64_file(path: String, data: String) -> Result<(), String> {
     let bytes = BASE64
@@ -518,16 +518,16 @@ fn write_base64_file(path: String, data: String) -> Result<(), String> {
     write_atomically(Path::new(&path), &bytes)
 }
 
-/// Lee un archivo y lo devuelve en base64 (para incrustar imagenes al exportar).
+/// Reads a file and returns it as base64 (to embed images when exporting).
 fn read_file_base64_impl(path: String) -> Result<String, String> {
     let bytes = fs::read(&path).map_err(|err| format!("Could not read {path}: {err}"))?;
     Ok(BASE64.encode(bytes))
 }
 
-/// Exporta la pagina actual a PDF con el motor de impresion de WebKitGTK.
+/// Exports the current page to PDF with the WebKitGTK printing engine.
 ///
-/// Usa el backend "Print to File" de GTK y espera a que la operacion termine
-/// para avisar al frontend. En otros sistemas se usa el dialogo de impresion.
+/// Uses GTK's "Print to File" backend and waits for the operation to finish
+/// to notify the frontend. On other systems, the print dialog is used.
 #[cfg(target_os = "linux")]
 #[tauri::command]
 async fn export_pdf(window: tauri::WebviewWindow, path: String) -> Result<(), String> {
@@ -573,7 +573,7 @@ async fn export_pdf(_window: tauri::WebviewWindow, _path: String) -> Result<(), 
     ))
 }
 
-/// Detecta BOM UTF-8 / UTF-16 y devuelve el texto como UTF-8.
+/// Detects UTF-8 / UTF-16 BOMs and returns the text as UTF-8.
 fn decode(bytes: &[u8]) -> (String, bool) {
     if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
         return (String::from_utf8_lossy(&bytes[3..]).into_owned(), true);
@@ -602,10 +602,10 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> String {
 }
 
 /* ------------------------------------------------------------------ */
-/* Utilidades del sistema                                              */
+/* System utilities                                                    */
 /* ------------------------------------------------------------------ */
 
-/// Tamaño en bytes de un archivo (0 si no existe), para avisar antes de abrir.
+/// Size in bytes of a file (0 if it does not exist), to warn before opening.
 #[tauri::command]
 fn document_size(path: String) -> u64 {
     fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0)
@@ -631,7 +631,7 @@ fn open_path(app: AppHandle, path: String) -> Result<(), String> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Archivos recientes                                                  */
+/* Recent files                                                        */
 /* ------------------------------------------------------------------ */
 
 fn recents_file(app: &AppHandle) -> Option<PathBuf> {
@@ -681,7 +681,7 @@ fn clear_recents(app: AppHandle) -> Vec<String> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Arranque                                                            */
+/* Startup                                                             */
 /* ------------------------------------------------------------------ */
 
 #[tauri::command]
@@ -692,17 +692,17 @@ fn take_pending_open(state: tauri::State<'_, PendingOpen>) -> Vec<String> {
     }
 }
 
-/// Toma los argumentos de la linea de comandos y se queda con los archivos reales.
+/// Takes the command-line arguments and keeps the actual files.
 fn files_from_args<I: IntoIterator<Item = String>>(args: I) -> Vec<String> {
     args.into_iter()
-        .skip(1) // el primero es la ruta del ejecutable
+        .skip(1) // the first one is the executable path
         .filter(|arg| !arg.starts_with('-'))
         .map(|arg| percent_decode(arg.strip_prefix("file://").unwrap_or(&arg)))
         .filter(|path| !path.is_empty() && Path::new(path).is_file())
         .collect()
 }
 
-/// Decodifica %20, %C3%B1, etc. (util cuando el SO pasa una URL file://).
+/// Decodes %20, %C3%B1, etc. (useful when the OS passes a file:// URL).
 fn percent_decode(value: &str) -> String {
     let bytes = value.as_bytes();
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
@@ -730,7 +730,7 @@ pub fn run() {
     let pending = PendingOpen(Mutex::new(files_from_args(std::env::args())));
 
     tauri::Builder::default()
-        // Debe registrarse primero: si la app ya esta abierta, le pasa el archivo.
+        // Must be registered first: if the app is already open, it hands it the file.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             let files = files_from_args(argv);
             if files.is_empty() {
@@ -750,9 +750,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(pending)
         .setup(|app| {
-            // El "smooth scrolling" de WebKitGTK agrega un impulso que sigue
-            // frenandose despues de la rueda: lo dejamos apagado (default) para
-            // que el scroll responda seco, como en el navegador.
+            // WebKitGTK's "smooth scrolling" adds momentum that keeps coasting
+            // after the wheel stops: we leave it off (default) so scrolling
+            // responds crisply, like in the browser.
             #[cfg(target_os = "linux")]
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.with_webview(|webview| {
@@ -783,7 +783,7 @@ pub fn run() {
             clear_recents
         ])
         .run(tauri::generate_context!())
-        .expect("error al iniciar md-view");
+        .expect("failed to start md-view");
 }
 
 #[cfg(test)]
@@ -792,43 +792,43 @@ mod tests {
 
     fn temp_dir() -> PathBuf {
         let dir = std::env::temp_dir().join(format!("md-view-test-{}", std::process::id()));
-        fs::create_dir_all(&dir).expect("carpeta temporal");
+        fs::create_dir_all(&dir).expect("temp folder");
         dir
     }
 
     #[test]
     fn percent_decode_resolves_escapes_and_keeps_invalid() {
-        assert_eq!(percent_decode("hola%20mundo.md"), "hola mundo.md");
-        assert_eq!(percent_decode("%C3%B1andu.md"), "ñandu.md");
+        assert_eq!(percent_decode("hello%20world.md"), "hello world.md");
+        assert_eq!(percent_decode("na%C3%AFve.md"), "naïve.md");
         assert_eq!(percent_decode("100%.md"), "100%.md");
         assert_eq!(percent_decode("%ZZ.md"), "%ZZ.md");
     }
 
     #[test]
     fn decode_detects_bom_and_utf16() {
-        let (texto, bom) = decode(&[0xEF, 0xBB, 0xBF, b'h', b'o', b'l', b'a']);
-        assert_eq!((texto.as_str(), bom), ("hola", true));
+        let (text, bom) = decode(&[0xEF, 0xBB, 0xBF, b'h', b'e', b'l', b'l', b'o']);
+        assert_eq!((text.as_str(), bom), ("hello", true));
 
-        // "ñ" en UTF-16 little endian, con BOM.
-        let utf16 = [0xFF, 0xFE, 0xF1, 0x00];
-        let (texto, bom) = decode(&utf16);
-        assert_eq!((texto.as_str(), bom), ("ñ", false));
+        // "é" in UTF-16 little endian, with BOM.
+        let utf16 = [0xFF, 0xFE, 0xE9, 0x00];
+        let (text, bom) = decode(&utf16);
+        assert_eq!((text.as_str(), bom), ("é", false));
 
-        let (texto, bom) = decode(b"sin bom");
-        assert_eq!((texto.as_str(), bom), ("sin bom", false));
+        let (text, bom) = decode(b"plain");
+        assert_eq!((text.as_str(), bom), ("plain", false));
     }
 
     #[test]
     fn files_from_args_ignores_flags_and_missing_files() {
         let dir = temp_dir();
-        let real = dir.join("documento.md");
-        fs::write(&real, "# hola").expect("escribir archivo");
+        let real = dir.join("document.md");
+        fs::write(&real, "# hello").expect("write file");
 
         let args = vec![
             String::from("/usr/bin/md-view"),
             String::from("--verbose"),
             real.to_string_lossy().into_owned(),
-            dir.join("no-existe.md").to_string_lossy().into_owned(),
+            dir.join("missing.md").to_string_lossy().into_owned(),
         ];
 
         assert_eq!(
@@ -840,87 +840,87 @@ mod tests {
     #[test]
     fn files_from_args_understands_file_urls() {
         let dir = temp_dir();
-        let ruta = dir.join("con espacio.md");
-        fs::write(&ruta, "contenido").expect("escribir archivo");
+        let path = dir.join("with space.md");
+        fs::write(&path, "content").expect("write file");
 
-        let url = format!("file://{}", ruta.to_string_lossy().replace(' ', "%20"));
+        let url = format!("file://{}", path.to_string_lossy().replace(' ', "%20"));
         assert_eq!(
             files_from_args(vec![String::from("md-view"), url]),
-            vec![ruta.to_string_lossy().into_owned()]
+            vec![path.to_string_lossy().into_owned()]
         );
     }
 
     #[test]
     fn write_document_keeps_crlf_bom_and_creates_folders() {
-        let dir = temp_dir().join("anidada").join("sub");
-        let destino = dir.join("salida.md");
-        let ruta = destino.to_string_lossy().into_owned();
+        let dir = temp_dir().join("nested").join("sub");
+        let target = dir.join("output.md");
+        let path = target.to_string_lossy().into_owned();
 
         write_document_impl(
-            ruta.clone(),
-            String::from("uno\ndos\n"),
+            path.clone(),
+            String::from("one\ntwo\n"),
             Some(String::from("\r\n")),
             Some(true),
         )
-        .expect("guardar");
+        .expect("save");
 
-        let bytes = fs::read(&destino).expect("leer");
+        let bytes = fs::read(&target).expect("read");
         assert!(bytes.starts_with(&[0xEF, 0xBB, 0xBF]));
-        assert_eq!(&bytes[3..], b"uno\r\ndos\r\n");
+        assert_eq!(&bytes[3..], b"one\r\ntwo\r\n");
 
-        // Y al reabrirlo se normaliza a LF, conservando el dato original.
-        let documento = read_document_impl(ruta).expect("abrir");
-        assert_eq!(documento.content, "uno\ndos\n");
-        assert_eq!(documento.eol, "\r\n");
-        assert!(documento.bom);
-        assert_eq!(documento.name, "salida.md");
+        // And on reopening it is normalized to LF, keeping the original value.
+        let document = read_document_impl(path).expect("open");
+        assert_eq!(document.content, "one\ntwo\n");
+        assert_eq!(document.eol, "\r\n");
+        assert!(document.bom);
+        assert_eq!(document.name, "output.md");
     }
 
     #[test]
     fn looks_like_text_uses_extension_and_content() {
         let dir = temp_dir();
 
-        // Extension conocida: no hace falta leer.
+        // Known extension: no need to read.
         let md = dir.join("doc.md");
-        fs::write(&md, "# hola").expect("escribir");
+        fs::write(&md, "# hello").expect("write");
         assert!(looks_like_text(&md, 6));
 
-        // Binaria conocida.
-        let png = dir.join("foto.png");
-        fs::write(&png, "contenido").expect("escribir");
+        // Known binary.
+        let png = dir.join("photo.png");
+        fs::write(&png, "content").expect("write");
         assert!(!looks_like_text(&png, 9));
 
-        // Desconocida: se mira el contenido (sin NUL y UTF-8 valido).
-        let rara = dir.join("notas.weird");
-        fs::write(&rara, "hola\nmundo").expect("escribir");
-        assert!(looks_like_text(&rara, 10));
+        // Unknown: the content is inspected (no NUL and valid UTF-8).
+        let odd = dir.join("notes.weird");
+        fs::write(&odd, "hello\nworld").expect("write");
+        assert!(looks_like_text(&odd, 10));
 
-        let binaria = dir.join("datos.weird");
-        fs::write(&binaria, [0x00, 0x01, 0x02]).expect("escribir");
-        assert!(!looks_like_text(&binaria, 3));
+        let binary = dir.join("data.weird");
+        fs::write(&binary, [0x00, 0x01, 0x02]).expect("write");
+        assert!(!looks_like_text(&binary, 3));
 
-        // Sin extension pero con nombre conocido.
+        // No extension, but a known name.
         let makefile = dir.join("Makefile");
-        fs::write(&makefile, "all:").expect("escribir");
+        fs::write(&makefile, "all:").expect("write");
         assert!(looks_like_text(&makefile, 4));
     }
 
     #[test]
     fn read_tree_sorts_and_skips_heavy_folders() {
-        let dir = temp_dir().join("arbol");
+        let dir = temp_dir().join("tree");
         let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(dir.join("node_modules")).expect("carpeta");
-        fs::write(dir.join("node_modules/x.js"), "x").expect("escribir");
-        fs::create_dir_all(dir.join("docs")).expect("carpeta");
-        fs::write(dir.join("docs/guia.md"), "# guia").expect("escribir");
-        fs::write(dir.join("z.txt"), "texto").expect("escribir");
-        fs::write(dir.join("imagen.png"), [0x89, 0x50]).expect("escribir");
+        fs::create_dir_all(dir.join("node_modules")).expect("folder");
+        fs::write(dir.join("node_modules/x.js"), "x").expect("write");
+        fs::create_dir_all(dir.join("docs")).expect("folder");
+        fs::write(dir.join("docs/guide.md"), "# guide").expect("write");
+        fs::write(dir.join("z.txt"), "text").expect("write");
+        fs::write(dir.join("image.png"), [0x89, 0x50]).expect("write");
 
-        let tree = build_folder_tree(dir.to_string_lossy().into_owned()).expect("arbol");
-        let children = tree.root.children.expect("hijos");
+        let tree = build_folder_tree(dir.to_string_lossy().into_owned()).expect("tree");
+        let children = tree.root.children.expect("children");
 
         let names: Vec<&str> = children.iter().map(|entry| entry.name.as_str()).collect();
-        assert_eq!(names, vec!["docs", "imagen.png", "z.txt"]);
+        assert_eq!(names, vec!["docs", "image.png", "z.txt"]);
         assert!(!children.iter().any(|entry| entry.name == "node_modules"));
 
         let docs = children
@@ -933,7 +933,7 @@ mod tests {
 
         let png = children
             .iter()
-            .find(|entry| entry.name == "imagen.png")
+            .find(|entry| entry.name == "image.png")
             .expect("png");
         assert!(!png.is_text);
     }
@@ -942,15 +942,15 @@ mod tests {
     fn tree_serializes_in_camel_case() {
         let dir = temp_dir().join("camel");
         let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).expect("carpeta");
-        fs::write(dir.join("nota.md"), "# nota").expect("escribir");
+        fs::create_dir_all(&dir).expect("folder");
+        fs::write(dir.join("note.md"), "# note").expect("write");
 
-        let tree = build_folder_tree(dir.to_string_lossy().into_owned()).expect("arbol");
+        let tree = build_folder_tree(dir.to_string_lossy().into_owned()).expect("tree");
         let json = serde_json::to_value(&tree).expect("json");
-        let children = json["root"]["children"].as_array().expect("hijos");
+        let children = json["root"]["children"].as_array().expect("children");
 
-        // El frontend lee `isText`; con `is_text` todos los archivos quedaban
-        // deshabilitados en el explorador.
+        // The frontend reads `isText`; with `is_text` all files were left
+        // disabled in the explorer.
         assert!(children[0].get("isText").is_some());
         assert!(children[0].get("is_text").is_none());
         assert_eq!(children[0]["isText"], serde_json::json!(true));
@@ -960,22 +960,22 @@ mod tests {
 
     #[test]
     fn read_document_fails_with_missing_path() {
-        assert!(read_document_impl(String::from("/no/existe/archivo.md")).is_err());
+        assert!(read_document_impl(String::from("/no/such/file.md")).is_err());
     }
 
     #[test]
     fn write_atomically_leaves_no_temp_files() {
-        let dir = temp_dir().join("atomico");
-        let destino = dir.join("doc.md");
-        write_atomically(&destino, b"hola").expect("escribir");
-        write_atomically(&destino, b"chau").expect("reescribir");
+        let dir = temp_dir().join("atomic");
+        let target = dir.join("doc.md");
+        write_atomically(&target, b"hello").expect("write");
+        write_atomically(&target, b"bye").expect("rewrite");
 
-        assert_eq!(fs::read(&destino).expect("leer"), b"chau");
-        let sobrantes: Vec<_> = fs::read_dir(&dir)
-            .expect("listar")
+        assert_eq!(fs::read(&target).expect("read"), b"bye");
+        let leftovers: Vec<_> = fs::read_dir(&dir)
+            .expect("list")
             .filter_map(Result::ok)
-            .filter(|entrada| entrada.file_name().to_string_lossy().contains(".tmp"))
+            .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp"))
             .collect();
-        assert!(sobrantes.is_empty(), "quedaron temporales: {sobrantes:?}");
+        assert!(leftovers.is_empty(), "leftover temp files: {leftovers:?}");
     }
 }
