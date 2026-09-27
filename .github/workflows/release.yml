@@ -1,0 +1,136 @@
+name: Release
+
+# Se dispara al empujar un tag v* (lo hace scripts/release.sh) o a mano.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag a publicar (ej. v0.2.0). Debe coincidir con la version de package.json'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  create-release:
+    name: Crear release (borrador)
+    runs-on: ubuntu-26.04
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Resolver y validar el tag
+        id: version
+        shell: bash
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          pkg="v$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "El tag ($tag) no coincide con package.json ($pkg)." >&2
+            echo "Actualiza las versiones con: pnpm release ${tag#v}" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Crear el borrador de release
+        id: create-release
+        uses: actions/github-script@v9
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        with:
+          script: |
+            const tag = process.env.TAG;
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `md-view ${tag}`,
+              body: [
+                'Installers built automatically / Instaladores generados automaticamente:',
+                '',
+                '- **Linux**: `.deb`, `.rpm` y AppImage',
+                '- **macOS**: `.dmg` universal (Intel + Apple Silicon)',
+                '- **Windows**: `.msi` y `.exe` (NSIS)',
+                '',
+                'md-view is a Markdown viewer/editor with tabs, GitHub-style preview, a formatting',
+                'bar, a folder explorer and export to PDF/HTML/images.',
+                '',
+                'md-view es un visor y editor de Markdown con pestanas, vista previa estilo GitHub,',
+                'barra de formato, explorador de carpetas y exportacion a PDF/HTML/imagenes.',
+              ].join('\n'),
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
+  publish:
+    name: Compilar (${{ matrix.platform }})
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-26.04
+            args: ''
+          - platform: macos-latest
+            args: '--target universal-apple-darwin'
+          - platform: windows-latest
+            args: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Sin appindicator: la app no usa bandeja del sistema y el paquete no
+      # existe en Ubuntu 26.04.
+      - name: Dependencias de Linux
+        if: matrix.platform == 'ubuntu-26.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            patchelf
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          # En macOS compilamos un binario universal (Intel + Apple Silicon).
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Dependencias del frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Compilar y subir los instaladores
+        uses: tauri-apps/tauri-action@action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: ${{ matrix.args }}
