@@ -1,17 +1,17 @@
 /**
- * Pipeline de Markdown -> HTML (lado interfaz).
+ * Markdown -> HTML pipeline (UI side).
  *
- * El render en si vive en `markdown-core.ts` (sin DOM) y se puede despachar a
- * un worker cuando el documento es grande. Aca queda lo que necesita el DOM:
- * la sanitizacion con DOMPurify y la cache de HTML ya renderizado.
+ * The render itself lives in `markdown-core.ts` (DOM-free) and can be
+ * dispatched to a worker when the document is large. Here remains what needs
+ * the DOM: DOMPurify sanitization and the cache of already-rendered HTML.
  *
- * DOMPurify es, medido, la parte mas cara del pipeline (~45%): parsea todo el
- * HTML en un DOM y lo recorre. Por eso:
+ * Measured, DOMPurify is the most expensive part of the pipeline (~45%): it
+ * parses all the HTML into a DOM and walks it. That is why:
  *
- * - si el Markdown no trae HTML crudo (`hasRawHtml`), se saltea: markdown-it ya
- *   escapa el texto y valida los enlaces por su cuenta;
- * - en documentos grandes, el nucleo se renderiza en un worker y la interfaz
- *   solo sanitiza (si hace falta) e inserta.
+ * - if the Markdown carries no raw HTML (`hasRawHtml`), it is skipped:
+ *   markdown-it already escapes the text and validates links on its own;
+ * - for large documents, the core is rendered in a worker and the UI only
+ *   sanitizes (if needed) and inserts.
  */
 
 import DOMPurify from 'dompurify';
@@ -25,29 +25,29 @@ import { renderCoreInWorker } from './text-tasks';
 
 const PURIFY_CONFIG: PurifyConfig = {
   USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
-  // <style> y compañia quedan fuera: KaTeX usa atributos style inline, que si permitimos.
+  // <style> and friends stay out: KaTeX uses inline style attributes, which we do allow.
   FORBID_TAGS: ['style', 'script', 'iframe', 'form', 'object', 'embed', 'link', 'meta', 'base'],
   FORBID_ATTR: ['srcset', 'formaction', 'ping'],
   ADD_ATTR: ['loading', 'decoding', 'align', 'aria-hidden', 'aria-label', 'role', 'target', 'rel'],
   ALLOW_UNKNOWN_PROTOCOLS: false,
 };
 
-/** true si conviene renderizar una version liviana (documento enorme). */
+/** true when a lightweight version should be rendered (huge document). */
 export function isSimplified(source: string): boolean {
   return source.length > SIMPLIFY_LIMIT;
 }
 
-/** true si el preview se limita a las primeras lineas (documento enorme). */
+/** true when the preview is limited to the first lines (huge document). */
 export function previewNeedsWindow(source: string): boolean {
   return source.length > PREVIEW_LIMIT;
 }
 
 /**
- * Cache de HTML ya renderizado.
+ * Cache of already-rendered HTML.
  *
- * Cambiar de pestana no deberia volver a pasar markdown-it + DOMPurify por el
- * mismo texto. La clave es el propio string: V8 guarda su hash, asi que un
- * texto reutilizado se busca en O(1).
+ * Switching tabs should not run markdown-it + DOMPurify over the same text
+ * again. The key is the string itself: V8 stores its hash, so reused text is
+ * looked up in O(1).
  */
 const htmlCache = new Map<string, string>();
 const HTML_CACHE_LIMIT = 3;
@@ -65,12 +65,12 @@ function remember(key: string, html: string): string {
   return html;
 }
 
-/** Sanitiza solo si el fuente puede traer HTML crudo. */
+/** Sanitizes only if the source can carry raw HTML. */
 function finish(source: string, core: string): string {
   return hasRawHtml(source) ? DOMPurify.sanitize(core, PURIFY_CONFIG) : core;
 }
 
-/** Markdown -> HTML sanitizado, en el hilo actual (documentos chicos y export). */
+/** Markdown -> sanitized HTML, on the current thread (small documents and export). */
 export function renderMarkdown(source: string, options: RenderOptions = {}): string {
   const key = cacheKey(source, options);
   const cached = htmlCache.get(key);
@@ -79,9 +79,9 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): str
 }
 
 /**
- * Igual que `renderMarkdown` pero sin bloquear: los documentos grandes se
- * renderizan en el worker (markdown-it + plugins) y aca solo queda la
- * sanitizacion, que necesita el DOM.
+ * Same as `renderMarkdown` but non-blocking: large documents are rendered in
+ * the worker (markdown-it + plugins) and here only sanitization remains, which
+ * needs the DOM.
  */
 export async function renderMarkdownAsync(
   source: string,
@@ -100,7 +100,7 @@ export async function renderMarkdownAsync(
   return remember(key, finish(source, core));
 }
 
-/** true si el documento tiene algun fence de Mermaid (para precargar la libreria). */
+/** true if the document has any Mermaid fence (to preload the library). */
 export function hasDiagrams(source: string): boolean {
   return /^[ \t]*(`{3,}|~{3,})[ \t]*mermaid\b/m.test(source);
 }

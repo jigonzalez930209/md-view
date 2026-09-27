@@ -1,8 +1,8 @@
 /**
- * Enlace de i18n con React: provee el idioma activo a los componentes.
+ * i18n binding for React: provides the active language to components.
  *
- * Al cambiar el idioma cambia el valor del contexto, asi que incluso los
- * componentes memoizados se vuelven a renderizar con los textos nuevos.
+ * Changing the language changes the context value, so even memoized
+ * components re-render with the new texts.
  */
 
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
@@ -18,7 +18,7 @@ import {
 export interface I18n {
   language: Language;
   t: (key: TranslationKey, params?: TranslateParams) => string;
-  /** Plural simple: elige `key.one` o `key.other` segun la cantidad. */
+  /** Simple plural: picks `key.one` or `key.other` based on the count. */
   plural: (key: string, count: number, params?: TranslateParams) => string;
 }
 
@@ -41,8 +41,8 @@ export function I18nProvider({
   language: Language;
   children: ReactNode;
 }) {
-  // Los modulos que no son React usan `t()`; dejamos el idioma listo antes de
-  // que corran los efectos de los hijos (y tambien al cambiar).
+  // Non-React modules use `t()`; we set the language before the children's
+  // effects run (and also when it changes).
   setActiveLanguage(language);
   if (typeof document !== 'undefined') document.documentElement.lang = language;
   useEffect(() => {

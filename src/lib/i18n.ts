@@ -1,13 +1,13 @@
 /**
- * Traducciones de la interfaz.
+ * UI translations.
  *
- * Todo el texto visible sale de aca: `en` es el idioma por defecto y `es` el
- * que ya usaba la app. Para agregar otro idioma alcanza con sumar un
- * diccionario con las mismas claves en `dictionaries`.
+ * All visible text comes from here: `en` is the default language and `es` is
+ * the one the app already used. Adding another language only takes a
+ * dictionary with the same keys in `dictionaries`.
  *
- * Los componentes React usan `useI18n()` (el cambio de idioma los re-renderiza,
- * incluso a los memoizados) y los modulos que no son React usan `t()`, que
- * toma el idioma activo fijado con `setActiveLanguage`.
+ * React components use `useI18n()` (changing the language re-renders them,
+ * even the memoized ones) and non-React modules use `t()`, which takes
+ * the active language set with `setActiveLanguage`.
  */
 
 export type Language = 'en' | 'es';
@@ -20,7 +20,7 @@ export const LANGUAGES: Array<{ id: Language; label: string; native: string }> =
 export const DEFAULT_LANGUAGE: Language = 'en';
 
 const en = {
-  // Comunes
+  // Common
   'common.cancel': 'Cancel',
   'common.discard': 'Discard',
   'common.close': 'Close',
@@ -28,7 +28,7 @@ const en = {
   'common.done': 'Done',
   'common.clearList': 'Clear list',
 
-  // Barra superior
+  // Top bar
   'header.tagline': 'Markdown viewer and editor',
   'header.open': 'Open',
   'header.openFile': 'Open file…',
@@ -69,17 +69,17 @@ const en = {
   'header.infoDirty': 'unsaved changes',
   'header.infoNew': 'not saved yet',
 
-  // Ventana
+  // Window
   'window.minimize': 'Minimize',
   'window.restore': 'Restore',
   'window.maximize': 'Maximize',
   'window.close': 'Close',
 
-  // Pestañas
+  // Tabs
   'tabs.list': 'Open documents',
   'tabs.closeTab': 'Close {name}',
 
-  // Barra de formato
+  // Formatting toolbar
   'format.toolbar': 'Markdown formatting',
   'format.heading': 'Heading (H1 → H2 → H3)',
   'format.bold': 'Bold ({mod}+B)',
@@ -95,8 +95,12 @@ const en = {
   'format.rule': 'Horizontal rule',
   'format.undo': 'Undo ({mod}+Z)',
   'format.redo': 'Redo ({mod}+Shift+Z)',
+  'format.placeholderText': 'text',
+  'format.placeholderImage': 'image',
+  'format.placeholderUrl': 'url-or-path',
+  'format.tableHeader': 'Column {n}',
 
-  // Barra de estado
+  // Status bar
   'status.noDocument': 'No document',
   'status.saved': 'Saved',
   'status.dirty': 'Unsaved',
@@ -107,7 +111,7 @@ const en = {
   'status.chars.one': '{count} character',
   'status.chars.other': '{count} characters',
 
-  // Bienvenida
+  // Welcome
   'welcome.subtitle':
     'Markdown with tables, LaTeX formulas, Mermaid diagrams, animated SVGs and images, with a GitHub-style preview.',
   'welcome.open': 'Open file',
@@ -119,7 +123,7 @@ const en = {
   'welcome.hintSave': 'save',
   'welcome.hintView': 'switch view',
 
-  // Explorador
+  // Explorer
   'tree.label': 'File explorer',
   'tree.reload': 'Reload folder',
   'tree.close': 'Close explorer',
@@ -128,7 +132,7 @@ const en = {
   'tree.count.one': '{count} file in the tree',
   'tree.count.other': '{count} files in the tree',
 
-  // Vista previa
+  // Preview
   'preview.label': 'Preview',
   'preview.code': 'Code',
   'preview.viewMarkdown': 'View as Markdown',
@@ -136,7 +140,7 @@ const en = {
   'preview.windowed': 'Large document ({mb} MB): showing the first {lines} lines.',
   'preview.simplified': 'Large document: preview without syntax highlighting or diagrams.',
 
-  // Configuraciones
+  // Settings
   'settings.title': 'Settings',
   'settings.description': 'Saved automatically. The quick menu shortcuts keep working the same.',
   'settings.appearance': 'Appearance',
@@ -165,7 +169,7 @@ const en = {
   'settings.resetConfirm': 'All preferences will be reset.',
   'settings.codeLabel': 'Code',
 
-  // Mensajes de la app
+  // App messages
   'app.previewNotReady': 'The preview is not ready yet',
   'app.openingLarge': 'Opening {mb} MB… (large document, this may take a few seconds)',
   'app.saved': 'Saved',
@@ -182,8 +186,9 @@ const en = {
   'app.browserFolderOnly': 'In the browser you can only open the folder picked in this session.',
   'app.editorPlainNote':
     'Large document: the editor is in plain-text mode, without syntax highlighting.',
+  'app.dropToOpen': 'Drop the file to open it',
 
-  // Exportacion
+  // Export
   'export.pdf.label': 'PDF (paged)',
   'export.pdf.hint': 'Vector, with page breaks',
   'export.html.label': 'Self-contained HTML',
@@ -210,7 +215,7 @@ const en = {
   'export.canvasError': 'Could not prepare the page canvas',
   'export.imageError': 'Could not generate the page image',
 
-  // Filtros de los dialogos nativos
+  // Native dialog filters
   'filter.markdown': 'Markdown',
   'filter.text': 'Text',
   'filter.all': 'All files',
@@ -222,7 +227,7 @@ const en = {
   'filter.webp': 'WebP',
   'filter.svg': 'SVG',
 
-  // Post-proceso del preview
+  // Preview post-processing
   'enhance.copyCode': 'Copy code',
   'enhance.copied': 'Copied',
   'enhance.copyError': 'Could not copy to the clipboard.',
@@ -312,6 +317,10 @@ const es: Record<TranslationKey, string> = {
   'format.rule': 'Línea horizontal',
   'format.undo': 'Deshacer ({mod}+Z)',
   'format.redo': 'Rehacer ({mod}+Shift+Z)',
+  'format.placeholderText': 'texto',
+  'format.placeholderImage': 'imagen',
+  'format.placeholderUrl': 'ruta-o-url',
+  'format.tableHeader': 'Columna {n}',
 
   'status.noDocument': 'Sin documento',
   'status.saved': 'Guardado',
@@ -397,6 +406,7 @@ const es: Record<TranslationKey, string> = {
     'En el navegador solo se puede abrir la carpeta elegida en esta sesión.',
   'app.editorPlainNote':
     'Documento grande: el editor va en texto plano, sin resaltado de sintaxis.',
+  'app.dropToOpen': 'Soltá el archivo para abrirlo',
 
   'export.pdf.label': 'PDF (paginado)',
   'export.pdf.hint': 'Vectorial, con saltos de página',
@@ -469,7 +479,7 @@ export function translate(
 }
 
 /* ------------------------------------------------------------------ */
-/* Idioma activo (para modulos que no son React)                       */
+/* Active language (for non-React modules)                             */
 /* ------------------------------------------------------------------ */
 
 let activeLanguage: Language = DEFAULT_LANGUAGE;
@@ -482,12 +492,12 @@ export function getActiveLanguage(): Language {
   return activeLanguage;
 }
 
-/** Traduce con el idioma activo. Los componentes deberian usar useI18n(). */
+/** Translates with the active language. Components should use useI18n(). */
 export function t(key: TranslationKey, params?: TranslateParams): string {
   return translate(activeLanguage, key, params);
 }
 
-/** Plural simple: elige `key.one` o `key.other` segun la cantidad. */
+/** Simple plural: picks `key.one` or `key.other` based on the count. */
 export function plural(
   key: string,
   count: number,

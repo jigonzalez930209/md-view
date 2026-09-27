@@ -1,20 +1,22 @@
 /**
- * Comandos de formato Markdown para CodeMirror 6.
+ * Markdown formatting commands for CodeMirror 6.
  *
- * Cada funcion trabaja sobre la seleccion principal (varias lineas cuando la
- * hay) y devuelve `true` si pudo aplicar el cambio, como espera `keymap`.
- * La idea es la misma que la barra de formato de GitHub: alternar marcas sin
- * obligar a escribir `**`, `#` o `- [ ]` a mano.
+ * Each function works over the main selection (several lines when present)
+ * and returns `true` if it could apply the change, as `keymap` expects.
+ * The idea is the same as GitHub's formatting toolbar: toggle marks without
+ * forcing you to type `**`, `#` or `- [ ]` by hand.
  */
 
 import { redo, undo } from '@codemirror/commands';
 import { EditorSelection, type ChangeSpec } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
+import { t } from '@/lib/i18n';
+
 interface LineInfo {
-  /** Posicion inicial de la linea. */
+  /** Start position of the line. */
   from: number;
-  /** Posicion final (sin el salto). */
+  /** End position (without the line break). */
   to: number;
   text: string;
 }
@@ -32,17 +34,17 @@ function selectedLines(view: EditorView): LineInfo[] {
   return lines;
 }
 
-/** Longitud de la sangria capturada en el grupo 1 del patron (si existe). */
+/** Length of the indentation captured in group 1 of the pattern (if any). */
 function indentOf(match: RegExpExecArray): number {
   return match[1]?.length ?? 0;
 }
 
 /**
- * Alterna un prefijo de linea (`> `, `- `, `1. `...).
+ * Toggles a line prefix (`> `, `- `, `1. `...).
  *
- * `pattern` debe capturar la sangria en el grupo 1. Si todas las lineas ya
- * tienen el prefijo se quita; si no, se agrega a todas. Las lineas que
- * cumplen `skip` (por ejemplo una tarea al alternar vinetas) no se tocan.
+ * `pattern` must capture the indentation in group 1. If all lines already
+ * have the prefix it is removed; otherwise it is added to all of them. Lines
+ * matching `skip` (for example a task when toggling bullets) are left alone.
  */
 function toggleLinePrefix(
   view: EditorView,
@@ -62,7 +64,7 @@ function toggleLinePrefix(
   const allMatch = active.every((entry) => entry.match !== null);
   const changes: ChangeSpec[] = active.map((entry, index) => {
     const text = typeof marker === 'function' ? marker(index) : marker;
-    // Con la marca ya puesta (aunque no en todas las lineas) se reemplaza.
+    // With the mark already present (even if not on all lines) it is replaced.
     if (entry.match) {
       return {
         from: entry.line.from + indentOf(entry.match),
@@ -77,11 +79,11 @@ function toggleLinePrefix(
   return true;
 }
 
-/* ---------------------------------- Bloques --------------------------------- */
+/* ---------------------------------- Blocks ---------------------------------- */
 
 const HEADING = /^(\s*)(#{1,6})\s+/;
 
-/** H1 -> H2 -> H3 -> texto normal (y de nuevo H1). */
+/** H1 -> H2 -> H3 -> plain text (and back to H1). */
 export function toggleHeading(view: EditorView): boolean {
   const changes: ChangeSpec[] = [];
   for (const line of selectedLines(view)) {
@@ -117,9 +119,9 @@ export function toggleTaskList(view: EditorView): boolean {
   return toggleLinePrefix(view, /^(\s*)[-*+]\s+\[[ xX]\]\s+/, '- [ ] ');
 }
 
-/* ---------------------------------- En linea -------------------------------- */
+/* ---------------------------------- Inline ---------------------------------- */
 
-/** Alterna una marca alrededor de la seleccion (`**`, `*`, `` ` ``, `~~`). */
+/** Toggles a mark around the selection (`**`, `*`, `` ` ``, `~~`). */
 function toggleWrap(view: EditorView, marker: string): boolean {
   const state = view.state;
   const range = state.selection.main;
@@ -139,7 +141,7 @@ function toggleWrap(view: EditorView, marker: string): boolean {
   const wrapped = text.length >= size * 2 && text.startsWith(marker) && text.endsWith(marker);
 
   if (before === marker && after === marker) {
-    // La marca esta fuera de la seleccion: `**texto**` con "texto" elegido.
+    // The mark is outside the selection: `**text**` with "text" selected.
     view.dispatch({
       changes: [
         { from: range.from - size, to: range.from, insert: '' },
@@ -148,7 +150,7 @@ function toggleWrap(view: EditorView, marker: string): boolean {
       selection: EditorSelection.range(range.from - size, range.to - size),
     });
   } else if (wrapped) {
-    // La marca esta dentro de la seleccion: `**texto**` elegido entero.
+    // The mark is inside the selection: `**text**` selected as a whole.
     view.dispatch({
       changes: [
         { from: range.from, to: range.from + size, insert: '' },
@@ -184,12 +186,12 @@ export function toggleStrikethrough(view: EditorView): boolean {
   return toggleWrap(view, '~~');
 }
 
-/** Enlace: `[texto](url)`. Deja la URL seleccionada para escribirla encima. */
+/** Link: `[text](url)`. Leaves the URL selected so you can type over it. */
 export function insertLink(view: EditorView): boolean {
   const range = view.state.selection.main;
-  const label = view.state.sliceDoc(range.from, range.to) || 'texto';
+  const label = view.state.sliceDoc(range.from, range.to) || t('format.placeholderText');
   const markdown = `[${label}](url)`;
-  const urlFrom = range.from + label.length + 3; // despues de "]("
+  const urlFrom = range.from + label.length + 3; // after "]("
   view.dispatch({
     changes: { from: range.from, to: range.to, insert: markdown },
     selection: EditorSelection.range(urlFrom, urlFrom + 3),
@@ -199,28 +201,29 @@ export function insertLink(view: EditorView): boolean {
 
 export function insertImage(view: EditorView): boolean {
   const range = view.state.selection.main;
-  const alt = view.state.sliceDoc(range.from, range.to) || 'imagen';
-  const markdown = `![${alt}](ruta-o-url)`;
-  const urlFrom = range.from + alt.length + 4; // despues de "]("
+  const alt = view.state.sliceDoc(range.from, range.to) || t('format.placeholderImage');
+  const url = t('format.placeholderUrl');
+  const markdown = `![${alt}](${url})`;
+  const urlFrom = range.from + alt.length + 4; // after "]("
   view.dispatch({
     changes: { from: range.from, to: range.to, insert: markdown },
-    selection: EditorSelection.range(urlFrom, urlFrom + 'ruta-o-url'.length),
+    selection: EditorSelection.range(urlFrom, urlFrom + url.length),
   });
   return true;
 }
 
-/* -------------------------------- Estructuras ------------------------------- */
+/* -------------------------------- Structures -------------------------------- */
 
 const TABLE_COLUMNS = 3;
 
-/** Inserta una tabla GFM con la primera celda seleccionada. */
+/** Inserts a GFM table with the first cell selected. */
 export function insertTable(view: EditorView): boolean {
   const range = view.state.selection.main;
   const line = view.state.doc.lineAt(range.from);
   const prefix = range.from > line.from ? '\n' : '';
   const suffix = range.to < line.to ? '\n' : '';
 
-  const header = `| ${Array.from({ length: TABLE_COLUMNS }, (_, i) => `Columna ${i + 1}`).join(' | ')} |`;
+  const header = `| ${Array.from({ length: TABLE_COLUMNS }, (_, i) => t('format.tableHeader', { n: i + 1 })).join(' | ')} |`;
   const divider = `| ${Array.from({ length: TABLE_COLUMNS }, () => '---').join(' | ')} |`;
   const body = `| ${Array.from({ length: TABLE_COLUMNS }, () => ' ').join(' | ')} |`;
   const table = `${header}\n${divider}\n${body}\n`;
@@ -232,7 +235,7 @@ export function insertTable(view: EditorView): boolean {
   return true;
 }
 
-/** Inserta una linea horizontal (`---`) en su propia linea. */
+/** Inserts a horizontal rule (`---`) on its own line. */
 export function insertHorizontalRule(view: EditorView): boolean {
   const range = view.state.selection.main;
   const line = view.state.doc.lineAt(range.from);
@@ -245,7 +248,7 @@ export function insertHorizontalRule(view: EditorView): boolean {
   return true;
 }
 
-/* --------------------------------- Deshacer --------------------------------- */
+/* ----------------------------------- Undo ----------------------------------- */
 
 export function undoEdit(view: EditorView): boolean {
   return undo(view);

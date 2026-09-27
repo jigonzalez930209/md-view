@@ -1,16 +1,16 @@
 /**
- * Preprocesado de MDX.
+ * MDX preprocessing.
  *
- * MDX es Markdown + JSX: sentencias ESM (`import`/`export`), componentes
- * (`<Note>`, `<Chart />`) y expresiones `{...}`. Aca no ejecutamos nada:
+ * MDX is Markdown + JSX: ESM statements (`import`/`export`), components
+ * (`<Note>`, `<Chart />`) and `{...}` expressions. Here we execute nothing:
  *
- * - se descarta el frontmatter YAML,
- * - se quitan las sentencias `import`/`export` (incluso multilinea),
- * - los componentes propios se desenvuelven (se conserva el contenido) y los
- *   que se cierran solos se descartan,
- * - las expresiones `{...}` quedan visibles como codigo en linea.
+ * - the YAML frontmatter is discarded,
+ * - `import`/`export` statements are removed (including multiline ones),
+ * - custom components are unwrapped (their content is kept) and self-closing
+ *   ones are discarded,
+ * - `{...}` expressions remain visible as inline code.
  *
- * El HTML/JSX que sobrevive pasa por el mismo Markdown y por DOMPurify.
+ * The HTML/JSX that survives goes through the same Markdown and DOMPurify.
  */
 
 const HTML_TAGS = new Set([
@@ -22,7 +22,7 @@ const HTML_TAGS = new Set([
   'thead', 'time', 'tr', 'u', 'ul', 'var', 'video', 'wbr',
 ]);
 
-/** Quita un bloque `--- ... ---` al principio (frontmatter YAML). */
+/** Removes a `--- ... ---` block at the start (YAML frontmatter). */
 export function stripFrontmatter(source: string): string {
   const match = /^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)\s*(?:\r?\n|$)/.exec(source);
   return match ? source.slice(match[0].length) : source;
@@ -37,7 +37,7 @@ function braceBalance(line: string): number {
   return balance;
 }
 
-/** Saca `import ...` / `export ...`, aunque ocupen varias lineas. */
+/** Strips `import ...` / `export ...`, even when they span several lines. */
 export function stripEsm(source: string): string {
   const lines = source.split('\n');
   const output: string[] = [];
@@ -65,13 +65,13 @@ function isHtmlTag(name: string): boolean {
   return HTML_TAGS.has(name.toLowerCase()) && name === name.toLowerCase();
 }
 
-/** Desenvuelve componentes propios conservando el contenido. */
+/** Unwraps custom components while keeping the content. */
 export function unwrapComponents(source: string): string {
   let text = source;
   const component = /<([A-Z][\w.]*)(?:\s[^<>]*)?\/>/g;
   const paired = /<([A-Z][\w.]*)(?:\s[^<>]*)?>([\s\S]*?)<\/\1>/g;
 
-  // Varias pasadas por si hay componentes anidados.
+  // Several passes in case there are nested components.
   for (let pass = 0; pass < 4; pass += 1) {
     const next = text
       .replace(paired, (_full, name: string, inner: string) => (isHtmlTag(name) ? _full : inner))
@@ -83,7 +83,7 @@ export function unwrapComponents(source: string): string {
   return text.replace(/<\/?>/g, '');
 }
 
-/** Deja las expresiones `{...}` como codigo en linea, fuera de los fences. */
+/** Turns `{...}` expressions into inline code, outside the fences. */
 export function codeExpressions(source: string): string {
   const lines = source.split('\n');
   const output: string[] = [];
@@ -111,7 +111,7 @@ export function codeExpressions(source: string): string {
         continue;
       }
       if (char === '`') {
-        // Copiamos el tramo de codigo en linea tal cual.
+        // We copy the inline code span as is.
         const end = line.indexOf('`', index + 1);
         result += end === -1 ? line.slice(index) : line.slice(index, end + 1);
         index = end === -1 ? line.length : end + 1;
@@ -130,7 +130,7 @@ export function codeExpressions(source: string): string {
         if (depth === 0) {
           const expression = line.slice(index, cursor + 1);
           if (/^\{\s*\/\*[\s\S]*\*\/\s*\}$/.test(expression)) {
-            // Comentario JSX: se descarta.
+            // JSX comment: discarded.
           } else {
             result += `\`${expression}\``;
           }
@@ -147,7 +147,7 @@ export function codeExpressions(source: string): string {
   return output.join('\n');
 }
 
-/** Markdown listo para markdown-it a partir de un .mdx. */
+/** Markdown ready for markdown-it from an .mdx. */
 export function preprocessMdx(source: string): string {
   return codeExpressions(unwrapComponents(stripEsm(stripFrontmatter(source))));
 }

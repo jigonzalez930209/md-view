@@ -1,8 +1,8 @@
 /*
- * Render del Markdown con la misma pinta que GitHub.
+ * Markdown rendering with the same look as GitHub.
  *
- * Todo cuelga de .markdown-body y usa las variables de theme.css, asi que el
- * cambio claro/oscuro es automatico.
+ * Everything hangs off .markdown-body and uses the variables from theme.css,
+ * so switching light/dark is automatic.
  */
 
 .markdown-body {
@@ -20,7 +20,7 @@
   margin-bottom: 0 !important;
 }
 
-/* ------------------------------- Tipografia -------------------------------- */
+/* ------------------------------- Typography -------------------------------- */
 
 .markdown-body h1,
 .markdown-body h2,
@@ -125,7 +125,7 @@
   border-radius: 3px;
 }
 
-/* Ancla que aparece al pasar el mouse por un titulo. */
+/* Anchor that appears when hovering over a heading. */
 .markdown-body .md-anchor {
   position: absolute;
   left: -0.85em;
@@ -147,11 +147,11 @@
   text-decoration: none;
 }
 
-/* ------------------------------- Vista de codigo --------------------------- */
+/* ------------------------------- Code view -------------------------------- */
 
 /*
- * Para archivos de texto que no son Markdown (un .ts, un .json, un .yaml)
- * mostramos el contenido tal cual, monoespaciado, sin convertirlo en parrafos.
+ * For text files that are not Markdown (a .ts, a .json, a .yaml) we show the
+ * raw content, monospaced, without turning it into paragraphs.
  */
 .markdown-body .code-view {
   margin: 0;
@@ -171,7 +171,7 @@
   font-size: inherit;
 }
 
-/* --------------------------------- Listas ---------------------------------- */
+/* ---------------------------------- Lists ---------------------------------- */
 
 .markdown-body ul,
 .markdown-body ol {
@@ -181,8 +181,8 @@
 }
 
 /*
- * Tailwind Preflight quita los marcadores de las listas; los reponemos para
- * que la vista previa se vea como GitHub (y no como texto suelto).
+ * Tailwind Preflight removes the list markers; we put them back so the preview
+ * looks like GitHub (and not like loose text).
  */
 .markdown-body ul {
   list-style-type: disc;
@@ -239,7 +239,7 @@
   opacity: 1;
 }
 
-/* --------------------------------- Citas ----------------------------------- */
+/* ------------------------------- Blockquotes ------------------------------- */
 
 .markdown-body blockquote {
   padding: 0 1em;
@@ -255,7 +255,7 @@
   margin-bottom: 0;
 }
 
-/* -------------------------------- Codigo ----------------------------------- */
+/* ---------------------------------- Code ----------------------------------- */
 
 .markdown-body code,
 .markdown-body tt {
@@ -345,7 +345,7 @@
   border-color: var(--success);
 }
 
-/* Colores de highlight.js, mapeados a variables para el cambio de tema. */
+/* highlight.js colors, mapped to variables so they follow the theme switch. */
 .markdown-body .hljs-doctag,
 .markdown-body .hljs-keyword,
 .markdown-body .hljs-meta .hljs-keyword,
@@ -433,7 +433,7 @@
   background-color: var(--hl-del-bg);
 }
 
-/* --------------------------------- Tablas ---------------------------------- */
+/* --------------------------------- Tables ---------------------------------- */
 
 .markdown-body table {
   display: block;
@@ -466,7 +466,7 @@
   background-color: var(--row-alt);
 }
 
-/* -------------------------------- Imagenes --------------------------------- */
+/* --------------------------------- Images ---------------------------------- */
 
 .markdown-body img {
   max-width: 100%;
@@ -488,7 +488,7 @@
   max-width: 100%;
 }
 
-/* ------------------------------- Notas al pie ------------------------------ */
+/* ------------------------------- Footnotes --------------------------------- */
 
 .markdown-body .footnotes {
   font-size: 0.875em;
@@ -507,7 +507,7 @@
   text-decoration: none;
 }
 
-/* --------------------------------- Detalles -------------------------------- */
+/* --------------------------------- Details --------------------------------- */
 
 .markdown-body details summary {
   cursor: pointer;
@@ -518,7 +518,7 @@
   margin-bottom: 8px;
 }
 
-/* ------------------------------ Alertas GitHub ----------------------------- */
+/* ------------------------------ GitHub alerts ----------------------------- */
 
 .markdown-body .markdown-alert {
   padding: 8px 16px;

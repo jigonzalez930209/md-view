@@ -1,12 +1,12 @@
 /**
- * Worker de tareas de texto y render.
+ * Text and render task worker.
  *
- * Se crea bajo demanda (documentos grandes) y el hilo principal le manda el
- * texto por trozos para no copiar el documento entero en un solo mensaje.
- * Tareas:
+ * Created on demand (large documents) and the main thread sends it the text in
+ * chunks to avoid copying the whole document in a single message.
+ * Tasks:
  *
- * - `stats`: cuenta palabras/lineas/caracteres por trozos.
- * - `render`: markdown-it + plugins (sin DOM) para no bloquear la interfaz.
+ * - `stats`: counts words/lines/chars by chunks.
+ * - `render`: markdown-it + plugins (no DOM) to avoid blocking the UI.
  */
 
 import { renderMarkdownCore } from '../lib/markdown-core';
@@ -51,14 +51,14 @@ self.onmessage = (event: MessageEvent<Request>) => {
       chars += chunk.length;
       for (let index = 0; index < chunk.length; index += 1) {
         const code = chunk.charCodeAt(index);
-        // Espacios "de verdad": el resto cuenta como parte de una palabra.
+        // "Real" spaces: everything else counts as part of a word.
         const space =
-          code === 32 || // espacio
+          code === 32 || // space
           code === 9 || // tab
-          code === 10 || // salto de linea
-          code === 13 || // retorno
+          code === 10 || // line feed
+          code === 13 || // carriage return
           code === 12 || // form feed
-          code === 11 || // tab vertical
+          code === 11 || // vertical tab
           code === 0x00a0 || // nbsp
           code === 0x2028 ||
           code === 0x2029;

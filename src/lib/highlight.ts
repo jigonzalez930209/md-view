@@ -1,10 +1,10 @@
-/** Resaltado de sintaxis con highlight.js (subconjunto de lenguajes "common"). */
+/** Syntax highlighting with highlight.js (the "common" languages subset). */
 
 import hljs from 'highlight.js/lib/common';
 
 /**
- * Devuelve el HTML resaltado o null si no conocemos el lenguaje (en ese caso
- * markdown-it se encarga de escaparlo como texto plano).
+ * Returns the highlighted HTML or null if we don't know the language (in that
+ * case markdown-it escapes it as plain text).
  */
 export function highlightCode(code: string, language: string): string | null {
   const lang = language.trim().toLowerCase().split(/[\s:]/)[0];

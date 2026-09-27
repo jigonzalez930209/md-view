@@ -1,9 +1,9 @@
 /**
- * Preferencias de la app, persistidas en localStorage.
+ * App preferences, persisted in localStorage.
  *
- * Todo lo configurable vive aca: apariencia, editor, vista previa, explorador,
- * exportacion e inicio. El dialogo de Configuraciones y los accesos rapidos
- * (menu ☰) leen y escriben el mismo estado.
+ * Everything configurable lives here: appearance, editor, preview, explorer,
+ * export and startup. The Settings dialog and the quick shortcuts (the ☰ menu)
+ * read and write the same state.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -13,20 +13,20 @@ import { PALETTES, systemTheme, type ExplorerSide, type Palette, type Theme } fr
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 export interface Preferences {
-  /** Idioma de la interfaz; por defecto ingles. */
+  /** UI language; English by default. */
   language: Language;
   themeMode: ThemeMode;
   palette: Palette;
   explorerSide: ExplorerSide;
-  /** El PDF sale en claro salvo que se desactive. */
+  /** The PDF comes out light unless this is disabled. */
   pdfLight: boolean;
   editorFontSize: number;
   editorLineNumbers: boolean;
   editorWrap: boolean;
-  /** Mantener editor y vista previa alineados en modo dividido. */
+  /** Keep editor and preview aligned in split view. */
   previewSyncScroll: boolean;
   previewFontSize: number;
-  /** Mostrar los recientes en la pantalla de inicio. */
+  /** Show recents on the start screen. */
   showRecents: boolean;
 }
 
@@ -45,7 +45,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
 };
 
 const PREFS_KEY = 'md-view:prefs';
-/* Claves viejas: se migran la primera vez. */
+/* Old keys: migrated on first load. */
 const LEGACY_KEYS = {
   language: 'md-view:language',
   theme: 'md-view:theme',
@@ -66,7 +66,7 @@ function writeRaw(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* modo privado: seguimos sin persistir */
+    /* private mode: we continue without persisting */
   }
 }
 
@@ -90,7 +90,7 @@ function legacyPreferences(): Partial<Preferences> {
   };
 }
 
-/** Normaliza lo que venga guardado (o de una version vieja). */
+/** Normalizes whatever is stored (or comes from an old version). */
 export function sanitizePreferences(input: Partial<Preferences>): Preferences {
   const merged = { ...DEFAULT_PREFERENCES, ...input };
 
@@ -129,12 +129,12 @@ export function savePreferences(preferences: Preferences): void {
   writeRaw(PREFS_KEY, JSON.stringify(preferences));
 }
 
-/** Tema efectivo: el del sistema cuando la preferencia es "system". */
+/** Effective theme: the system one when the preference is "system". */
 export function themeFor(preferences: Preferences, system: Theme): Theme {
   return preferences.themeMode === 'system' ? system : preferences.themeMode;
 }
 
-/** Estado de preferencias para React: se persiste en cada cambio. */
+/** Preferences state for React: persisted on every change. */
 export function usePreferences() {
   const [preferences, setPreferences] = useState<Preferences>(() => loadPreferences());
   const [system, setSystem] = useState<Theme>(() => systemTheme());

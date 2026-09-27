@@ -1,11 +1,11 @@
 /**
- * Exportacion del documento a formatos de salida.
+ * Document export to output formats.
  *
- * - HTML autocontenido: CSS, fuentes de KaTeX e imagenes incrustadas.
- * - PDF: lo imprime WebKitGTK con las reglas @media print (vectorial).
- * - PNG/JPG/WebP: rasteriza el DOM con modern-screenshot (PNG en paginas A4).
- * - SVG: DOM envuelto en foreignObject, tambien autocontenido.
- * - TXT: texto plano del render.
+ * - Self-contained HTML: CSS, KaTeX fonts and images embedded.
+ * - PDF: WebKitGTK prints it with the @media print rules (vector output).
+ * - PNG/JPG/WebP: rasterizes the DOM with modern-screenshot (PNG in A4 pages).
+ * - SVG: DOM wrapped in foreignObject, also self-contained.
+ * - TXT: plain text of the render.
  */
 
 import { domToCanvas, domToJpeg, domToWebp, type Options } from 'modern-screenshot';
@@ -23,7 +23,7 @@ export type ExportFormat = 'pdf' | 'html' | 'png-pages' | 'png-full' | 'jpg' | '
 
 export interface ExportFormatInfo {
   id: ExportFormat;
-  /** Claves de traduccion (las resuelve la interfaz). */
+  /** Translation keys (resolved by the UI). */
   labelKey: TranslationKey;
   hintKey: TranslationKey;
   filterKey: TranslationKey;
@@ -97,7 +97,7 @@ export interface ExportContext {
   palette: Palette;
 }
 
-/** Hoja A4 a 96 dpi. */
+/** A4 sheet at 96 dpi. */
 const A4 = { width: 794, height: 1123 };
 const MAX_SCALE = 2;
 const MAX_PIXELS = 60_000_000;
@@ -131,7 +131,7 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Ruta local a partir de una URL asset: de Tauri (o null si es remota). */
+/** Local path from a Tauri asset URL (or null when remote). */
 function assetPath(url: string): string | null {
   if (url.startsWith('http://asset.localhost/')) {
     return decodeURIComponent(url.slice('http://asset.localhost/'.length));
@@ -145,7 +145,7 @@ function assetPath(url: string): string | null {
   return null;
 }
 
-/** Lee una imagen local y la devuelve como data URL. */
+/** Reads a local image and returns it as a data URL. */
 async function imageToDataUrl(url: string, source?: string | null): Promise<string | null> {
   const path = source ?? assetPath(url);
   if (path && backend.isTauri) {
@@ -153,7 +153,7 @@ async function imageToDataUrl(url: string, source?: string | null): Promise<stri
       const base64 = await backend.readFileBase64(path);
       return `data:${mimeFor(path)};base64,${base64}`;
     } catch {
-      /* seguimos con fetch */
+      /* fall back to fetch */
     }
   }
   try {
@@ -171,7 +171,7 @@ async function imageToDataUrl(url: string, source?: string | null): Promise<stri
   }
 }
 
-/** Opciones comunes de rasterizado: sin botones de la interfaz ni anclas. */
+/** Common rasterization options: no UI buttons or anchors. */
 function captureOptions(theme: Theme): Options {
   return {
     backgroundColor: cssVar('--background', theme === 'dark' ? '#0d1117' : '#ffffff'),
@@ -195,8 +195,8 @@ function captureOptions(theme: Theme): Options {
 }
 
 /**
- * Las imagenes con `loading="lazy"` fuera de pantalla no cargan nunca y la
- * captura se quedaba esperando medio minuto. Las forzamos y esperamos.
+ * Off-screen images with `loading="lazy"` never load and the capture used to
+ * wait half a minute. We force them and wait.
  */
 async function withEagerImages<T>(article: HTMLElement, task: () => Promise<T>): Promise<T> {
   const images = Array.from(article.querySelectorAll('img'));
@@ -217,9 +217,9 @@ async function withEagerImages<T>(article: HTMLElement, task: () => Promise<T>):
 }
 
 /**
- * Prepara el articulo *vivo* para una captura: oculta los adornos de la
- * interfaz e incrusta las imagenes como data URLs (para no depender del
- * protocolo asset al convertir a SVG). Restaura todo al terminar.
+ * Prepares the *live* article for a capture: hides the UI decorations and
+ * embeds the images as data URLs (to avoid depending on the asset protocol
+ * when converting to SVG). Restores everything when done.
  */
 async function withPreparedArticle<T>(article: HTMLElement, task: () => Promise<T>): Promise<T> {
   const decorations = Array.from(article.querySelectorAll<HTMLElement>('.code-copy, .md-anchor'));
@@ -248,7 +248,7 @@ async function withPreparedArticle<T>(article: HTMLElement, task: () => Promise<
   }
 }
 
-/** Deja el clon listo para exportar: sin adornos ni atributos internos. */
+/** Leaves the clone ready to export: no decorations or internal attributes. */
 function cleanClone(article: HTMLElement): HTMLElement {
   const clone = article.cloneNode(true) as HTMLElement;
   clone.querySelectorAll('.code-copy, .md-anchor, .mermaid-source').forEach((node) => node.remove());
@@ -258,10 +258,10 @@ function cleanClone(article: HTMLElement): HTMLElement {
 }
 
 /* ------------------------------------------------------------------ */
-/* HTML autocontenido                                                  */
+/* Self-contained HTML                                                */
 /* ------------------------------------------------------------------ */
 
-/** Data URLs de las fuentes que la pagina ya tiene cargadas (KaTeX). */
+/** Data URLs of the fonts the page already has loaded (KaTeX). */
 async function fontDataUrls(): Promise<Map<string, string>> {
   const fonts = new Map<string, string>();
 
@@ -270,7 +270,7 @@ async function fontDataUrls(): Promise<Map<string, string>> {
     try {
       rules = sheet.cssRules;
     } catch {
-      continue; // hoja de otro origen
+      continue; // a stylesheet from another origin
     }
     if (!rules) continue;
 
@@ -290,7 +290,7 @@ async function fontDataUrls(): Promise<Map<string, string>> {
   return fonts;
 }
 
-/** Reemplaza `url(fonts/...)` por los data URLs ya recogidos. */
+/** Replaces `url(fonts/...)` with the data URLs already collected. */
 function inlineFontUrls(css: string, fonts: Map<string, string>): string {
   return css.replace(/url\((["']?)([^"')]+)\1\)/g, (full, _quote, url: string) => {
     const name = url.split('/').pop() ?? url;
@@ -334,7 +334,7 @@ ${clone.innerHTML}
 }
 
 /* ------------------------------------------------------------------ */
-/* Imagenes                                                            */
+/* Images                                                             */
 /* ------------------------------------------------------------------ */
 
 function canvasToBase64(canvas: HTMLCanvasElement, type: string, quality?: number): string {
@@ -348,7 +348,7 @@ async function canvasBytes(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-/** btoa no acepta arrays grandes de una vez: va por trozos. */
+/** btoa does not accept large arrays at once: it goes in chunks. */
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   const chunk = 0x8000;
@@ -369,7 +369,7 @@ async function captureCanvas(article: HTMLElement, theme: Theme): Promise<HTMLCa
   );
 }
 
-/** Escribe una imagen completa (PNG/JPG/WebP) y devuelve la ruta. */
+/** Writes a full image (PNG/JPG/WebP) and returns the path. */
 async function exportImage(
   format: 'png-full' | 'jpg' | 'webp',
   article: HTMLElement,
@@ -394,12 +394,12 @@ async function exportImage(
   return t('export.imageSaved', { dir: dirname(target) });
 }
 
-/** Divide la captura en paginas A4 y las empaqueta en un ZIP. */
+/** Splits the capture into A4 pages and packs them into a ZIP. */
 async function exportPngPages(article: HTMLElement, target: string, theme: Theme): Promise<string> {
   const canvas = await captureCanvas(article, theme);
   const pageHeight = Math.max(1, Math.round(canvas.width * (A4.height / A4.width)));
   const pages = Math.max(1, Math.ceil(canvas.height / pageHeight));
-  const name = basename(target).replace(/\.[^.]+$/, '') || 'pagina';
+  const name = basename(target).replace(/\.[^.]+$/, '') || 'page';
 
   const files: Record<string, Uint8Array> = {};
   for (let index = 0; index < pages; index += 1) {
@@ -425,15 +425,15 @@ async function exportPngPages(article: HTMLElement, target: string, theme: Theme
 }
 
 /* ------------------------------------------------------------------ */
-/* SVG y texto                                                         */
+/* SVG and text                                                       */
 /* ------------------------------------------------------------------ */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
- * `dom-to-svg` no renderiza pseudo-elementos (`::marker`) ni resuelve bien los
- * `<input type=checkbox>`: los reemplazamos por texto/vectores reales antes de
- * convertir y restauramos el DOM al terminar.
+ * `dom-to-svg` does not render pseudo-elements (`::marker`) and does not
+ * resolve `<input type=checkbox>` well: we replace them with real text/vectors
+ * before converting and restore the DOM when done.
  */
 function decorateForSvg(article: HTMLElement): () => void {
   const markers: HTMLElement[] = [];
@@ -457,7 +457,7 @@ function decorateForSvg(article: HTMLElement): () => void {
       const siblings = Array.from(list.children).filter((child) => child.tagName === 'LI');
       addMarker(item, `${siblings.indexOf(item) + 1}.`);
     } else if (list.tagName === 'UL') {
-      // Discos por nivel, como el CSS de GitHub.
+      // Discs per level, like GitHub's CSS.
       let depth = 0;
       let ancestor: HTMLElement | null = list;
       while (ancestor && ancestor.tagName === 'UL') {
@@ -484,7 +484,7 @@ function decorateForSvg(article: HTMLElement): () => void {
     swaps.push({ replacement: box, input });
   }
 
-  // La flecha de los <details> cerrados.
+  // The arrow of closed <details> elements.
   const summaries: HTMLElement[] = [];
   for (const summary of Array.from(article.querySelectorAll<HTMLElement>('summary'))) {
     if (summary.closest('details[open]')) continue;
@@ -503,8 +503,8 @@ function decorateForSvg(article: HTMLElement): () => void {
 }
 
 /**
- * `dom-to-svg` mide con `getBoundingClientRect`: si la vista previa esta
- * scrolleada, el SVG sale desplazado. La ponemos arriba un instante.
+ * `dom-to-svg` measures with `getBoundingClientRect`: if the preview is
+ * scrolled, the SVG comes out displaced. We put it at the top for an instant.
  */
 async function withArticleAtTop<T>(article: HTMLElement, task: () => Promise<T>): Promise<T> {
   const host = article.parentElement;
@@ -521,9 +521,9 @@ async function withArticleAtTop<T>(article: HTMLElement, task: () => Promise<T>)
 }
 
 /**
- * SVG vectorial de verdad: `dom-to-svg` calcula el layout y emite texto real
- * (no un `<foreignObject>`), las imagenes del .md van incrustadas y los SVG
- * embebidos (Mermaid) se anidan como vectores.
+ * Real vector SVG: `dom-to-svg` computes the layout and emits real text
+ * (not a `<foreignObject>`), .md images are embedded and the embedded SVGs
+ * (Mermaid) are nested as vectors.
  */
 async function exportSvg(article: HTMLElement, target: string, _theme: Theme): Promise<string> {
   await withArticleAtTop(article, () =>
@@ -533,7 +533,7 @@ async function exportSvg(article: HTMLElement, target: string, _theme: Theme): P
         try {
           const svgDocument = elementToSVG(article, { keepLinks: true });
 
-          // Las fuentes de KaTeX, incrustadas para que las formulas se vean bien.
+          // KaTeX fonts, embedded so the formulas look right.
           const fonts = await fontDataUrls();
           const style = svgDocument.createElementNS(SVG_NS, 'style');
           style.textContent = inlineFontUrls(katexCss, fonts);
@@ -560,7 +560,7 @@ function exportText(article: HTMLElement, target: string): Promise<string> {
 
 /* ------------------------------------------------------------------ */
 
-/** Deja la vista lista para imprimir: imagenes cargadas y layout asentado. */
+/** Leaves the view ready to print: images loaded and layout settled. */
 export async function prepareForPrint(article: HTMLElement): Promise<void> {
   await withEagerImages(article, async () => {
     await new Promise<void>((resolve) => {
@@ -569,7 +569,7 @@ export async function prepareForPrint(article: HTMLElement): Promise<void> {
   });
 }
 
-/** Ejecuta la exportacion pedida y devuelve el mensaje para la barra de estado. */
+/** Runs the requested export and returns the message for the status bar. */
 export async function exportDocument(
   format: ExportFormat,
   article: HTMLElement,

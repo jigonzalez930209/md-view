@@ -1,10 +1,10 @@
 /**
- * Capa de acceso al sistema de archivos.
+ * Filesystem access layer.
  *
- * Cuando la app corre dentro de Tauri usa los comandos de Rust (src-tauri) y los
- * plugins oficiales. Si el mismo frontend se abre en un navegador (util para
- * desarrollar o para probar el render) cae a APIs del navegador: elegir archivo
- * con <input>, descargar al guardar y recordar recientes en localStorage.
+ * When the app runs inside Tauri it uses the Rust commands (src-tauri) and the
+ * official plugins. If the same frontend is opened in a browser (useful for
+ * developing or testing the render) it falls back to browser APIs: pick a file
+ * with <input>, download on save and remember recents in localStorage.
  */
 
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
@@ -17,13 +17,13 @@ import { t } from './i18n';
 import type { Theme } from './theme';
 
 export interface Doc {
-  /** Ruta absoluta en Tauri; solo el nombre en el navegador. */
+  /** Absolute path in Tauri; just the name in the browser. */
   path: string;
   name: string;
   content: string;
-  /** Fin de linea original del archivo, para no reescribirlo entero. */
+  /** Original line ending of the file, so it is not rewritten whole. */
   eol: '\n' | '\r\n';
-  /** true si el archivo tenia BOM UTF-8. */
+  /** true if the file had a UTF-8 BOM. */
   bom: boolean;
 }
 
@@ -31,7 +31,7 @@ export const isTauri =
   typeof window !== 'undefined' &&
   ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
 
-/** Filtros del dialogo nativo (se resuelven en el idioma activo). */
+/** Native dialog filters (resolved in the active language). */
 function markdownFilters(): FileFilter[] {
   return [
     { name: t('filter.markdown'), extensions: MARKDOWN_EXTENSIONS },
@@ -44,10 +44,10 @@ const RECENTS_KEY = 'md-view:recents';
 const MAX_RECENTS = 12;
 
 /* ------------------------------------------------------------------ */
-/* Modo navegador                                                      */
+/* Browser mode                                                        */
 /* ------------------------------------------------------------------ */
 
-/** Archivos elegidos con <input type=file>, para poder reabrirlos desde recientes. */
+/** Files picked with <input type=file>, so they can be reopened from recents. */
 const browserFiles = new Map<string, File>();
 
 function browserPickFile(): Promise<File | null> {
@@ -62,7 +62,7 @@ function browserPickFile(): Promise<File | null> {
       input.remove();
       resolve(file);
     });
-    // Si el usuario cancela no hay evento fiable: nos quedamos esperando.
+    // If the user cancels there is no reliable event: we keep waiting.
     input.click();
   });
 }
@@ -81,7 +81,7 @@ function browserWriteRecents(list: string[]): void {
   try {
     localStorage.setItem(RECENTS_KEY, JSON.stringify(list.slice(0, MAX_RECENTS)));
   } catch {
-    /* ignoramos cuotas o modo privado */
+    /* ignore quotas or private mode */
   }
 }
 
@@ -112,10 +112,10 @@ function downloadBlob(name: string, blob: Blob): void {
 }
 
 /* ------------------------------------------------------------------ */
-/* API publica                                                         */
+/* Public API                                                          */
 /* ------------------------------------------------------------------ */
 
-/** Abre el dialogo del sistema y devuelve el documento elegido. */
+/** Opens the system dialog and returns the chosen document. */
 export async function pickAndRead(): Promise<Doc | null> {
   if (isTauri) {
     const selected = await openFileDialog({
@@ -150,7 +150,7 @@ export async function saveFile(doc: Doc, content: string): Promise<void> {
   await invoke('write_document', { path: doc.path, content, eol: doc.eol, bom: doc.bom });
 }
 
-/** Pide una ruta nueva para "Guardar como". Devuelve null si se cancela. */
+/** Asks for a new path for "Save as". Returns null if cancelled. */
 export async function pickSavePath(
   suggestedPath: string,
   filters: FileFilter[] = markdownFilters(),
@@ -166,14 +166,14 @@ export interface FileFilter {
 }
 
 /* ------------------------------------------------------------------ */
-/* Arbol de carpetas                                                   */
+/* Folder tree                                                         */
 /* ------------------------------------------------------------------ */
 
 export interface TreeEntry {
   name: string;
   path: string;
   kind: 'dir' | 'file';
-  /** Solo para archivos: se puede abrir con el editor. */
+  /** Files only: it can be opened with the editor. */
   isText: boolean;
   size: number;
   children?: TreeEntry[];
@@ -181,11 +181,11 @@ export interface TreeEntry {
 
 export interface FolderTree {
   root: TreeEntry;
-  /** true si el recorrido se corto por cantidad de archivos o profundidad. */
+  /** true if the walk was cut off by file count or depth. */
   truncated: boolean;
 }
 
-/** Clasificacion rapida para el fallback del navegador (no puede olfatear bytes). */
+/** Quick classification for the browser fallback (it cannot sniff bytes). */
 const BROWSER_TEXT_EXTENSIONS = new Set([
   'md', 'markdown', 'mdx', 'mdown', 'mkd', 'mkdn', 'mdwn', 'mdtxt', 'mdtext', 'mdoc', 'rmd',
   'qmd', 'txt', 'text', 'rst', 'adoc', 'org', 'tex', 'json', 'jsonc', 'json5', 'yaml', 'yml',
@@ -243,7 +243,7 @@ function browserPickFolder(): Promise<File[]> {
       input.remove();
       resolve(files);
     };
-    // Algunos motores solo emiten `input`, otros `change`: escuchamos ambos.
+    // Some engines only emit `input`, others `change`: we listen to both.
     input.addEventListener('change', finish, { once: true });
     input.addEventListener('input', finish, { once: true });
 
@@ -254,7 +254,7 @@ function browserPickFolder(): Promise<File[]> {
 function browserTreeFromFiles(files: File[]): FolderTree | null {
   if (files.length === 0) return null;
 
-  const rootName = files[0].webkitRelativePath.split('/')[0] || 'carpeta';
+  const rootName = files[0].webkitRelativePath.split('/')[0] || 'folder';
   const root: TreeEntry = {
     name: rootName,
     path: rootName,
@@ -295,7 +295,7 @@ function browserTreeFromFiles(files: File[]): FolderTree | null {
   return { root, truncated: false };
 }
 
-/** Abre el dialogo de carpetas y devuelve el arbol completo. */
+/** Opens the folder dialog and returns the full tree. */
 export async function pickFolder(): Promise<FolderTree | null> {
   if (isTauri) {
     const selected = await openFileDialog({ directory: true, multiple: false });
@@ -305,17 +305,17 @@ export async function pickFolder(): Promise<FolderTree | null> {
   return browserTreeFromFiles(await browserPickFolder());
 }
 
-/** Vuelve a leer una carpeta ya abierta. */
+/** Re-reads a folder that is already open. */
 export async function readTree(path: string): Promise<FolderTree> {
   if (!isTauri) throw new Error(t('app.browserFolderOnly'));
   return (await invoke('read_tree', { path })) as FolderTree;
 }
 
 /* ------------------------------------------------------------------ */
-/* Exportacion                                                         */
+/* Export                                                              */
 /* ------------------------------------------------------------------ */
 
-/** Escribe un archivo de texto (HTML autocontenido, SVG, TXT...). */
+/** Writes a text file (self-contained HTML, SVG, TXT...). */
 export async function writeTextFile(path: string, content: string): Promise<void> {
   if (!isTauri) {
     download(basename(path), content);
@@ -324,7 +324,7 @@ export async function writeTextFile(path: string, content: string): Promise<void
   await invoke('write_text_file', { path, content });
 }
 
-/** Escribe un archivo binario que viene en base64 (PNG, JPG, WebP...). */
+/** Writes a binary file that comes in base64 (PNG, JPG, WebP...). */
 export async function writeBase64File(path: string, data: string): Promise<void> {
   if (!isTauri) {
     const binary = atob(data);
@@ -336,12 +336,12 @@ export async function writeBase64File(path: string, data: string): Promise<void>
   await invoke('write_base64_file', { path, data });
 }
 
-/** Lee un archivo arbitrario y lo devuelve en base64 (imagenes al exportar). */
+/** Reads an arbitrary file and returns it in base64 (images when exporting). */
 export async function readFileBase64(path: string): Promise<string> {
   return (await invoke('read_file_base64', { path })) as string;
 }
 
-/** Genera un PDF de la pagina actual. En el navegador abre el dialogo de impresion. */
+/** Generates a PDF of the current page. In the browser it opens the print dialog. */
 export async function exportPdf(path: string): Promise<void> {
   if (!isTauri) {
     window.print();
@@ -373,13 +373,13 @@ export async function clearRecents(): Promise<string[]> {
   return [];
 }
 
-/** Tamaño en bytes del archivo (0 si no se puede saber). */
+/** File size in bytes (0 if it cannot be determined). */
 export async function documentSize(path: string): Promise<number> {
   if (!isTauri) return browserFiles.get(path)?.size ?? 0;
   return (await invoke('document_size', { path })) as number;
 }
 
-/** true si la ruta existe en disco. En el navegador solo podemos mirar la cache local. */
+/** true if the path exists on disk. In the browser we can only look at the local cache. */
 export async function pathExists(path: string): Promise<boolean> {
   if (!isTauri) return browserFiles.has(path);
   return (await invoke('path_exists', { path })) as boolean;
@@ -393,13 +393,13 @@ export async function openExternal(url: string): Promise<void> {
   await invoke('open_external', { url });
 }
 
-/** Abre una ruta local con la aplicacion predeterminada del sistema. */
+/** Opens a local path with the system's default application. */
 export async function openPath(path: string): Promise<void> {
   if (!isTauri) return;
   await invoke('open_path', { path });
 }
 
-/** Convierte una ruta absoluta en una URL que el webview puede mostrar. */
+/** Converts an absolute path into a URL the webview can display. */
 export function toAssetUrl(absolutePath: string): string {
   if (!isTauri) return absolutePath;
   try {
@@ -417,11 +417,11 @@ export async function setWindowTitle(title: string): Promise<void> {
   try {
     await getCurrentWindow().setTitle(title);
   } catch {
-    /* sin permiso: no es critico */
+    /* no permission: not critical */
   }
 }
 
-/** Pregunta al usuario antes de perder cambios. */
+/** Asks the user before losing changes. */
 export async function confirmDiscard(message: string): Promise<boolean> {
   if (!isTauri) return window.confirm(`${message}\n\n${t('app.discardQuestion')}`);
   return ask(message, {
@@ -432,26 +432,26 @@ export async function confirmDiscard(message: string): Promise<boolean> {
   });
 }
 
-/** Mensaje estandar para documentos con cambios sin guardar. */
+/** Standard message for documents with unsaved changes. */
 export function dirtyMessage(names: string[]): string {
   if (names.length === 1) return t('app.dirtyOne', { name: names[0] });
   return t('app.dirtyMany', { count: names.length });
 }
 
-/** Rutas recibidas por linea de comandos (o al reusar la ventana ya abierta). */
+/** Paths received from the command line (or when reusing the already open window). */
 export async function takePendingOpen(): Promise<string[]> {
   if (!isTauri) return [];
   return (await invoke('take_pending_open')) as string[];
 }
 
-/** Avisa cuando otra instancia pide abrir un archivo (single instance). */
+/** Notifies when another instance asks to open a file (single instance). */
 export async function onExternalOpen(callback: () => void): Promise<UnlistenFn> {
   if (!isTauri) return () => {};
   const { listen } = await import('@tauri-apps/api/event');
   return listen('md-view://open', () => callback());
 }
 
-/** Arrastrar y soltar archivos sobre la ventana. */
+/** Drag and drop files onto the window. */
 export async function onDragDrop(
   callback: (state: 'enter' | 'over' | 'leave' | 'drop', paths: string[]) => void,
 ): Promise<UnlistenFn> {
@@ -465,7 +465,7 @@ export async function onDragDrop(
   });
 }
 
-/** Cerrar la ventana: en Tauri interceptamos el cierre para poder avisar. */
+/** Close the window: in Tauri we intercept the close so we can warn. */
 export async function onCloseRequested(callback: () => boolean): Promise<UnlistenFn> {
   if (!isTauri) {
     const handler = (event: BeforeUnloadEvent) => {
@@ -490,7 +490,7 @@ export async function destroyWindow(): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Ventana sin decoraciones: la barra de titulo la dibuja la app       */
+/* Borderless window: the app draws its own title bar                  */
 /* ------------------------------------------------------------------ */
 
 export async function isWindowMaximized(): Promise<boolean> {
@@ -507,11 +507,11 @@ export async function minimizeWindow(): Promise<void> {
   try {
     await getCurrentWindow().minimize();
   } catch {
-    /* sin permiso: no es critico */
+    /* no permission: not critical */
   }
 }
 
-/** Alterna maximizado/restaurado y devuelve el estado resultante. */
+/** Toggles maximized/restored and returns the resulting state. */
 export async function toggleMaximizeWindow(): Promise<boolean> {
   if (!isTauri) return false;
   try {
@@ -523,7 +523,7 @@ export async function toggleMaximizeWindow(): Promise<boolean> {
   }
 }
 
-/** Cerrar la ventana pasando por el aviso de cambios sin guardar. */
+/** Closes the window going through the unsaved changes warning. */
 export async function closeWindow(): Promise<void> {
   if (!isTauri) {
     window.close();
@@ -532,13 +532,13 @@ export async function closeWindow(): Promise<void> {
   await getCurrentWindow().close();
 }
 
-/** Arrastrar la ventana desde la barra de titulo propia. */
+/** Drags the window from the app's own title bar. */
 export async function startWindowDrag(): Promise<void> {
   if (!isTauri) return;
   try {
     await getCurrentWindow().startDragging();
   } catch {
-    /* Wayland a veces rechaza el pedido; no es critico */
+    /* Wayland sometimes rejects the request; not critical */
   }
 }
 
@@ -552,13 +552,13 @@ export type WindowResizeDirection =
   | 'SouthWest'
   | 'West';
 
-/** Redimensionar desde los bordes, ya que la ventana no tiene marco nativo. */
+/** Resize from the edges, since the window has no native frame. */
 export async function startWindowResize(direction: WindowResizeDirection): Promise<void> {
   if (!isTauri) return;
   try {
     await getCurrentWindow().startResizeDragging(direction);
   } catch {
-    /* sin permiso: no es critico */
+    /* no permission: not critical */
   }
 }
 

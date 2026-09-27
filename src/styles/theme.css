@@ -1,13 +1,13 @@
 /*
- * Paleta de md-view.
+ * md-view palette.
  *
- * Tres paletas (GitHub, One Dark, Dracula) con variante clara y oscura.
- * El <html> lleva data-theme="light|dark" y data-palette="github|onedark|dracula";
- * cambiar cualquiera de los dos es solo cambiar el atributo: todo lo que sigue
- * son variables CSS y no hay que re-renderizar React.
+ * Three palettes (GitHub, One Dark, Dracula) with a light and a dark variant.
+ * The <html> carries data-theme="light|dark" and data-palette="github|onedark|dracula";
+ * switching either one is just changing the attribute: everything below is CSS
+ * variables and React does not need to re-render.
  *
- * Los nombres `--background`, `--primary`, etc. son los de shadcn/Tailwind;
- * los `--bg`, `--fg`, `--hl-*` son los que usan markdown.css y CodeMirror.
+ * The `--background`, `--primary`, etc. names are shadcn/Tailwind's; the
+ * `--bg`, `--fg`, `--hl-*` ones are what markdown.css and CodeMirror use.
  */
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
@@ -53,7 +53,7 @@
   --radius: 0.625rem;
 }
 
-/* ------------------------------- GitHub (claro) ------------------------------ */
+/* ------------------------------- GitHub (light) ------------------------------ */
 
 :root,
 :root[data-palette='github'][data-theme='light'] {
@@ -88,7 +88,7 @@
   --shadow-sm: 0 1px 0 rgba(31, 35, 40, 0.04);
   --shadow-md: 0 8px 24px rgba(66, 74, 83, 0.12);
 
-  /* Alias heredados (markdown.css / CodeMirror) */
+  /* Legacy aliases (markdown.css / CodeMirror) */
   --bg: var(--background);
   --bg-subtle: var(--card);
   --bg-inset: var(--muted);
@@ -127,7 +127,7 @@
   --alert-caution: #d1242f;
 }
 
-/* ------------------------------- GitHub (oscuro) ----------------------------- */
+/* ------------------------------- GitHub (dark) ----------------------------- */
 
 :root[data-theme='dark'] {
   color-scheme: dark;
@@ -197,7 +197,7 @@
   --alert-caution: #f85149;
 }
 
-/* ------------------------------ One Dark (claro) ----------------------------- */
+/* ------------------------------ One Dark (light) ----------------------------- */
 
 :root[data-palette='onedark'][data-theme='light'] {
   color-scheme: light;
@@ -269,7 +269,7 @@
   --alert-caution: #e45649;
 }
 
-/* ------------------------------ One Dark (oscuro) ---------------------------- */
+/* ------------------------------ One Dark (dark) ---------------------------- */
 
 :root[data-palette='onedark'][data-theme='dark'] {
   color-scheme: dark;
@@ -341,7 +341,7 @@
   --alert-caution: #e06c75;
 }
 
-/* ------------------------------ Dracula (claro) ------------------------------ */
+/* ------------------------------ Dracula (light) ------------------------------ */
 
 :root[data-palette='dracula'][data-theme='light'] {
   color-scheme: light;
@@ -413,7 +413,7 @@
   --alert-caution: #cb3a2a;
 }
 
-/* ------------------------------ Dracula (oscuro) ----------------------------- */
+/* ------------------------------ Dracula (dark) ----------------------------- */
 
 :root[data-palette='dracula'][data-theme='dark'] {
   color-scheme: dark;

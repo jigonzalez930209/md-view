@@ -1,12 +1,12 @@
 /**
- * Utilidades de rutas.
+ * Path utilities.
  *
- * El proyecto tiene que funcionar igual en Linux, macOS y Windows, asi que
- * tratamos ambos separadores y detectamos el estilo a partir de la propia ruta.
- * No usamos el modulo `path` de Node porque esto corre en el webview.
+ * The project has to work the same on Linux, macOS and Windows, so we handle
+ * both separators and detect the style from the path itself. We do not use
+ * Node's `path` module because this runs in the webview.
  */
 
-/** Extensiones que abrimos como documento editable. */
+/** Extensions we open as an editable document. */
 export const MARKDOWN_EXTENSIONS = [
   'md',
   'markdown',
@@ -31,7 +31,7 @@ export function isAbsolutePath(p: string): boolean {
   return p.startsWith('/') || isWindowsPath(p);
 }
 
-/** Separador predominante de una ruta (para recomponer sin mezclar estilos). */
+/** Predominant separator of a path (to recompose without mixing styles). */
 export function sepOf(p: string): string {
   return p.includes('\\') && !p.includes('/') ? '\\' : '/';
 }
@@ -40,7 +40,7 @@ export function dirname(p: string): string {
   const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
   if (i < 0) return '';
   if (i === 0) return '/';
-  // No cortar "C:\archivo.md" en "C:".
+  // Do not cut "C:\file.md" into "C:".
   if (i === 2 && /^[a-zA-Z]:[\\/]/.test(p)) return p.slice(0, 3);
   return p.slice(0, i);
 }
@@ -60,15 +60,15 @@ export function isMarkdownPath(p: string): boolean {
   return MARKDOWN_EXTENSIONS.includes(extname(p).replace(/^\./, ''));
 }
 
-/** Los .mdx llevan JSX y sentencias ESM: hay que preprocesarlos. */
+/** .mdx files carry JSX and ESM statements: they have to be preprocessed. */
 export function isMdxPath(p: string | null): boolean {
   return p !== null && extname(p) === '.mdx';
 }
 
 /**
- * Extensiones que se renderizan como Markdown. El resto de los archivos de
- * texto se muestran como codigo (con su resaltado) para no destrozar el
- * formato original: un `.ts` no es un párrafo.
+ * Extensions that are rendered as Markdown. The remaining text files are
+ * shown as code (with their highlighting) so the original format is not
+ * mangled: a `.ts` is not a paragraph.
  */
 const MARKDOWN_RENDER_EXTENSIONS = new Set([
   'md',
@@ -85,14 +85,14 @@ const MARKDOWN_RENDER_EXTENSIONS = new Set([
   'qmd',
 ]);
 
-/** true si el documento se debe renderizar como Markdown (no como codigo). */
+/** true if the document must be rendered as Markdown (not as code). */
 export function isMarkdownRenderable(p: string | null): boolean {
-  // Sin ruta (documento nuevo o demo) asumimos Markdown.
+  // Without a path (new or demo document) we assume Markdown.
   if (p === null) return true;
   return MARKDOWN_RENDER_EXTENSIONS.has(extname(p).replace(/^\./, ''));
 }
 
-/** Lenguaje para el resaltado, a partir de la extension. */
+/** Language for highlighting, based on the extension. */
 export function languageOfPath(p: string | null): string {
   if (p === null) return '';
   const extension = extname(p).replace(/^\./, '').toLowerCase();
@@ -121,7 +121,7 @@ export function joinPath(dir: string, rel: string): string {
   return dir.replace(/[\\/]+$/, '') + sep + rel.replace(/^[\\/]+/, '');
 }
 
-/** Resuelve `.` y `..` sin tocar el disco. */
+/** Resolves `.` and `..` without touching the disk. */
 export function normalizePath(input: string): string {
   if (!input) return '';
   const sep = sepOf(input);
@@ -155,15 +155,15 @@ function decodeSafe(value: string): string {
 }
 
 interface ResolvedRef {
-  /** Ruta sin `#ancla` ni `?query`. */
+  /** Path without the `#anchor` or `?query`. */
   path: string;
-  /** Sufijo `#ancla` que habia en el original. */
+  /** `#anchor` suffix that was in the original. */
   hash: string;
 }
 
 /**
- * Resuelve una referencia relativa (imagen o enlace) contra el documento actual.
- * Devuelve `null` cuando la referencia no es un archivo local (http, data:, mailto...).
+ * Resolves a relative reference (image or link) against the current document.
+ * Returns `null` when the reference is not a local file (http, data:, mailto...).
  */
 export function resolveReference(
   raw: string,
@@ -172,9 +172,9 @@ export function resolveReference(
   const original = raw.trim();
   if (!original) return null;
 
-  // Cualquier cosa con esquema (http:, data:, asset:, file:, mailto:...) la dejamos como esta.
+  // Anything with a scheme (http:, data:, asset:, file:, mailto:...) is left as is.
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(original)) return null;
-  // Protocolo relativo (//cdn...) o ancla interna del propio documento.
+  // Relative protocol (//cdn...) or an anchor inside the document itself.
   if (original.startsWith('//') || original.startsWith('#')) return null;
 
   const hashIndex = original.indexOf('#');
@@ -185,9 +185,9 @@ export function resolveReference(
 
   const candidates: string[] = [];
   if (isAbsolutePath(path)) {
-    // Ruta absoluta del sistema: es la interpretacion principal.
+    // Absolute system path: it is the primary interpretation.
     candidates.push(normalizePath(path));
-    // Y como respaldo, relativa al documento (habitual en README con "/assets/x.png").
+    // And as a fallback, relative to the document (common in READMEs with "/assets/x.png").
     if (docPath) candidates.push(normalizePath(joinPath(dirname(docPath), path.replace(/^[\\/]+/, ''))));
   } else {
     if (!docPath) return null;

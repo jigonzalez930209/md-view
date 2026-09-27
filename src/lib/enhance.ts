@@ -1,17 +1,17 @@
 /**
- * Post-proceso del HTML renderizado.
+ * Post-processing of the rendered HTML.
  *
- * markdown-it devuelve HTML "plano"; aca lo terminamos de convertir en la
- * experiencia tipo GitHub:
+ * markdown-it returns "plain" HTML; here we finish turning it into the
+ * GitHub-like experience:
  *
- *  - ids + anclas en los titulos,
- *  - alertas `> [!NOTE]` / `[!TIP]` / ...,
- *  - imagenes y enlaces resueltos contra la carpeta del documento,
- *  - boton "copiar" en cada bloque de codigo,
- *  - diagramas Mermaid dibujados en el lugar del fence.
+ *  - ids + anchors on the headings,
+ *  - `> [!NOTE]` / `[!TIP]` / ... alerts,
+ *  - images and links resolved against the document folder,
+ *  - "copy" button on every code block,
+ *  - Mermaid diagrams drawn in place of the fence.
  *
- * Trabaja siempre sobre nodos del DOM ya insertados, asi que sirve tanto para
- * Markdown como para HTML embebido a mano.
+ * It always works on DOM nodes already inserted, so it serves both Markdown
+ * and hand-written embedded HTML.
  */
 
 import { isMarkdownPath, resolveReference } from './paths';
@@ -29,18 +29,18 @@ export interface PreviewHandlers {
 export interface EnhanceOptions extends PreviewHandlers {
   theme: Theme;
   palette: Palette;
-  /** false para documentos enormes: deja los diagramas como codigo. */
+  /** false for huge documents: leaves the diagrams as code. */
   diagrams?: boolean;
 }
 
-/** Rutas candidatas de cada enlace local, resueltas recien al hacer click. */
+/** Candidate paths for each local link, resolved only on click. */
 const linkTargets = new WeakMap<HTMLAnchorElement, string[]>();
 
 /* ------------------------------------------------------------------ */
-/* Titulos: id + ancla                                                 */
+/* Headings: id + anchor                                              */
 /* ------------------------------------------------------------------ */
 
-/** Version simplificada del slug que usa GitHub para los anclas. */
+/** Simplified version of the slug GitHub uses for anchors. */
 export function slugify(text: string): string {
   return text
     .trim()
@@ -77,7 +77,7 @@ function addHeadingAnchors(root: HTMLElement): void {
 }
 
 /* ------------------------------------------------------------------ */
-/* Alertas de GitHub                                                   */
+/* GitHub alerts                                                      */
 /* ------------------------------------------------------------------ */
 
 type AlertType = 'note' | 'tip' | 'important' | 'warning' | 'caution';
@@ -114,7 +114,7 @@ function markAlerts(root: HTMLElement): void {
     const type = match[1].toLowerCase() as AlertType;
     firstNode.nodeValue = (firstNode.nodeValue ?? '').slice(match[0].length);
 
-    // Si el marcador ocupaba todo el parrafo, lo sacamos para no dejar un hueco.
+    // If the marker took up the whole paragraph, drop it to leave no gap.
     if (firstParagraph.childNodes.length === 1 && !(firstNode.nodeValue ?? '').trim()) {
       firstParagraph.remove();
     }
@@ -129,7 +129,7 @@ function markAlerts(root: HTMLElement): void {
 }
 
 /* ------------------------------------------------------------------ */
-/* Imagenes                                                            */
+/* Images                                                             */
 /* ------------------------------------------------------------------ */
 
 async function prepareImages(root: HTMLElement, docPath: string | null): Promise<void> {
@@ -137,17 +137,17 @@ async function prepareImages(root: HTMLElement, docPath: string | null): Promise
     image.setAttribute('loading', 'lazy');
     image.setAttribute('decoding', 'async');
 
-    // Sin documento en disco no hay carpeta base: dejamos la ruta tal cual
-    // (asi funcionan las imagenes de /public en el documento de demo).
+    // With no document on disk there is no base folder: we leave the path as
+    // is (that way /public images work in the demo document).
     if (!docPath) continue;
 
     const raw = image.getAttribute('src') ?? '';
     const resolved = resolveReference(raw, docPath);
     if (!resolved) continue;
 
-    // Elegimos la primera interpretacion que exista en disco. Si ninguna
-    // existe dejamos la ruta original: puede ser una URL del propio bundle
-    // (por ejemplo "/demo-animated.svg" servido por la app).
+    // We pick the first interpretation that exists on disk. If none exists
+    // we keep the original path: it may be a URL from the bundle itself
+    // (for example "/demo-animated.svg" served by the app).
     let found: string | null = null;
     for (const candidate of resolved.candidates) {
       if (await pathExists(candidate)) {
@@ -163,7 +163,7 @@ async function prepareImages(root: HTMLElement, docPath: string | null): Promise
 }
 
 /* ------------------------------------------------------------------ */
-/* Enlaces                                                             */
+/* Links                                                              */
 /* ------------------------------------------------------------------ */
 
 function prepareLinks(root: HTMLElement, docPath: string | null): void {
@@ -177,7 +177,7 @@ function prepareLinks(root: HTMLElement, docPath: string | null): void {
       continue;
     }
 
-    // Sin archivo abierto no podemos resolver enlaces relativos.
+    // With no open file we cannot resolve relative links.
     if (!docPath) continue;
 
     const resolved = resolveReference(href, docPath);
@@ -187,13 +187,13 @@ function prepareLinks(root: HTMLElement, docPath: string | null): void {
   }
 }
 
-/** Manejador de click delegado para el panel de preview. */
+/** Delegated click handler for the preview panel. */
 export function handlePreviewClick(event: MouseEvent, handlers: PreviewHandlers): void {
   const anchor = (event.target as HTMLElement | null)?.closest?.('a');
   if (!anchor) return;
 
   const href = anchor.getAttribute('href') ?? '';
-  if (!href || href.startsWith('#')) return; // anclas internas: comportamiento nativo
+  if (!href || href.startsWith('#')) return; // internal anchors: native behavior
 
   event.preventDefault();
 
@@ -222,7 +222,7 @@ async function followLocalLink(
 }
 
 /* ------------------------------------------------------------------ */
-/* Bloques de codigo                                                   */
+/* Code blocks                                                        */
 /* ------------------------------------------------------------------ */
 
 const COPY_ICON =
@@ -237,7 +237,7 @@ function isMermaidBlock(code: Element | null): boolean {
 function decorateCodeBlocks(root: HTMLElement, onMessage: EnhanceOptions['onMessage']): void {
   for (const pre of root.querySelectorAll('pre')) {
     const code = pre.querySelector('code');
-    if (isMermaidBlock(code)) continue; // los diagramas se reemplazan mas abajo
+    if (isMermaidBlock(code)) continue; // diagrams are replaced further down
 
     const wrapper = document.createElement('div');
     wrapper.className = 'code-wrap';
@@ -275,7 +275,7 @@ async function copyText(text: string): Promise<boolean> {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    /* WebKit a veces exige el fallback clasico */
+    /* WebKit sometimes requires the classic fallback */
   }
   try {
     const area = document.createElement('textarea');
@@ -293,7 +293,7 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Diagramas Mermaid                                                   */
+/* Mermaid diagrams                                                   */
 /* ------------------------------------------------------------------ */
 
 async function renderDiagrams(root: HTMLElement, appearance: Appearance): Promise<void> {
@@ -304,7 +304,7 @@ async function renderDiagrams(root: HTMLElement, appearance: Appearance): Promis
     const source = code.textContent ?? '';
     const previous = code.closest('.code-wrap') ?? code.closest('pre');
     if (!previous) continue;
-    // Conservamos la linea del fuente para el scroll sincronizado.
+    // We keep the source line for synchronized scrolling.
     const line = code.closest('pre')?.getAttribute('data-line') ?? null;
 
     const holder = document.createElement('div');

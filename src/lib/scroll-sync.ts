@@ -1,25 +1,25 @@
 /**
- * Sincronizado de scroll entre el editor y la vista previa.
+ * Scroll sync between the editor and the preview.
  *
- * Mapear proporcionalmente (scrollTop / scrollHeight) desalinea en cuanto el
- * preview tiene imagenes, tablas o diagramas: el mismo punto del texto queda en
- * alturas distintas. En su lugar, markdown.ts marca cada bloque del preview con
- * `data-line` (su linea del fuente) y aca buscamos la linea equivalente.
+ * Mapping proportionally (scrollTop / scrollHeight) drifts off as soon as the
+ * preview has images, tables or diagrams: the same point of the text ends up at
+ * different heights. Instead, markdown.ts tags each preview block with
+ * `data-line` (its source line) and here we look for the equivalent line.
  *
- * `PreviewAnchors` cachea las posiciones y se invalida cuando cambia el
- * contenido o su altura (imagenes que terminan de cargar, Mermaid, etc.).
+ * `PreviewAnchors` caches the positions and is invalidated when the content
+ * or its height changes (images finishing loading, Mermaid, etc.).
  */
 
 import type { EditorView } from '@codemirror/view';
 
 interface Mark {
-  /** Linea 1-based del fuente donde empieza el bloque. */
+  /** 1-based source line where the block starts. */
   line: number;
-  /** Distancia desde el inicio del contenido del host. */
+  /** Distance from the start of the host content. */
   top: number;
-  /** Altura del bloque hasta el proximo (incluye margenes). */
+  /** Height of the block up to the next one (includes margins). */
   height: number;
-  /** Cuantas lineas del fuente abarca (para interpolar). */
+  /** How many source lines it spans (for interpolation). */
   span: number;
 }
 
@@ -51,8 +51,8 @@ function collect(host: HTMLElement): Mark[] {
     });
   }
 
-  // Ajustamos cada marca al hueco que la separa de la siguiente: asi la
-  // interpolacion dentro del bloque conserva la posicion relativa.
+  // We adjust each mark to the gap separating it from the next one: this way
+  // the interpolation inside the block keeps the relative position.
   for (let index = 0; index < marks.length; index += 1) {
     const next = marks[index + 1];
     if (next) {
@@ -72,7 +72,7 @@ function ensure(host: HTMLElement, anchors: PreviewAnchors): Mark[] {
   return anchors.marks;
 }
 
-/** Linea (fraccionaria) que se ve arriba de todo en la vista previa. */
+/** Line (fractional) visible at the very top of the preview. */
 export function lineAtTopOfPreview(host: HTMLElement, anchors: PreviewAnchors): number | null {
   const marks = ensure(host, anchors);
   if (marks.length === 0) return null;
@@ -88,7 +88,7 @@ export function lineAtTopOfPreview(host: HTMLElement, anchors: PreviewAnchors): 
   return last.line + last.span;
 }
 
-/** Deja arriba de la vista previa la linea indicada (puede ser fraccionaria). */
+/** Scrolls the preview so the given line is at the top (may be fractional). */
 export function scrollPreviewToLine(host: HTMLElement, anchors: PreviewAnchors, line: number): boolean {
   const marks = ensure(host, anchors);
   if (marks.length === 0) return false;
@@ -108,7 +108,7 @@ export function scrollPreviewToLine(host: HTMLElement, anchors: PreviewAnchors, 
   return true;
 }
 
-/** Linea (fraccionaria) que se ve arriba de todo en el editor. */
+/** Line (fractional) visible at the very top of the editor. */
 export function lineAtTopOfEditor(view: EditorView): number {
   const scroller = view.scrollDOM;
   const block = view.lineBlockAtHeight(scroller.scrollTop + 1);
@@ -117,7 +117,7 @@ export function lineAtTopOfEditor(view: EditorView): number {
   return line.number + Math.min(1, Math.max(0, fraction));
 }
 
-/** Deja arriba del editor la linea indicada (puede ser fraccionaria). */
+/** Scrolls the editor so the given line is at the top (may be fractional). */
 export function scrollEditorToLine(view: EditorView, line: number): void {
   const total = view.state.doc.lines;
   const clamped = Math.min(total, Math.max(1, line));
@@ -128,7 +128,7 @@ export function scrollEditorToLine(view: EditorView, line: number): void {
   view.scrollDOM.scrollTop = Math.max(0, block.top + fraction * block.height);
 }
 
-/** Plan B cuando el preview no tiene marcas (documentos solo con HTML). */
+/** Plan B when the preview has no marks (documents with only HTML). */
 export function syncProportional(from: HTMLElement, to: HTMLElement): void {
   const fromMax = from.scrollHeight - from.clientHeight;
   const toMax = to.scrollHeight - to.clientHeight;

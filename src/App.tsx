@@ -39,7 +39,7 @@ import { cn } from './lib/utils';
 import demoMarkdown from './demo.md?raw';
 
 interface OpenDoc {
-  /** null cuando el documento todavia no se guardo en disco. */
+  /** null while the document hasn't been saved to disk yet. */
   path: string | null;
   name: string;
   eol: '\n' | '\r\n';
@@ -50,9 +50,9 @@ interface Tab {
   id: string;
   doc: OpenDoc;
   content: string;
-  /** true si hubo cambios desde la ultima lectura/escritura en disco. */
+  /** true when there are changes since the last read/write on disk. */
   dirty: boolean;
-  /** Documentos enormes: primeras lineas para el preview y largo actual. */
+  /** Huge documents: first lines for the preview plus current length. */
   window?: string;
   length?: number;
   mode: ViewMode;
@@ -64,17 +64,17 @@ interface Message {
   kind: 'info' | 'error';
 }
 
-const UNTITLED = 'sin-titulo';
+const UNTITLED = 'untitled';
 
-/** Cuenta archivos del arbol (para el mensaje al abrir la carpeta). */
+/** Counts files in the tree (for the message shown when opening the folder). */
 function countTreeFiles(entry: backend.TreeEntry): number {
   if (entry.kind === 'file') return 1;
   return (entry.children ?? []).reduce((total, child) => total + countTreeFiles(child), 0);
 }
 
 /**
- * Valor que solo cambia cuando el usuario deja de escribir un momento.
- * Redibujar el preview (KaTeX, Mermaid, resaltado) en cada tecla da microcortes.
+ * Value that only changes once the user pauses typing for a moment.
+ * Redrawing the preview (KaTeX, Mermaid, highlighting) on every keystroke stutters.
  */
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -89,13 +89,13 @@ export default function App() {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const { preferences, update: updatePreferences, reset: resetPreferences, theme } = usePreferences();
-  // Los modulos que no son React (export, enhance, backend) usan `t()`.
+  // Non-React modules (export, enhance, backend) use `t()`.
   setActiveLanguage(preferences.language);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [folder, setFolder] = useState<backend.FolderTree | null>(null);
   const [treeOpen, setTreeOpen] = useState(true);
   const [treeWidth, setTreeWidth] = useState(300);
-  /** Tema forzado mientras se exporta (PDF claro); no se persiste. */
+  /** Theme forced while exporting (light PDF); not persisted. */
   const [printTheme, setPrintTheme] = useState<Theme | null>(null);
   const [ratio, setRatio] = useState(0.5);
   const [recents, setRecents] = useState<string[]>([]);
@@ -103,7 +103,7 @@ export default function App() {
   const [dropping, setDropping] = useState(false);
   const [draggingSplitter, setDraggingSplitter] = useState(false);
 
-  /** Una vista de CodeMirror por pestana (se cambia solo la visibilidad). */
+  /** One CodeMirror view per tab (only visibility is toggled). */
   const editorViews = useRef(new Map<string, EditorView>());
   const editorViewRef = useRef<EditorView | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -125,11 +125,11 @@ export default function App() {
   const mode = activeTab?.mode ?? 'preview';
   const cursor = activeTab?.cursor ?? { line: 1, column: 1 };
   const dirty = activeTab?.dirty ?? false;
-  // El preview espera a que el usuario haga una pausa: mientras tanto el
-  // editor responde al instante (y el layout no se mueve bajo los pies).
+  // The preview waits for the user to pause: meanwhile the editor stays
+  // instant (and the layout doesn't shift under your feet).
   const deferredContent = useDebouncedValue(content, 220);
 
-  /* ----------------------------- estado en refs ----------------------------- */
+  /* ----------------------------- state in refs ------------------------------ */
 
   const themeRef = useRef(theme);
   themeRef.current = theme;
@@ -146,7 +146,7 @@ export default function App() {
     messageTimer.current = window.setTimeout(() => setMessage(null), kind === 'error' ? 8000 : 3000);
   }, []);
 
-  /* --------------------------------- pestanas -------------------------------- */
+  /* ----------------------------------- tabs ---------------------------------- */
 
   const updateTab = useCallback((id: string, patch: Partial<Tab>) => {
     setTabs((current) => current.map((tab) => (tab.id === id ? { ...tab, ...patch } : tab)));
@@ -157,7 +157,7 @@ export default function App() {
     [],
   );
 
-  /** Vuelca cambios pendientes y devuelve el texto actual del editor. */
+  /** Flushes pending changes and returns the current editor text. */
   const flushContent = useCallback((): string => {
     if (pendingContentTimer.current !== null) {
       window.clearTimeout(pendingContentTimer.current);
@@ -182,8 +182,8 @@ export default function App() {
       doc: document,
       content: body,
       dirty: false,
-      // En documentos enormes guardamos solo la ventana del preview: el texto
-      // completo vive en CodeMirror y no se copia en cada tecla.
+      // For huge documents we only keep the preview window: the full text
+      // lives in CodeMirror and is not copied on every keystroke.
       window: huge ? headWindow(body, PREVIEW_WINDOW_LINES) : undefined,
       length: huge ? body.length : undefined,
       mode: viewMode,
@@ -191,13 +191,13 @@ export default function App() {
     };
   }, []);
 
-  /** Modo que hereda una pestana nueva: el de la pestana activa. */
+  /** Mode a new tab inherits: the active tab's mode. */
   const inheritedMode = useCallback((): ViewMode => {
     const active = tabsRef.current.find((tab) => tab.id === activeIdRef.current);
     return active ? active.mode : 'split';
   }, []);
 
-  /** Abre un documento: si ya esta abierto, enfoca su pestana. */
+  /** Opens a document: if already open, focuses its tab. */
   const openDoc = useCallback(
     (file: Doc) => {
       const existing = tabsRef.current.find((tab) => tab.doc.path === file.path);
@@ -321,7 +321,7 @@ export default function App() {
     [updateTab],
   );
 
-  /** Refresca la ventana del preview leyendo del editor (sin copiar todo). */
+  /** Refreshes the preview window straight from the editor (no full copy). */
   const refreshHugeWindow = useCallback(() => {
     const view = editorViewRef.current;
     const id = activeIdRef.current;
@@ -332,7 +332,7 @@ export default function App() {
     updateTab(id, { window: doc.sliceString(0, end), length: doc.length });
   }, [updateTab]);
 
-  /** Documentos enormes: solo marcamos cambios y, con una pausa, la ventana. */
+  /** Huge documents: we only flag changes and, after a pause, the window. */
   const handleEditorDirty = useCallback((id: string) => {
     suppressUntil.current = performance.now() + 300;
     const tab = tabsRef.current.find((item) => item.id === id);
@@ -346,14 +346,14 @@ export default function App() {
 
   const handleEditorChange = useCallback(
     (id: string, value: string) => {
-      // Mientras se escribe no sincronizamos scroll: el preview se rearma y
-      // sus eventos de scroll moverian el editor "a lo loco".
+      // While typing we don't sync scroll: the preview re-renders and its
+      // scroll events would move the editor all over the place.
       suppressUntil.current = performance.now() + 300;
 
-      // En documentos enormes copiar el texto completo (10 MB) al estado en
-      // cada tecla se siente; esperamos una pausa corta y el editor responde
-      // igual porque su propio documento ya tiene el cambio.
-      // El indicador de cambios se marca ya: no depende de copiar el texto.
+      // For huge documents, copying the full text (10 MB) into state on every
+      // keystroke is noticeable; we wait for a short pause and the editor
+      // still responds because its own document already has the change.
+      // The dirty flag is set right away: it doesn't depend on copying the text.
       const tab = tabsRef.current.find((item) => item.id === id);
       if (tab && !tab.dirty) updateTab(id, { dirty: true });
 
@@ -373,7 +373,7 @@ export default function App() {
   const handleCursorChange = useCallback(
     (id: string, position: CursorPosition) => {
       const tab = tabsRef.current.find((item) => item.id === id);
-      // Sin cambio real o con uno ya programado no re-renderizamos la app.
+      // No real change, or one already scheduled: we don't re-render the app.
       if (tab && tab.cursor.line === position.line && tab.cursor.column === position.column) return;
       if (pendingCursorTimer.current !== null) return;
       pendingCursorTimer.current = window.setTimeout(() => {
@@ -384,14 +384,14 @@ export default function App() {
     [updateTab],
   );
 
-  /* ------------------------------- guardar ---------------------------------- */
+  /* ---------------------------------- save ---------------------------------- */
 
   const save = useCallback(async () => {
     const tab = currentTab();
     if (!tab) return;
     const text = flushContent();
     const path = tab.doc.path;
-    // Un documento nuevo todavia no tiene ruta: pedimos una.
+    // A new document has no path yet: we ask for one.
     if (!path) {
       await saveAsRef.current();
       return;
@@ -408,7 +408,7 @@ export default function App() {
     }
   }, [currentTab, flushContent, showMessage, updateTab]);
 
-  /** Referencia para que `save` pueda pedir "Guardar como" sin dependencia circular. */
+  /** Ref so `save` can trigger "Save as" without a circular dependency. */
   const saveAsRef = useRef<() => Promise<void>>(async () => {});
 
   const saveAs = useCallback(async () => {
@@ -430,7 +430,7 @@ export default function App() {
     }
   }, [currentTab, flushContent, showMessage, updateTab]);
 
-  // Acciones accesibles desde listeners globales sin re-suscribir.
+  // Actions reachable from global listeners without re-subscribing.
   const toggleTree = useCallback(() => setTreeOpen((current) => !current), []);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const actions = useRef({
@@ -459,11 +459,11 @@ export default function App() {
   };
   saveAsRef.current = saveAs;
 
-  /* --------------------------------- efectos -------------------------------- */
+  /* -------------------------------- effects --------------------------------- */
 
   useEffect(() => {
     applyAppearance(theme, preferences.palette);
-    // Cambiar de tema re-dibuja los diagramas: que el sync no se pelee.
+    // Switching theme redraws the diagrams: so scroll sync doesn't fight it.
     suppressUntil.current = performance.now() + 600;
   }, [theme, preferences.palette]);
 
@@ -472,7 +472,7 @@ export default function App() {
     void backend.setWindowTitle(title);
   }, [doc, dirty]);
 
-  // Arranque: lista de recientes + archivos pasados por linea de comandos.
+  // Startup: recent files list + files passed on the command line.
   useEffect(() => {
     void (async () => {
       try {
@@ -480,12 +480,12 @@ export default function App() {
         const pending = await backend.takePendingOpen();
         for (const path of pending) await actions.current.openFile(path);
       } catch {
-        /* sin backend disponible: seguimos con la pantalla de inicio */
+        /* no backend available: carry on with the welcome screen */
       }
     })();
   }, []);
 
-  // Otra instancia de la app pide abrir un archivo.
+  // Another instance of the app asks to open a file.
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     void backend
@@ -499,7 +499,7 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
-  // Arrastrar y soltar: cada archivo va a su propia pestana.
+  // Drag and drop: each file goes to its own tab.
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     void backend
@@ -524,7 +524,7 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
-  // Cierre de la ventana con cambios sin guardar (en cualquier pestana).
+  // Window close with unsaved changes (in any tab).
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     void backend
@@ -545,7 +545,7 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
-  // Atajos de teclado globales.
+  // Global keyboard shortcuts.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
@@ -589,7 +589,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // CodeMirror mide mal cuando el panel estuvo oculto (display: none).
+  // CodeMirror measures incorrectly when the pane has been hidden (display: none).
   useEffect(() => {
     if (!activeId || (mode !== 'edit' && mode !== 'split')) return;
     const view = editorViewRef.current;
@@ -598,12 +598,12 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [mode, activeId]);
 
-  // El preview se re-renderiza con cada cambio: las posiciones quedan viejas.
+  // The preview re-renders on every change: positions go stale.
   useEffect(() => {
     invalidatePreviewAnchors(previewAnchors.current);
   }, [deferredContent]);
 
-  // Imagenes que cargan o Mermaid que termina de dibujar cambian las alturas.
+  // Images loading or Mermaid finishing its render change heights.
   useEffect(() => {
     if (tabs.length === 0) return;
     const article = previewRef.current?.firstElementChild;
@@ -613,7 +613,7 @@ export default function App() {
     return () => observer.disconnect();
   }, [tabs.length > 0]);
 
-  // Recuerda el scroll de la vista previa de cada pestana sin disparar el sync.
+  // Remembers each tab's preview scroll without triggering sync.
   useEffect(() => {
     const previous = previousTabId.current;
     if (previous && previewRef.current) previewScroll.current.set(previous, previewRef.current.scrollTop);
@@ -635,9 +635,8 @@ export default function App() {
   const pendingSource = useRef<'editor' | 'preview' | null>(null);
 
   /**
-   * El scroll sincronizado corre como maximo una vez por frame: leer
-   * `scrollHeight` fuerza layout y en WebKitGTK hacerlo en cada evento de
-   * rueda se siente a saltos.
+   * Synced scroll runs at most once per frame: reading `scrollHeight`
+   * forces layout and doing it on every wheel event in WebKitGTK feels jumpy.
    */
   const syncScroll = useCallback((source: 'editor' | 'preview') => {
     pendingSource.current = source;
@@ -661,11 +660,11 @@ export default function App() {
       const editorView = editorViewRef.current;
       if (!editorScroller || !previewHost || !editorView) return;
 
-      // Bloquea el eco: el scroll que provocamos abajo no vuelve a sincronizar.
+      // Blocks the echo: the scroll we trigger below doesn't sync back.
       scrollSyncLock.current = { source: fromSource, until: performance.now() + 250 };
 
       if (fromSource === 'editor') {
-        // Alineamos por linea real; si el preview no tiene marcas, proporcional.
+        // Align by real line; if the preview has no anchors, go proportional.
         const line = lineAtTopOfEditor(editorView);
         if (!scrollPreviewToLine(previewHost, previewAnchors.current, line)) {
           syncProportional(editorScroller, previewHost);
@@ -704,7 +703,7 @@ export default function App() {
     if (activeIdRef.current === id) editorViewRef.current = null;
   }, []);
 
-  // La vista activa manda: scroll sync, guardado y exportacion la usan.
+  // The active view rules: scroll sync, saving and export all use it.
   useEffect(() => {
     if (!activeId) {
       editorViewRef.current = null;
@@ -715,8 +714,8 @@ export default function App() {
     view?.requestMeasure();
   }, [activeId, tabs]);
 
-  // Estables: si cambian de identidad en cada render, el preview se vuelve a
-  // renderizar (y Mermaid se redibuja) con cada tecla o movimiento del cursor.
+  // Stable: if their identity changed on every render, the preview would
+  // re-render (and Mermaid redraw) on every keystroke or cursor move.
   const tabSignature = tabs.map((tab) => `${tab.id}:${tab.dirty ? 1 : 0}:${tab.doc.name}`).join('|');
   const tabInfos = useMemo(
     () =>
@@ -726,7 +725,7 @@ export default function App() {
         path: tab.doc.path,
         dirty: tab.dirty,
       })),
-    // El contenido cambia en cada tecla; los tabs solo dependen de esto.
+    // Content changes on every keystroke; tabs only depend on this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tabSignature],
   );
@@ -734,7 +733,7 @@ export default function App() {
   const handleOpenFile = useCallback((path: string) => void openFile(path), [openFile]);
   const handlePreviewScroll = useCallback(() => syncScroll('preview'), [syncScroll]);
 
-  /* ------------------------------- separador -------------------------------- */
+  /* -------------------------------- splitter -------------------------------- */
 
   const onSplitterPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -763,7 +762,7 @@ export default function App() {
       event.preventDefault();
       const startX = event.clientX;
       const startWidth = treeWidth;
-      // A la izquierda el ancho crece hacia la derecha; a la derecha, al reves.
+      // On the left the width grows to the right; on the right, the other way around.
       const direction = preferencesRef.current.explorerSide === 'left' ? 1 : -1;
 
       const onMove = (moveEvent: PointerEvent) => {
@@ -783,11 +782,11 @@ export default function App() {
 
   /* --------------------------------- render --------------------------------- */
 
-  // Los conteos van sobre un valor debounced: recorrer un documento enorme en
-  // cada tecla es carisimo. Si es grande, el trabajo se despacha a un worker.
+  // Counts run on a debounced value: scanning a huge document on every
+  // keystroke is very expensive. When large, the work is dispatched to a worker.
   const statsContent = useDebouncedValue(content, 400);
   const [stats, setStats] = useState<TextStats>({ words: 0, lines: 1, chars: 0 });
-  /** Conteos ya calculados por documento: cambiar de pestana no re-calcula. */
+  /** Counts already computed per document: switching tabs doesn't recompute. */
   const statsCache = useRef(new Map<string, { text: string; stats: TextStats }>());
 
   useEffect(() => {
@@ -830,7 +829,7 @@ export default function App() {
     };
   }, [statsContent]);
 
-  // Sin documentos abiertos no hace falta mantener el worker vivo.
+  // With no documents open there's no need to keep the worker alive.
   useEffect(() => {
     if (tabs.length === 0) disposeTextWorker();
   }, [tabs.length]);
@@ -839,7 +838,7 @@ export default function App() {
     setRecents(await backend.clearRecents());
   }, []);
 
-  /* --------------------------------- carpetas -------------------------------- */
+  /* --------------------------------- folders --------------------------------- */
 
   const openFolder = useCallback(async () => {
     try {
@@ -871,7 +870,7 @@ export default function App() {
   const handleTreeRefresh = useCallback(() => void refreshFolder(), [refreshFolder]);
   const handleTreeClose = useCallback(() => setTreeOpen(false), []);
 
-  /* --------------------------------- explorador ------------------------------ */
+  /* --------------------------------- explorer -------------------------------- */
 
   const treePanel =
     folder && treeOpen ? (
@@ -893,7 +892,7 @@ export default function App() {
       </>
     ) : null;
 
-  /* -------------------------------- exportar -------------------------------- */
+  /* --------------------------------- export --------------------------------- */
 
 
   const handleExport = useCallback(
@@ -908,7 +907,7 @@ export default function App() {
       }
 
       const base = tab.doc.name.replace(/\.[^.]+$/, '') || 'documento';
-      // Si el documento vive en disco, exportamos al lado suyo.
+      // If the document lives on disk, we export next to it.
       const suggested = tab.doc.path
         ? joinPath(dirname(tab.doc.path), `${base}.${info.extension}`)
         : `${base}.${info.extension}`;
@@ -919,16 +918,16 @@ export default function App() {
       if (!target) return;
 
       showMessage(t('app.exporting', { label: t(info.labelKey) }));
-      // Volcamos cambios pendientes y dejamos que el preview se rearme.
+      // Flush pending changes and let the preview rebuild.
       flushContent();
       await new Promise((resolve) => window.setTimeout(resolve, 260));
 
-      // Las capturas y la impresion necesitan el panel de vista previa visible.
+      // Captures and printing need the preview pane visible.
       const needsPreview = format !== 'html' && format !== 'txt';
       const restoreMode = needsPreview && tab.mode === 'edit' ? tab.mode : null;
       if (restoreMode) setMode('preview');
 
-      // El PDF sale en claro salvo que el usuario lo desactive.
+      // The PDF is exported light unless the user turns that off.
       const lightPdf = format === 'pdf' && preferencesRef.current.pdfLight && themeRef.current !== 'light';
       if (lightPdf) {
         applyAppearance('light', preferencesRef.current.palette);
@@ -999,7 +998,7 @@ export default function App() {
           <div className="workspace-row row-start-2 flex min-h-0">
             {preferences.explorerSide === 'left' && treePanel}
 
-            {/* Con explorador, los tabs viven al lado suyo (el panel llega hasta la barra de titulo). */}
+            {/* With the explorer open, tabs live next to it (the panel reaches up to the title bar). */}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               {tabs.length > 0 && activeTab ? (
                 <>
@@ -1147,7 +1146,7 @@ export default function App() {
           {dropping && (
             <div className="pointer-events-none fixed inset-0 z-100 flex items-center justify-center bg-background/80 backdrop-blur-[2px]">
               <div className="rounded-xl border-2 border-dashed border-primary bg-background px-5.5 py-3.5 text-sm font-medium text-primary">
-                Soltá el archivo para abrirlo
+                {t('app.dropToOpen')}
               </div>
             </div>
           )}

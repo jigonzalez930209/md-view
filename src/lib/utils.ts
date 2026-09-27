@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-/** Une clases de Tailwind resolviendo conflictos (utilidad de shadcn). */
+/** Joins Tailwind classes resolving conflicts (shadcn utility). */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

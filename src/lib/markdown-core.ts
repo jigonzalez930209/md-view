@@ -1,9 +1,9 @@
 /**
- * Nucleo del render de Markdown: markdown-it + plugins + KaTeX + resaltado.
+ * Markdown render core: markdown-it + plugins + KaTeX + highlighting.
  *
- * Este modulo NO toca el DOM, asi que corre igual en el hilo principal o en un
- * worker. La sanitizacion con DOMPurify se hace aparte (necesita DOM), en
- * `lib/markdown.ts`.
+ * This module does NOT touch the DOM, so it runs the same on the main thread
+ * or in a worker. DOMPurify sanitization is done separately (it needs the
+ * DOM), in `lib/markdown.ts`.
  */
 
 import MarkdownIt from 'markdown-it';
@@ -19,9 +19,9 @@ import { preprocessMdx } from './mdx';
 type KatexPlugin = (md: MarkdownItInstance, options?: MarkdownKatexOptions) => void;
 
 /**
- * @vscode/markdown-it-katex se publica como CommonJS con `exports.default`, y el
- * interop de ESM puede devolver el objeto del modulo en lugar de la funcion.
- * Desenvolvemos hasta encontrar algo invocable.
+ * @vscode/markdown-it-katex ships as CommonJS with `exports.default`, and ESM
+ * interop may return the module object instead of the function. We unwrap
+ * until we find something callable.
  */
 function unwrapPlugin<T>(module: unknown): T {
   let candidate: unknown = module;
@@ -38,23 +38,23 @@ function unwrapPlugin<T>(module: unknown): T {
 
 const katexPlugin = unwrapPlugin<KatexPlugin>(katexModule as unknown);
 
-/** El resaltado de sintaxis se apaga en documentos grandes. */
+/** Syntax highlighting is turned off for large documents. */
 export const HIGHLIGHT_LIMIT = 300_000;
 
-/** Bandera interna: `highlight` es una opcion global de la instancia. */
+/** Internal flag: `highlight` is a global option of the instance. */
 let highlightEnabled = true;
 
 const md = new MarkdownIt({
-  html: true, // permitimos HTML embebido (luego se sanitiza)
-  linkify: true, // URLs sueltas se vuelven enlaces, como en GFM
-  typographer: false, // GitHub no reemplaza comillas ni guiones
-  breaks: false, // un salto simple no es <br> en los .md de un repo
+  html: true, // allow embedded HTML (sanitized later)
+  linkify: true, // bare URLs become links, like in GFM
+  typographer: false, // GitHub does not replace quotes or dashes
+  breaks: false, // a single newline is not <br> in a repo's .md files
   highlight: (code, language) =>
     highlightEnabled ? (highlightCode(code, language) ?? '') : '',
 });
 
 md.use(footnotePlugin);
-// enabled: false => casillas deshabilitadas, igual que en GitHub.
+// enabled: false => disabled checkboxes, same as on GitHub.
 md.use(taskListPlugin, { enabled: false });
 md.use(emojiPlugin);
 md.use(katexPlugin, {
@@ -65,10 +65,10 @@ md.use(katexPlugin, {
 });
 
 /**
- * Marca cada bloque con su linea del fuente (`data-line`).
+ * Tags each block with its source line (`data-line`).
  *
- * El scroll sincronizado del modo dividido usa estos numeros para alinear el
- * editor con la vista previa, incluso cuando hay imagenes o diagramas.
+ * Split-mode synchronized scroll uses these numbers to align the editor with
+ * the preview, even when there are images or diagrams.
  */
 function lineAnchorsPlugin(mdInstance: MarkdownItInstance): void {
   mdInstance.core.ruler.push('md_view_line_anchors', (state) => {
@@ -77,14 +77,15 @@ function lineAnchorsPlugin(mdInstance: MarkdownItInstance): void {
     }
   });
 
-  /** Inserta el atributo en la primera etiqueta del HTML del bloque. */
+  /** Inserts the attribute into the first tag of the block's HTML. */
   const inject = (html: string, line: string | number | null | undefined): string => {
     if (line === null || line === undefined) return html;
     return html.replace(/^(\s*<[a-zA-Z][\w-]*)/, `$1 data-line="${line}"`);
   };
 
-  // Bloques con renderer propio (no pasan por renderToken): fences, codigo y
-  // las formulas de KaTeX, que si no quedarian sin ancla y desalinearian todo.
+  // Blocks with their own renderer (they don't go through renderToken): fences,
+  // code and the KaTeX formulas, which would otherwise be left without an
+  // anchor and misalign everything.
   const withCustomRenderer = ['fence', 'code_block', 'math_block', 'math_inline_block', 'math_inline_bare_block'];
   for (const type of withCustomRenderer) {
     const original = mdInstance.renderer.rules[type];
@@ -97,20 +98,20 @@ function lineAnchorsPlugin(mdInstance: MarkdownItInstance): void {
 md.use(lineAnchorsPlugin);
 
 export interface RenderOptions {
-  /** true para archivos .mdx (JSX + sentencias ESM). */
+  /** true for .mdx files (JSX + ESM statements). */
   mdx?: boolean;
 }
 
 /**
- * ¿El fuente puede producir HTML crudo? Si no hay ningún `<` en el Markdown,
- * markdown-it solo genera etiquetas propias y la sanitizacion no aporta: se
- * puede saltear. La comprobacion es conservadora (ante la duda, sanitizar).
+ * Can the source produce raw HTML? If there is no `<` in the Markdown,
+ * markdown-it only generates its own tags and sanitization adds nothing: it
+ * can be skipped. The check is conservative (when in doubt, sanitize).
  */
 export function hasRawHtml(source: string): boolean {
   return /<[a-zA-Z!/?]/.test(source);
 }
 
-/** Markdown -> HTML sin sanitizar (rapido y sin DOM). */
+/** Markdown -> unsanitized HTML (fast and DOM-free). */
 export function renderMarkdownCore(source: string, options: RenderOptions = {}): string {
   const markdown = options.mdx ? preprocessMdx(source) : source;
   highlightEnabled = markdown.length <= HIGHLIGHT_LIMIT;

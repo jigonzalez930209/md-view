@@ -1,4 +1,4 @@
-/* Punto de entrada de estilos (el orden importa: variables primero). */
+/* Styles entry point (order matters: variables first). */
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './theme.css';
@@ -38,7 +38,7 @@
     outline-offset: -1px;
   }
 
-  /* Scrollbars finas y discretas, en linea con el resto de la interfaz. */
+  /* Thin, subtle scrollbars, in line with the rest of the UI. */
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar) transparent;
@@ -67,9 +67,9 @@
 }
 
 /*
- * Al exportar a PDF se imprime esta misma pagina: dejamos solo la vista
- * previa, sin interfaz, y con la altura completa para que pagine bien.
- * (Sin @layer: asi estas reglas le ganan a las utilidades de Tailwind.)
+ * When exporting to PDF this same page is printed: we leave only the preview,
+ * without UI, and with full height so it paginates well.
+ * (Without @layer: this way these rules win over Tailwind's utilities.)
  */
 @media print {
   @page {

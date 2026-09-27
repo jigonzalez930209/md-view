@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
 /*
- * Los plugins de markdown-it que usamos no publican tipos propios.
- * Declaramos solo la firma que necesitamos.
+ * The markdown-it plugins we use don't publish their own types.
+ * We only declare the signature we need.
  */
 
 declare module 'markdown-it-footnote' {
@@ -14,7 +14,7 @@ declare module 'markdown-it-footnote' {
 declare module 'markdown-it-task-lists' {
   import type MarkdownIt from 'markdown-it';
   interface TaskListOptions {
-    /** Si es true las casillas quedan clickeables (por defecto false: solo lectura). */
+    /** If true, checkboxes are clickable (default false: read-only). */
     enabled?: boolean;
     label?: boolean;
     labelAfter?: boolean;

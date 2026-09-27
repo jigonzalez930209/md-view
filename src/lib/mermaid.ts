@@ -1,10 +1,10 @@
 /**
- * Diagramas Mermaid.
+ * Mermaid diagrams.
  *
- * La libreria pesa bastante, asi que se carga con import() dinamico la primera
- * vez que aparece un diagrama. Los colores se leen de las variables CSS de la
- * paleta activa (GitHub, One Dark, Dracula) y se re-inicializa cuando cambia
- * el tema o la paleta.
+ * The library is fairly heavy, so it is loaded with a dynamic import() the
+ * first time a diagram appears. Colors are read from the CSS variables of the
+ * active palette (GitHub, One Dark, Dracula) and it is re-initialized when the
+ * theme or palette changes.
  */
 
 import type { Palette, Theme } from './theme';
@@ -20,7 +20,7 @@ let loader: Promise<MermaidApi> | null = null;
 let initializedKey: string | null = null;
 let renderSeq = 0;
 
-/** SVGs ya dibujados: redibujar en cada tecla es carisimo y mueve el layout. */
+/** SVGs already drawn: redrawing on every keystroke is costly and shifts the layout. */
 const svgCache = new Map<string, string>();
 const CACHE_LIMIT = 40;
 
@@ -30,11 +30,11 @@ function read(name: string, fallback: string): string {
 }
 
 /**
- * Variables de tema para Mermaid.
+ * Theme variables for Mermaid.
  *
- * El tema "dark" de la libreria deja las etiquetas de las flechas (los "Si"/"No"
- * de un flowchart) en un gris muy oscuro, ilegible sobre el fondo de la app.
- * Fijamos los colores que importan para que combine con la paleta de md-view.
+ * The library's "dark" theme leaves the arrow labels (the "Yes"/"No"
+ * of a flowchart) in a very dark gray, unreadable on the app background.
+ * We pin the colors that matter so it matches the md-view palette.
  */
 function themeVariables(theme: Theme): Record<string, unknown> {
   const background = read('--background', '#ffffff');
@@ -66,7 +66,7 @@ function themeVariables(theme: Theme): Record<string, unknown> {
     titleColor: foreground,
     clusterBkg: card,
     clusterBorder: border,
-    // Diagramas de secuencia
+    // Sequence diagrams
     actorBkg: card,
     actorBorder: border,
     actorTextColor: foreground,
@@ -79,9 +79,9 @@ function themeVariables(theme: Theme): Record<string, unknown> {
     noteBkgColor: muted,
     noteTextColor: foreground,
     noteBorderColor: border,
-    // Diagramas de clases
+    // Class diagrams
     classText: foreground,
-    // Distintos textos de los graficos
+    // Various chart texts
     pieTitleTextColor: foreground,
     pieSectionTextColor: foreground,
     pieLegendTextColor: foreground,
@@ -113,7 +113,7 @@ async function getMermaid(appearance: Appearance): Promise<MermaidApi> {
   return mermaid;
 }
 
-/** Dibuja un diagrama y devuelve el SVG. Lanza si la sintaxis es invalida. */
+/** Draws a diagram and returns the SVG. Throws if the syntax is invalid. */
 export async function renderDiagram(code: string, appearance: Appearance): Promise<string> {
   const key = `${appearance.theme}:${appearance.palette}:${code}`;
   const cached = svgCache.get(key);
@@ -131,7 +131,7 @@ export async function renderDiagram(code: string, appearance: Appearance): Promi
   return svg;
 }
 
-/** Precarga la libreria (por ejemplo al abrir un documento con diagramas). */
+/** Preloads the library (for example when opening a document with diagrams). */
 export function preloadDiagrams(appearance: Appearance): void {
   void getMermaid(appearance);
 }

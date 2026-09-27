@@ -1,19 +1,19 @@
 /**
- * Apariencia: tipos de tema y paleta, y como se aplican al <html>.
+ * Appearance: theme and palette types, and how they are applied to <html>.
  *
- * Las preferencias (que tema y que paleta eligio el usuario) viven en
- * `lib/prefs.ts`; aca solo esta lo que entiende el resto de la app.
+ * Preferences (which theme and palette the user chose) live in
+ * `lib/prefs.ts`; here is only what the rest of the app understands.
  */
 
 export type Theme = 'light' | 'dark';
 export type Palette = 'github' | 'onedark' | 'dracula';
-/** Lado donde se muestra el explorador de carpetas. */
+/** Side where the folder explorer is shown. */
 export type ExplorerSide = 'left' | 'right';
 
 export interface PaletteInfo {
   id: Palette;
   label: string;
-  /** Colores de muestra para el selector. */
+  /** Sample colors for the picker. */
   swatch: [string, string, string];
 }
 

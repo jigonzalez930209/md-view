@@ -1,7 +1,7 @@
-/** Modos de vista del area de trabajo. */
+/** Workspace view modes. */
 export type ViewMode = 'edit' | 'split' | 'preview';
 
-/** Claves de traduccion de cada modo (las resuelve la interfaz). */
+/** Translation keys for each mode (resolved by the UI). */
 export const VIEW_MODE_KEYS = {
   edit: 'header.viewEdit',
   split: 'header.viewSplit',

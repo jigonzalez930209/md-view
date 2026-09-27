@@ -1,9 +1,9 @@
 /**
- * Configuracion de CodeMirror 6 para editar Markdown.
+ * CodeMirror 6 setup for editing Markdown.
  *
- * Buscamos algo parecido a la vista de fuente de GitHub: monoespaciado, sin
- * cambios bruscos de tamano y con el marcado (###, **, `) en un tono apagado
- * para que el texto se lea primero.
+ * We aim for something similar to GitHub's source view: monospaced, no abrupt
+ * size changes and with markup (###, **, `) in a muted tone so the text is
+ * read first.
  */
 
 import { Compartment, EditorState, type Extension } from '@codemirror/state';
@@ -36,7 +36,7 @@ import { PLAIN_LIMIT } from '../lib/limits';
 export { PLAIN_LIMIT };
 import { insertLink, toggleBold, toggleInlineCode, toggleItalic } from './format';
 
-/** Fuente y medidas compartidas por todas las paletas. */
+/** Font and metrics shared by all palettes. */
 const metrics = {
   '&': {
     height: '100%',
@@ -139,11 +139,11 @@ const markdownHighlightStyle = HighlightStyle.define([
   { tag: [t.link, t.url], color: 'var(--primary)' },
   { tag: [t.quote], color: 'var(--fg-muted)', fontStyle: 'italic' },
   { tag: [t.list, t.contentSeparator], color: 'var(--fg-muted)' },
-  // Marcado del propio Markdown (#, **, >, -) en tono apagado.
+  // Markdown's own markup (#, **, >, -) in a muted tone.
   { tag: [t.processingInstruction, t.punctuation], color: 'var(--fg-subtle)' },
   { tag: t.labelName, color: 'var(--primary)' },
   { tag: t.escape, color: 'var(--hl-variable)' },
-  // Bloques de codigo embebidos.
+  // Embedded code blocks.
   { tag: t.keyword, color: 'var(--hl-keyword)' },
   { tag: [t.string, t.special(t.string)], color: 'var(--hl-string)' },
   { tag: [t.number, t.bool, t.null], color: 'var(--hl-constant)' },
@@ -173,24 +173,24 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
 function settingsExtension(settings: EditorSettings, plain: boolean): Extension {
   return [
     settings.lineNumbers ? lineNumbers() : [],
-    // En documentos enormes el ajuste de linea mide cada linea y congela: off.
+    // On huge documents line wrapping measures every line and freezes: off.
     settings.wrap && !plain ? EditorView.lineWrapping : [],
     EditorView.theme({ '&': { fontSize: `${settings.fontSize}px` } }),
   ];
 }
 
-/** Aplica preferencias del editor sin recrear el documento. */
+/** Applies editor preferences without recreating the document. */
 export function reconfigureEditor(view: EditorView, settings: EditorSettings, plain = false): void {
   view.dispatch({ effects: settingsCompartment.reconfigure(settingsExtension(settings, plain)) });
 }
 
-/** Una extension por tema: reconfigurar no vuelve a construir los estilos. */
+/** One extension per theme: reconfiguring does not rebuild the styles. */
 const themeExtensions: Record<Theme, Extension> = {
   light: EditorView.theme(metrics, { dark: false }),
   dark: EditorView.theme(metrics, { dark: true }),
 };
 
-/** Atajos de formato Markdown (Ctrl/⌘ + letra), como en GitHub. */
+/** Markdown formatting shortcuts (Ctrl/⌘ + letter), like on GitHub. */
 const formatKeymap = [
   { key: 'Mod-b', run: toggleBold, preventDefault: true },
   { key: 'Mod-i', run: toggleItalic, preventDefault: true },
@@ -199,9 +199,9 @@ const formatKeymap = [
 ];
 
 export interface EditorOptions {
-  /** Sin parseo de Markdown ni resaltado: para documentos enormes. */
+  /** No Markdown parsing or highlighting: for huge documents. */
   plain?: boolean;
-  /** Etiqueta accesible del area de edicion. */
+  /** Accessible label of the editing area. */
   ariaLabel?: string;
 }
 
@@ -249,7 +249,7 @@ export function createEditorState(
   });
 }
 
-/** Cambia de tema sin recrear el documento (ni perder el historial). */
+/** Switches theme without recreating the document (or losing history). */
 export function reconfigureTheme(view: EditorView, theme: Theme): void {
   view.dispatch({ effects: themeCompartment.reconfigure(themeExtensions[theme]) });
 }

@@ -1,9 +1,9 @@
 /**
- * Despacho de workers bajo demanda.
+ * On-demand worker dispatch.
  *
- * El worker se crea la primera vez que un documento lo necesita, se reutiliza
- * mientras llegan pedidos y se termina solo despues de un rato sin uso, para
- * no dejar memoria ocupada. Los textos largos se mandan por trozos.
+ * The worker is created the first time a document needs it, is reused
+ * while requests keep coming and terminates on its own after a while without
+ * use, so it does not keep memory occupied. Long texts are sent in chunks.
  */
 
 import { STATS_CHUNK } from './limits';
@@ -42,7 +42,7 @@ function ensureWorker(): Worker | null {
   try {
     worker = new Worker(new URL('../workers/text-tasks.ts', import.meta.url), { type: 'module' });
   } catch {
-    return null; // sin workers disponibles: se calcula/renderiza en el hilo principal
+    return null; // no workers available: computed/rendered on the main thread
   }
 
   worker.onmessage = (event: MessageEvent<StatsResponse | RenderResponse>) => {
@@ -56,9 +56,9 @@ function ensureWorker(): Worker | null {
 }
 
 /**
- * Primeras `lines` lineas del texto. Busca los saltos con `indexOf` y corta con
- * `slice`: en V8 el substring comparte memoria, asi que es practicamente gratis
- * incluso con documentos de cientos de MB.
+ * First `lines` lines of the text. It finds the line breaks with `indexOf` and
+ * cuts with `slice`: in V8 the substring shares memory, so it is practically
+ * free even with documents of hundreds of MB.
  */
 export function headWindow(text: string, lines: number): string {
   let index = 0;
@@ -70,7 +70,7 @@ export function headWindow(text: string, lines: number): string {
   return text.slice(0, index);
 }
 
-/** Corta el texto en trozos alineados a saltos de linea. */
+/** Splits the text into chunks aligned to line breaks. */
 export function splitForWorker(text: string, size = STATS_CHUNK): string[] {
   if (text.length <= size) return [text];
 
@@ -80,7 +80,7 @@ export function splitForWorker(text: string, size = STATS_CHUNK): string[] {
     let end = Math.min(text.length, start + size);
     if (end < text.length) {
       const newline = text.indexOf('\n', end);
-      // No arrastramos una linea gigante: si no hay salto cerca, cortamos ahi.
+      // We do not drag a giant line along: if there is no break nearby, we cut there.
       if (newline !== -1 && newline - end < size) end = newline + 1;
     }
     chunks.push(text.slice(start, end));
@@ -89,7 +89,7 @@ export function splitForWorker(text: string, size = STATS_CHUNK): string[] {
   return chunks;
 }
 
-/** Estadisticas en el worker; devuelve null si no se pudo. */
+/** Stats in the worker; returns null if it could not run. */
 export function textStats(chunks: string[]): Promise<TextStats | null> {
   const instance = ensureWorker();
   if (!instance) return Promise.resolve(null);
@@ -106,7 +106,7 @@ export function textStats(chunks: string[]): Promise<TextStats | null> {
   });
 }
 
-/** Render de Markdown (markdown-it + plugins) en el worker; null si falla. */
+/** Markdown render (markdown-it + plugins) in the worker; null if it fails. */
 export function renderCoreInWorker(source: string, mdx: boolean): Promise<string | null> {
   const instance = ensureWorker();
   if (!instance) return Promise.resolve(null);
@@ -122,7 +122,7 @@ export function renderCoreInWorker(source: string, mdx: boolean): Promise<string
   });
 }
 
-/** Libera el worker (por ejemplo al cerrar todos los documentos). */
+/** Releases the worker (for example when closing all documents). */
 export function disposeTextWorker(): void {
   if (idleTimer !== null) {
     window.clearTimeout(idleTimer);
