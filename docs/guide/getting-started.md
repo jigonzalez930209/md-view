@@ -35,7 +35,8 @@ The title bar is drawn by the app itself (the window has no native decorations):
 | Center | Document name, a dot when there are unsaved changes, and the folder |
 | Right | Document information, the main menu, and the window controls (minimize, maximize, close) |
 
-Drag the window from any empty part of the title bar; double-click to maximize.
+Drag the window from anywhere in the title bar (over the document title too); double-click to
+maximize. Buttons and links keep their normal click.
 
 ## Editing and saving
 

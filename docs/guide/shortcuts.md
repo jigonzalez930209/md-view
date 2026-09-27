@@ -47,6 +47,6 @@ lists, images, tables and horizontal rules.
 | --- | --- |
 | Middle click on a tab | Close it |
 | Double click on the title bar | Maximize / restore |
-| Drag the window from an empty part of the title bar | Move the window |
+| Drag the window from the title bar | Move the window |
 | Drag the separator next to the explorer | Resize the panel |
 | Drag a `.md` onto the window | Open it |
