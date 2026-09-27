@@ -7,7 +7,21 @@
  */
 
 /** Extensiones que abrimos como documento editable. */
-export const MARKDOWN_EXTENSIONS = ['md', 'markdown', 'mdx', 'mdown', 'mkd', 'mkdn', 'mdwn', 'txt'];
+export const MARKDOWN_EXTENSIONS = [
+  'md',
+  'markdown',
+  'mdx',
+  'mdown',
+  'mkd',
+  'mkdn',
+  'mdwn',
+  'mdtxt',
+  'mdtext',
+  'mdoc',
+  'rmd',
+  'qmd',
+  'txt',
+];
 
 export function isWindowsPath(p: string): boolean {
   return /^[a-zA-Z]:[\\/]/.test(p) || p.startsWith('\\\\');
@@ -44,6 +58,61 @@ export function extname(p: string): string {
 
 export function isMarkdownPath(p: string): boolean {
   return MARKDOWN_EXTENSIONS.includes(extname(p).replace(/^\./, ''));
+}
+
+/** Los .mdx llevan JSX y sentencias ESM: hay que preprocesarlos. */
+export function isMdxPath(p: string | null): boolean {
+  return p !== null && extname(p) === '.mdx';
+}
+
+/**
+ * Extensiones que se renderizan como Markdown. El resto de los archivos de
+ * texto se muestran como codigo (con su resaltado) para no destrozar el
+ * formato original: un `.ts` no es un párrafo.
+ */
+const MARKDOWN_RENDER_EXTENSIONS = new Set([
+  'md',
+  'markdown',
+  'mdx',
+  'mdown',
+  'mkd',
+  'mkdn',
+  'mdwn',
+  'mdtxt',
+  'mdtext',
+  'mdoc',
+  'rmd',
+  'qmd',
+]);
+
+/** true si el documento se debe renderizar como Markdown (no como codigo). */
+export function isMarkdownRenderable(p: string | null): boolean {
+  // Sin ruta (documento nuevo o demo) asumimos Markdown.
+  if (p === null) return true;
+  return MARKDOWN_RENDER_EXTENSIONS.has(extname(p).replace(/^\./, ''));
+}
+
+/** Lenguaje para el resaltado, a partir de la extension. */
+export function languageOfPath(p: string | null): string {
+  if (p === null) return '';
+  const extension = extname(p).replace(/^\./, '').toLowerCase();
+  const aliases: Record<string, string> = {
+    tsx: 'typescript',
+    ts: 'typescript',
+    jsx: 'javascript',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    py: 'python',
+    rb: 'ruby',
+    rs: 'rust',
+    yml: 'yaml',
+    htm: 'html',
+    md: 'markdown',
+    mdx: 'markdown',
+    sh: 'bash',
+    zsh: 'bash',
+  };
+  return aliases[extension] ?? extension;
 }
 
 export function joinPath(dir: string, rel: string): string {

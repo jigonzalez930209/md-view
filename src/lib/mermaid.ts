@@ -2,17 +2,32 @@
  * Diagramas Mermaid.
  *
  * La libreria pesa bastante, asi que se carga con import() dinamico la primera
- * vez que aparece un diagrama. El tema (claro/oscuro) se aplica al inicializar;
- * cuando el usuario cambia de tema se vuelve a inicializar y se redibuja.
+ * vez que aparece un diagrama. Los colores se leen de las variables CSS de la
+ * paleta activa (GitHub, One Dark, Dracula) y se re-inicializa cuando cambia
+ * el tema o la paleta.
  */
 
-import type { Theme } from './theme';
+import type { Palette, Theme } from './theme';
 
 type MermaidApi = typeof import('mermaid').default;
 
+export interface Appearance {
+  theme: Theme;
+  palette: Palette;
+}
+
 let loader: Promise<MermaidApi> | null = null;
-let initializedTheme: Theme | null = null;
+let initializedKey: string | null = null;
 let renderSeq = 0;
+
+/** SVGs ya dibujados: redibujar en cada tecla es carisimo y mueve el layout. */
+const svgCache = new Map<string, string>();
+const CACHE_LIMIT = 40;
+
+function read(name: string, fallback: string): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
 
 /**
  * Variables de tema para Mermaid.
@@ -21,82 +36,102 @@ let renderSeq = 0;
  * de un flowchart) en un gris muy oscuro, ilegible sobre el fondo de la app.
  * Fijamos los colores que importan para que combine con la paleta de md-view.
  */
-const DARK_THEME_VARIABLES = {
-  darkMode: true,
-  background: '#0d1117',
-  primaryColor: '#161b22',
-  primaryTextColor: '#f0f6fc',
-  primaryBorderColor: '#3d444d',
-  secondaryColor: '#1f2d3d',
-  secondaryTextColor: '#f0f6fc',
-  secondaryBorderColor: '#3d444d',
-  tertiaryColor: '#151b23',
-  tertiaryTextColor: '#f0f6fc',
-  tertiaryBorderColor: '#3d444d',
-  lineColor: '#9198a1',
-  textColor: '#f0f6fc',
-  nodeTextColor: '#f0f6fc',
-  nodeBorder: '#3d444d',
-  edgeLabelBackground: '#0d1117',
-  labelBackground: '#0d1117',
-  labelTextColor: '#f0f6fc',
-  titleColor: '#f0f6fc',
-  clusterBkg: '#151b23',
-  clusterBorder: '#3d444d',
-  // Diagramas de secuencia
-  actorBkg: '#161b22',
-  actorBorder: '#3d444d',
-  actorTextColor: '#f0f6fc',
-  actorLineColor: '#9198a1',
-  signalColor: '#9198a1',
-  signalTextColor: '#f0f6fc',
-  labelBoxBkgColor: '#161b22',
-  labelBoxBorderColor: '#3d444d',
-  loopTextColor: '#f0f6fc',
-  noteBkgColor: '#1f2d3d',
-  noteTextColor: '#f0f6fc',
-  noteBorderColor: '#3d444d',
-  // Diagramas de clases
-  classText: '#f0f6fc',
-  // Distintos textos de los graficos
-  pieTitleTextColor: '#f0f6fc',
-  pieSectionTextColor: '#f0f6fc',
-  pieLegendTextColor: '#f0f6fc',
-  pieStrokeColor: '#0d1117',
-  gitBranchLabelColor: '#f0f6fc',
-};
+function themeVariables(theme: Theme): Record<string, unknown> {
+  const background = read('--background', '#ffffff');
+  const card = read('--card', '#f6f8fa');
+  const muted = read('--muted', '#f6f8fa');
+  const foreground = read('--foreground', '#1f2328');
+  const mutedForeground = read('--muted-foreground', '#59636e');
+  const border = read('--border', '#d1d9e0');
 
-async function getMermaid(theme: Theme): Promise<MermaidApi> {
+  return {
+    darkMode: theme === 'dark',
+    background,
+    primaryColor: card,
+    primaryTextColor: foreground,
+    primaryBorderColor: border,
+    secondaryColor: muted,
+    secondaryTextColor: foreground,
+    secondaryBorderColor: border,
+    tertiaryColor: background,
+    tertiaryTextColor: foreground,
+    tertiaryBorderColor: border,
+    lineColor: mutedForeground,
+    textColor: foreground,
+    nodeTextColor: foreground,
+    nodeBorder: border,
+    edgeLabelBackground: background,
+    labelBackground: background,
+    labelTextColor: foreground,
+    titleColor: foreground,
+    clusterBkg: card,
+    clusterBorder: border,
+    // Diagramas de secuencia
+    actorBkg: card,
+    actorBorder: border,
+    actorTextColor: foreground,
+    actorLineColor: mutedForeground,
+    signalColor: mutedForeground,
+    signalTextColor: foreground,
+    labelBoxBkgColor: card,
+    labelBoxBorderColor: border,
+    loopTextColor: foreground,
+    noteBkgColor: muted,
+    noteTextColor: foreground,
+    noteBorderColor: border,
+    // Diagramas de clases
+    classText: foreground,
+    // Distintos textos de los graficos
+    pieTitleTextColor: foreground,
+    pieSectionTextColor: foreground,
+    pieLegendTextColor: foreground,
+    pieStrokeColor: background,
+    gitBranchLabelColor: foreground,
+  };
+}
+
+async function getMermaid(appearance: Appearance): Promise<MermaidApi> {
   loader ??= import('mermaid').then((mod) => mod.default);
   const mermaid = await loader;
+  const key = `${appearance.theme}:${appearance.palette}`;
 
-  if (initializedTheme !== theme) {
+  if (initializedKey !== key) {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
-      theme: theme === 'dark' ? 'dark' : 'default',
-      themeVariables: theme === 'dark' ? DARK_THEME_VARIABLES : undefined,
+      theme: appearance.theme === 'dark' ? 'dark' : 'default',
+      themeVariables: themeVariables(appearance.theme),
       fontFamily:
         '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif',
       flowchart: { useMaxWidth: true, htmlLabels: false },
       sequence: { useMaxWidth: true },
       gantt: { useMaxWidth: true },
     });
-    initializedTheme = theme;
+    initializedKey = key;
   }
 
   return mermaid;
 }
 
 /** Dibuja un diagrama y devuelve el SVG. Lanza si la sintaxis es invalida. */
-export async function renderDiagram(code: string, theme: Theme): Promise<string> {
-  const mermaid = await getMermaid(theme);
+export async function renderDiagram(code: string, appearance: Appearance): Promise<string> {
+  const key = `${appearance.theme}:${appearance.palette}:${code}`;
+  const cached = svgCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const mermaid = await getMermaid(appearance);
   const id = `md-view-diagram-${++renderSeq}`;
   const { svg } = await mermaid.render(id, code);
+
+  if (svgCache.size >= CACHE_LIMIT) {
+    const oldest = svgCache.keys().next().value;
+    if (oldest !== undefined) svgCache.delete(oldest);
+  }
+  svgCache.set(key, svg);
   return svg;
 }
 
 /** Precarga la libreria (por ejemplo al abrir un documento con diagramas). */
-export function preloadDiagrams(theme: Theme): void {
-  void getMermaid(theme);
+export function preloadDiagrams(appearance: Appearance): void {
+  void getMermaid(appearance);
 }
