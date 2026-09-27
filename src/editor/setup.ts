@@ -31,14 +31,28 @@ import {
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
 import { tags as t } from '@lezer/highlight';
 import type { Theme } from '../lib/theme';
+import { PLAIN_LIMIT } from '../lib/limits';
 
-/** Fuente y medidas compartidas por los dos temas. */
+export { PLAIN_LIMIT };
+import { insertLink, toggleBold, toggleInlineCode, toggleItalic } from './format';
+
+/** Fuente y medidas compartidas por todas las paletas. */
 const metrics = {
   '&': {
-    fontSize: '13.5px',
+    height: '100%',
     color: 'var(--fg)',
+    backgroundColor: 'var(--bg)',
+  },
+  '&.cm-focused': {
+    outline: 'none',
+  },
+  '.cm-scroller': {
+    fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace",
+    lineHeight: '1.65',
   },
   '.cm-content': {
+    padding: '18px 4px 64px',
+    caretColor: 'var(--fg)',
     fontFamily: "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace",
   },
   '.cm-gutters': {
@@ -72,8 +86,8 @@ const metrics = {
     backgroundColor: 'var(--selection)',
   },
   '.cm-searchMatch': {
-    backgroundColor: 'var(--accent-subtle)',
-    outline: '1px solid var(--accent)',
+    backgroundColor: 'var(--primary-subtle)',
+    outline: '1px solid var(--primary)',
   },
   '.cm-searchMatch.cm-searchMatch-selected': {
     backgroundColor: 'var(--selection)',
@@ -108,8 +122,8 @@ const metrics = {
     boxShadow: 'var(--shadow-md)',
   },
   '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-    backgroundColor: 'var(--accent-subtle)',
-    color: 'var(--accent)',
+    backgroundColor: 'var(--primary-subtle)',
+    color: 'var(--primary)',
   },
 } as const;
 
@@ -122,12 +136,12 @@ const markdownHighlightStyle = HighlightStyle.define([
   { tag: t.emphasis, fontStyle: 'italic', color: 'var(--fg)' },
   { tag: t.strikethrough, textDecoration: 'line-through', color: 'var(--fg-muted)' },
   { tag: [t.monospace], color: 'var(--hl-string)' },
-  { tag: [t.link, t.url], color: 'var(--accent)' },
+  { tag: [t.link, t.url], color: 'var(--primary)' },
   { tag: [t.quote], color: 'var(--fg-muted)', fontStyle: 'italic' },
   { tag: [t.list, t.contentSeparator], color: 'var(--fg-muted)' },
   // Marcado del propio Markdown (#, **, >, -) en tono apagado.
   { tag: [t.processingInstruction, t.punctuation], color: 'var(--fg-subtle)' },
-  { tag: t.labelName, color: 'var(--accent)' },
+  { tag: t.labelName, color: 'var(--primary)' },
   { tag: t.escape, color: 'var(--hl-variable)' },
   // Bloques de codigo embebidos.
   { tag: t.keyword, color: 'var(--hl-keyword)' },
@@ -142,44 +156,100 @@ const markdownHighlightStyle = HighlightStyle.define([
 ]);
 
 const themeCompartment = new Compartment();
-let currentTheme: Theme | null = null;
+const settingsCompartment = new Compartment();
 
-function themeExtension(theme: Theme): Extension {
-  return EditorView.theme(metrics, { dark: theme === 'dark' });
+export interface EditorSettings {
+  fontSize: number;
+  lineNumbers: boolean;
+  wrap: boolean;
 }
 
-export function createEditorState(doc: string, theme: Theme): EditorState {
-  currentTheme = theme;
+export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
+  fontSize: 13.5,
+  lineNumbers: true,
+  wrap: true,
+};
+
+function settingsExtension(settings: EditorSettings, plain: boolean): Extension {
+  return [
+    settings.lineNumbers ? lineNumbers() : [],
+    // En documentos enormes el ajuste de linea mide cada linea y congela: off.
+    settings.wrap && !plain ? EditorView.lineWrapping : [],
+    EditorView.theme({ '&': { fontSize: `${settings.fontSize}px` } }),
+  ];
+}
+
+/** Aplica preferencias del editor sin recrear el documento. */
+export function reconfigureEditor(view: EditorView, settings: EditorSettings, plain = false): void {
+  view.dispatch({ effects: settingsCompartment.reconfigure(settingsExtension(settings, plain)) });
+}
+
+/** Una extension por tema: reconfigurar no vuelve a construir los estilos. */
+const themeExtensions: Record<Theme, Extension> = {
+  light: EditorView.theme(metrics, { dark: false }),
+  dark: EditorView.theme(metrics, { dark: true }),
+};
+
+/** Atajos de formato Markdown (Ctrl/⌘ + letra), como en GitHub. */
+const formatKeymap = [
+  { key: 'Mod-b', run: toggleBold, preventDefault: true },
+  { key: 'Mod-i', run: toggleItalic, preventDefault: true },
+  { key: 'Mod-e', run: toggleInlineCode, preventDefault: true },
+  { key: 'Mod-k', run: insertLink, preventDefault: true },
+];
+
+export interface EditorOptions {
+  /** Sin parseo de Markdown ni resaltado: para documentos enormes. */
+  plain?: boolean;
+  /** Etiqueta accesible del area de edicion. */
+  ariaLabel?: string;
+}
+
+export function createEditorState(
+  doc: string,
+  theme: Theme,
+  options: EditorOptions = {},
+  settings: EditorSettings = DEFAULT_EDITOR_SETTINGS,
+): EditorState {
+  const rich = options.plain !== true;
   return EditorState.create({
     doc,
     extensions: [
-      lineNumbers(),
+      settingsCompartment.of(settingsExtension(settings, rich === false)),
       highlightActiveLineGutter(),
       highlightSpecialChars(),
-      foldGutter(),
+      ...(rich
+        ? [
+            foldGutter(),
+            bracketMatching(),
+            highlightSelectionMatches(),
+            markdown({ base: markdownLanguage, addKeymap: false }),
+            syntaxHighlighting(markdownHighlightStyle),
+          ]
+        : []),
       history(),
       drawSelection(),
       dropCursor(),
       rectangularSelection(),
       highlightActiveLine(),
       indentUnit.of('  '),
-      bracketMatching(),
       search({ top: true }),
-      highlightSelectionMatches(),
       EditorState.allowMultipleSelections.of(true),
-      EditorView.lineWrapping,
-      markdown({ base: markdownLanguage, addKeymap: false }),
-      syntaxHighlighting(markdownHighlightStyle),
-      keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...foldKeymap, indentWithTab]),
-      themeCompartment.of(themeExtension(theme)),
-      EditorView.contentAttributes.of({ 'aria-label': 'Editor de Markdown' }),
+      keymap.of([
+        ...formatKeymap,
+        ...defaultKeymap,
+        ...historyKeymap,
+        ...searchKeymap,
+        ...foldKeymap,
+        indentWithTab,
+      ]),
+      themeCompartment.of(themeExtensions[theme]),
+      EditorView.contentAttributes.of({ 'aria-label': options.ariaLabel ?? 'Markdown editor' }),
     ],
   });
 }
 
 /** Cambia de tema sin recrear el documento (ni perder el historial). */
 export function reconfigureTheme(view: EditorView, theme: Theme): void {
-  if (currentTheme === theme) return;
-  currentTheme = theme;
-  view.dispatch({ effects: themeCompartment.reconfigure(themeExtension(theme)) });
+  view.dispatch({ effects: themeCompartment.reconfigure(themeExtensions[theme]) });
 }
