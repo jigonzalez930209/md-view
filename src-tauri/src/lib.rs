@@ -726,22 +726,46 @@ fn percent_decode(value: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// Queues files the system asks us to open and tells the UI to pick them up.
+///
+/// The frontend consumes them with `take_pending_open` (startup) or on the
+/// `md-view://open` event (already running), so the same path works whether the
+/// app was just launched or is in the background.
+fn queue_open_files(app: &AppHandle, files: Vec<String>) {
+    if files.is_empty() {
+        return;
+    }
+    if let Some(state) = app.try_state::<PendingOpen>() {
+        if let Ok(mut slot) = state.0.lock() {
+            slot.extend(files);
+        }
+    }
+    let _ = app.emit("md-view://open", ());
+}
+
+/// Turns `file://` URLs into existing paths.
+///
+/// macOS (and iOS) deliver documents opened from the Finder as URLs instead of
+/// command-line arguments, so this is the equivalent of `files_from_args`.
+#[cfg_attr(
+    not(any(target_os = "macos", target_os = "ios", target_os = "android")),
+    allow(dead_code)
+)]
+fn files_from_urls<I: IntoIterator<Item = tauri::Url>>(urls: I) -> Vec<String> {
+    urls.into_iter()
+        .filter_map(|url| url.to_file_path().ok())
+        .map(|path| path.to_string_lossy().into_owned())
+        .filter(|path| !path.is_empty() && Path::new(path).is_file())
+        .collect()
+}
+
 pub fn run() {
     let pending = PendingOpen(Mutex::new(files_from_args(std::env::args())));
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         // Must be registered first: if the app is already open, it hands it the file.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            let files = files_from_args(argv);
-            if files.is_empty() {
-                return;
-            }
-            if let Some(state) = app.try_state::<PendingOpen>() {
-                if let Ok(mut slot) = state.0.lock() {
-                    slot.extend(files);
-                }
-            }
-            let _ = app.emit("md-view://open", ());
+            queue_open_files(app, files_from_args(argv));
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_focus();
             }
@@ -782,8 +806,20 @@ pub fn run() {
             push_recent,
             clear_recents
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("failed to start md-view");
+
+    app.run(|app_handle, event| {
+        // macOS delivers documents opened from the Finder as an Apple Event, so
+        // they arrive here (Linux and Windows use argv instead, handled above).
+        #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+        if let tauri::RunEvent::Opened { urls } = event {
+            queue_open_files(app_handle, files_from_urls(urls));
+        }
+
+        #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+        let _ = (app_handle, event);
+    });
 }
 
 #[cfg(test)]
@@ -956,6 +992,22 @@ mod tests {
         assert_eq!(children[0]["isText"], serde_json::json!(true));
         assert!(json["root"]["children"].is_array());
         assert!(json.get("truncated").is_some());
+    }
+
+    #[test]
+    fn files_from_urls_keeps_existing_files() {
+        let dir = temp_dir();
+        let file = dir.join("with space.md");
+        fs::write(&file, "# hello").expect("write file");
+        let encoded = file.to_string_lossy().replace(' ', "%20");
+
+        let found = files_from_urls([
+            tauri::Url::parse(&format!("file://{encoded}")).expect("url"),
+            tauri::Url::parse("file:///no/such/file.md").expect("url"),
+            tauri::Url::parse("https://example.com/readme.md").expect("url"),
+        ]);
+
+        assert_eq!(found, vec![file.to_string_lossy().into_owned()]);
     }
 
     #[test]

@@ -35,6 +35,23 @@ blocks the interface.
   `.git`, `node_modules`, `target`, `dist`, `build` and friends; ignores symlinks; caps at
   20,000 entries and 16 levels of depth.
 
+## Opening files from the system
+
+The document the OS asks us to open arrives differently per platform, and both paths end in the
+same place: the pending queue plus the `md-view://open` event, which the frontend drains with
+`take_pending_open` (at startup) or on the event (already running).
+
+| Platform | How it arrives | Code |
+| --- | --- | --- |
+| Linux | `Exec=md-view %U` in the `.desktop` file → command-line arguments | `files_from_args` |
+| Windows | File association (WiX/NSIS) → command-line arguments | `files_from_args` |
+| macOS | Finder/`open` sends an Apple Event → `RunEvent::Opened { urls }` | `files_from_urls` |
+
+A second launch while the app is running goes through `tauri-plugin-single-instance`: it forwards
+the arguments (Linux/Windows) and focuses the existing window, so the file opens in a new tab
+instead of a second instance. `file://` URLs are accepted too (they are what Linux and macOS
+hand over when a path has spaces or non-ASCII characters).
+
 ## Printing to PDF
 
 `export_pdf` uses the GTK "Print to File" backend and waits for the `finished` signal before
