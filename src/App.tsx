@@ -1027,7 +1027,7 @@ export default function App() {
                   {isMarkdownRenderable(doc?.path ?? null) ? (
                     <FormatBar viewRef={editorViewRef} />
                   ) : (
-                    <div className="flex h-10 shrink-0 items-center border-b bg-card px-3 text-[11px] font-semibold tracking-wide text-subtle-foreground uppercase">
+                    <div className="flex h-10 shrink-0 items-center border-b bg-card px-3 text-[11px] font-semibold tracking-wide text-subtle-foreground uppercase select-none">
                       {t('editor.code')}
                       {languageOfPath(doc?.path ?? null)
                         ? ` · ${languageOfPath(doc?.path ?? null)}`
@@ -1035,7 +1035,7 @@ export default function App() {
                     </div>
                   )}
                   {content.length > PLAIN_LIMIT && (
-                    <div className="border-b bg-card px-3 py-1 text-[11.5px] text-muted-foreground">
+                    <div className="border-b bg-card px-3 py-1 text-[11.5px] text-muted-foreground select-none">
                       {t('app.editorPlainNote')}
                     </div>
                   )}
@@ -1144,7 +1144,7 @@ export default function App() {
           <WindowResizeHandles />
 
           {dropping && (
-            <div className="pointer-events-none fixed inset-0 z-100 flex items-center justify-center bg-background/80 backdrop-blur-[2px]">
+            <div className="pointer-events-none fixed inset-0 z-100 flex items-center justify-center bg-background/80 backdrop-blur-[2px] select-none">
               <div className="rounded-xl border-2 border-dashed border-primary bg-background px-5.5 py-3.5 text-sm font-medium text-primary">
                 {t('app.dropToOpen')}
               </div>

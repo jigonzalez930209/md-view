@@ -33,6 +33,18 @@
     background: var(--selection);
   }
 
+  /*
+   * Text selection is disabled region by region (`select-none` on the title
+   * bar, tabs, toolbars, status bar, explorer, welcome screen and dialogs), so
+   * the editor and the preview keep native selection. These are the only text
+   * fields in the app and they always opt back in.
+   */
+  input,
+  textarea,
+  [contenteditable='true'] {
+    user-select: text;
+  }
+
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: -1px;
