@@ -61,6 +61,12 @@ English is the default and Spanish is included. Adding a language means adding o
 in `src/lib/i18n.ts` (and optionally a VitePress locale for the docs). See
 [Languages](/guide/languages).
 
+## Can I copy text?
+
+Yes: text selection is enabled inside the **editor** and the **preview** (that is how you copy
+Markdown or a rendered paragraph). The rest of the interface does not select text, so dragging
+the window or clicking around never leaves a selection behind — like a native app.
+
 ## Where are my preferences and recents stored?
 
 Preferences in `localStorage` (`md-view:prefs`), recent files in the app configuration folder
