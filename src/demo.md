@@ -212,11 +212,11 @@ pie title README diagrams
 
 An animated SVG with SMIL animations, referenced as a regular image:
 
-![Example animated SVG](/demo-animado.svg)
+![Example animated SVG](/demo-animated.svg)
 
 Or embedded with HTML to control the size:
 
-<img src="/demo-animado.svg" alt="Animated SVG" width="420">
+<img src="/demo-animated.svg" alt="Animated SVG" width="420">
 
 `.gif`, `.webp`, `.avif` and `<video>` work the same way:
 

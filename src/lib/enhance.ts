@@ -147,7 +147,7 @@ async function prepareImages(root: HTMLElement, docPath: string | null): Promise
 
     // Elegimos la primera interpretacion que exista en disco. Si ninguna
     // existe dejamos la ruta original: puede ser una URL del propio bundle
-    // (por ejemplo "/demo-animado.svg" servido por la app).
+    // (por ejemplo "/demo-animated.svg" servido por la app).
     let found: string | null = null;
     for (const candidate of resolved.candidates) {
       if (await pathExists(candidate)) {
