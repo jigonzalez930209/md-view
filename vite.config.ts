@@ -1,12 +1,20 @@
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 // Variables que Tauri inyecta al compilar/ejecutar (ver https://tauri.app).
 const host = process.env.TAURI_DEV_HOST;
 const debug = !!process.env.TAURI_ENV_DEBUG;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
 
   // Tauri muestra sus propios errores, no queremos que Vite limpie la consola.
   clearScreen: false,
