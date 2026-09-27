@@ -19,6 +19,10 @@ the document you have open.
 
 ![PDF page exported from the demo](/screenshots/pdf-page.png)
 
+![PNG page exported from the demo](/screenshots/png-page.png)
+
+![Vector SVG exported from the demo](/screenshots/svg-vector.png)
+
 ## How each format is produced
 
 - **PDF** is not generated in JavaScript: WebKitGTK prints the live page with the `@media

@@ -28,7 +28,7 @@ Images and links are resolved against the folder of the document you opened:
 1. an absolute path (`/assets/x.png`) is tried as-is;
 2. if it doesn't exist, it is tried relative to the document folder (typical in READMEs);
 3. **if neither exists, the original path is kept as-is**, which is what makes paths served
-   by the app itself (like `/demo-animado.svg` in the demo) work.
+   by the app itself (like `/demo-animated.svg` in the demo) work.
 
 ::: tip Broken images
 A reference like `./no-exists.md` simply stays as text; an image that cannot be found keeps
