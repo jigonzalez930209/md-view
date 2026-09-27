@@ -15,12 +15,42 @@ pnpm release 0.3.0
 2. validates the version and that the tag doesn't exist yet,
 3. updates the version in `package.json`, `src-tauri/tauri.conf.json` and
    `src-tauri/Cargo.toml` (and refreshes `src-tauri/Cargo.lock`),
-4. commits `chore(release): v0.3.0`,
-5. creates the tag `v0.3.0` and pushes the commit and the tag.
+4. adds the **changelog entry** for this version to `CHANGELOG.md`,
+5. commits `chore(release): v0.3.0`,
+6. creates the tag `v0.3.0` and pushes the commit and the tag.
 
-Pushing the tag starts the release workflow, which creates a **draft release** and uploads the
-installers. When the three builds finish, review the draft and press **Publish release** (or
-`gh release edit v0.3.0 --draft=false`).
+Pushing the tag starts the release workflow, which creates a **draft release** (its body is the
+changelog entry) and uploads the installers. When the three builds finish, review the draft and
+press **Publish release** (or `gh release edit v0.3.0 --draft=false`).
+
+Useful flags:
+
+```bash
+pnpm release 0.3.0 --dry-run    # show the version bump and the changelog entry, touch nothing
+pnpm release 0.3.0 --no-push    # bump, changelog, commit and tag, but keep it local
+pnpm release 0.3.0 --no-changelog
+```
+
+## The changelog
+
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The entry for a
+version is generated from the commits since the previous tag
+(`scripts/changelog.mjs`), grouped by [Conventional Commit](https://www.conventionalcommits.org/)
+type:
+
+| Commits | Section |
+| --- | --- |
+| `feat:` | Added |
+| `fix:` | Fixed |
+| `perf:` | Performance |
+| `refactor:` | Changed |
+| `docs:` | Documentation |
+| `test:` | Tests |
+| `build:`, `ci:`, `chore:`, `style:`, `revert:` | Maintenance |
+
+`chore(release)` commits are skipped, and for the **first** version the entry just says
+*First release* (there is no previous version to compare against). You can preview the entry at
+any time with `pnpm changelog`.
 
 ## What ends up in the release
 
@@ -35,6 +65,25 @@ The Linux installers are built against Ubuntu 26.04's glibc, so they run on equa
 newer distributions. If you ever need to support older systems, switch **only the release
 job** to `ubuntu-22.04` (the CI can stay on 26.04).
 :::
+
+## What each package declares
+
+The bundlers do not guess the runtime dependencies, and Tauri's default `.deb` list is
+`libwebkit2gtk-4.1-0` + `libgtk-3-0`, which **does not exist** on Ubuntu 24.04 or newer (the
+package is `libgtk-3-0t64` there). `src-tauri/tauri.conf.json` therefore declares:
+
+| Package | Dependencies |
+| --- | --- |
+| `.deb` | `libwebkit2gtk-4.1-0`, `libgtk-3-0 \| libgtk-3-0t64` (the alternative covers both the old and the `t64` rename) |
+| `.rpm` | none declared: the bundler resolves the sonames automatically (`libwebkit2gtk-4.1.so.0()(64bit)`, `libgtk-3.so.0()(64bit)`), which works on Fedora and openSUSE alike |
+
+The desktop entry both packages install (`src-tauri/linux/md-view.desktop`) is Tauri's default
+plus two fixes:
+
+```ini
+Exec=md-view %U          # without %U the file manager opens the app but passes no file
+MimeType=text/markdown;  # the key needs the trailing semicolon
+```
 
 ## Publishing without a tag
 

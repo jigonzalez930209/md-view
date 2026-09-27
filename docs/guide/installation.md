@@ -21,6 +21,12 @@ The packages register **md-view** as a viewer for `.md` files, so you can also o
 document by double-clicking it in your file manager. If the app is already running, the
 second invocation reuses the window and loads the file there.
 
+::: tip Opening documents from the file manager
+Each platform hands the file over in its own way — command-line arguments on Linux and Windows,
+an Apple Event on macOS — and md-view handles all three, including `file://` URLs. If the app is
+already open, the second launch opens a tab in the existing window instead of starting again.
+:::
+
 ## From source
 
 ### Requirements

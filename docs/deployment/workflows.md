@@ -40,15 +40,21 @@ Two jobs:
 
 1. resolves the tag (`inputs.tag` for a manual run, `github.ref_name` for a tag push),
 2. validates it against `package.json` and fails with a helpful message when they differ,
-3. creates the **draft** release through `actions/github-script`, and exposes its `releaseId`.
+3. builds the release body with `scripts/changelog.mjs extract <version>` (the same entry that
+   `pnpm release` added to `CHANGELOG.md`) and appends the installer list and the documentation
+   link,
+4. creates the **draft** release through `actions/github-script`, and exposes its `releaseId`.
 
 **`publish`** (matrix, `fail-fast: false`)
 
 | Runner | `args` | Result |
 | --- | --- | --- |
-| `ubuntu-26.04` | — | `.deb`, `.rpm`, AppImage |
-| `macos-latest` | `--target universal-apple-darwin` | Universal `.dmg` |
-| `windows-latest` | — | `.msi`, `.exe` |
+| `ubuntu-26.04` | `--bundles deb,rpm,appimage` | `.deb`, `.rpm`, AppImage |
+| `macos-latest` | `--target universal-apple-darwin --bundles app,dmg` | Universal `.dmg` |
+| `windows-latest` | `--bundles msi,nsis` | `.msi`, `.exe` |
+
+The bundles are listed explicitly so a future Tauri target cannot silently change what a release
+ships. The Linux job needs no `rpm`/`rpmbuild`: Tauri's RPM bundler is pure Rust.
 
 Each job installs its system dependencies, sets up pnpm and Node 24, restores the Rust cache
 and runs [`tauri-apps/tauri-action`](https://github.com/tauri-apps/tauri-action) with the

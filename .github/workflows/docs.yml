@@ -40,6 +40,10 @@ jobs:
       # Falla si hay enlaces internos rotos.
       - run: pnpm docs:build
 
+      # Pages must be enabled once for the repository with
+      # Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+      # (`enablement: true` is not an option here: the action requires a token
+      # other than GITHUB_TOKEN, for example a PAT with the `repo` scope.)
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v4

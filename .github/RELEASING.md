@@ -10,14 +10,19 @@ pnpm release 0.3.0
 ```
 
 The script checks that the working tree is clean and you are on `main`, updates the version in
-`package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` (plus `Cargo.lock`),
-commits `chore(release): v0.3.0`, creates the tag and pushes it.
+`package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml` (plus `Cargo.lock`), adds
+the entry for this version to `CHANGELOG.md` (the commits since the previous tag, grouped by
+Conventional Commit type), commits `chore(release): v0.3.0`, creates the tag and pushes it.
+
+Handy flags: `--dry-run` (show the bump and the changelog entry, touch nothing), `--no-push`
+(leave the commit and the tag local) and `--no-changelog`. `pnpm changelog` previews the entry.
 
 The tag starts [`workflows/release.yml`](workflows/release.yml):
 
-1. `create-release` validates the tag against `package.json` and creates a **draft** release.
-2. `publish` builds on `ubuntu-26.04`, `macos-latest` (universal) and `windows-latest` and
-   uploads the installers to that draft.
+1. `create-release` validates the tag against `package.json`, builds the release body from the
+   `CHANGELOG.md` entry and creates a **draft** release.
+2. `publish` builds on `ubuntu-26.04` (`deb,rpm,appimage`), `macos-latest` (universal `dmg`) and
+   `windows-latest` (`msi,nsis`) and uploads the installers to that draft.
 3. Review the draft and press **Publish release** (or `gh release edit v0.3.0 --draft=false`).
 
 ## Without a tag

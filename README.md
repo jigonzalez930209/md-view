@@ -104,9 +104,10 @@ pnpm release 0.3.0
 ```
 
 The script updates the version in `package.json`, `src-tauri/tauri.conf.json` and
-`src-tauri/Cargo.toml`, commits, tags and pushes. The tag triggers
-[`release.yml`](.github/workflows/release.yml), which creates a draft release and uploads the
-installers for the three platforms. See
+`src-tauri/Cargo.toml`, adds the entry to `CHANGELOG.md` (the commits since the previous
+version), commits, tags and pushes. The tag triggers
+[`release.yml`](.github/workflows/release.yml), which creates a draft release (with the changelog
+as its body) and uploads the installers for the three platforms. See
 [Publishing releases](https://jigonzalez930209.github.io/md-view/deployment/releases).
 
 ## Security

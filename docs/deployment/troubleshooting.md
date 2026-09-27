@@ -3,9 +3,18 @@
 ## Releases
 
 **`The tag (vX) does not match package.json (vY)`**
-The version was edited by hand in one file only. Fix it with `pnpm release X` (it updates the
-three files) or delete the tag (`git tag -d vX && git push origin :refs/tags/vX`) and push a
-correct one.
+The tag and the version in `package.json` must be the same, and that is checked before anything
+is built. Use `pnpm release X` to bump the three version files, add the changelog entry and
+create the tag: `pnpm release X --dry-run` shows what would change. If the tag already exists
+with the wrong version, delete it (`git tag -d vX && git push origin :refs/tags/vX`) and redo it.
+
+**The docs workflow fails with `Not Found` in `configure-pages`**
+GitHub Pages is not enabled, or the repository is **private** on a plan that does not include
+Pages for private repositories (the API answers `422 Your current plan does not support GitHub
+Pages for this repository`). Enable it under **Settings → Pages → Build and deployment → Source:
+GitHub Actions**; if the repo is private and the plan is Free, Pages is only available after
+making the repository public or upgrading the account. Note that the action's
+`enablement: true` option does not help here: it requires a token other than `GITHUB_TOKEN`.
 
 **`pnpm install --frozen-lockfile` fails**
 `pnpm-lock.yaml` is out of sync with `package.json`. Run `pnpm install` locally and commit the

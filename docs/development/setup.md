@@ -31,7 +31,8 @@ pnpm install
 | `pnpm app:build` | Release binary and installers (`deb`, AppImage, `rpm`, `dmg`, `msi`…) |
 | `pnpm preview` | Serves the built frontend |
 | `pnpm icons` | Regenerates `src-tauri/icons` (needs Pillow) |
-| `pnpm release <version>` | Version bump + tag + push (see [Releases](/deployment/releases)) |
+| `pnpm changelog` | Previews the changelog entry for the next version |
+| `pnpm release <version>` | Version bump + changelog + tag + push (see [Releases](/deployment/releases)) |
 | `pnpm docs:dev` | Documentation site with hot reload |
 | `pnpm docs:build` | Builds the documentation (fails on dead links) |
 | `pnpm docs:preview` | Serves the built documentation |

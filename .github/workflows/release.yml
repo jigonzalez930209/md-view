@@ -27,6 +27,10 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The changelog entry lives in the tagged commit; full history is not
+          # needed, but keep it so `git describe`/tags are available.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -45,6 +49,28 @@ jobs:
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
+      - name: Build the release body from the changelog
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          version="${TAG#v}"
+          body="$(node scripts/changelog.mjs extract "$version" || true)"
+          if [ -z "$body" ]; then
+            body="Installers built automatically."
+          fi
+          {
+            printf '%s\n\n' "$body"
+            printf -- '---\n\n'
+            printf '**Installers**\n\n'
+            printf -- '- **Linux**: `.deb`, `.rpm` and AppImage\n'
+            printf -- '- **macOS**: universal `.dmg` (Intel + Apple Silicon)\n'
+            printf -- '- **Windows**: `.msi` and `.exe` (NSIS)\n\n'
+            printf 'This build is unsigned: macOS and Windows will ask you to confirm the first launch.\n\n'
+            printf 'Full documentation: https://jigonzalez930209.github.io/md-view/\n'
+          } > release-body.md
+          echo '--- release body ---'
+          cat release-body.md
+
       - name: Create the draft release
         id: create-release
         uses: actions/github-script@v9
@@ -52,26 +78,15 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         with:
           script: |
+            const fs = require('node:fs');
             const tag = process.env.TAG;
+            const body = fs.readFileSync('release-body.md', 'utf8');
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: tag,
               name: `md-view ${tag}`,
-              body: [
-                'Installers built automatically:',
-                '',
-                '- **Linux**: `.deb`, `.rpm` and AppImage',
-                '- **macOS**: universal `.dmg` (Intel + Apple Silicon)',
-                '- **Windows**: `.msi` and `.exe` (NSIS)',
-                '',
-                'md-view is a Markdown viewer/editor with tabs, GitHub-style preview, a formatting',
-                'bar, a folder explorer and export to PDF/HTML/images.',
-                '',
-                'This build is unsigned: macOS and Windows will ask you to confirm the first launch.',
-                '',
-                'Full documentation: https://jigonzalez930209.github.io/md-view/',
-              ].join('\n'),
+              body,
               draft: true,
               prerelease: false,
             });
@@ -85,17 +100,18 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-26.04
-            args: ''
+            args: '--bundles deb,rpm,appimage'
           - platform: macos-latest
-            args: '--target universal-apple-darwin'
+            args: '--target universal-apple-darwin --bundles app,dmg'
           - platform: windows-latest
-            args: ''
+            args: '--bundles msi,nsis'
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
 
       # No appindicator: the app has no system tray and that package does not
-      # exist on Ubuntu 26.04.
+      # exist on Ubuntu 26.04. The RPM bundler is pure Rust, so `rpm`/`rpmbuild`
+      # are not needed either.
       - name: Linux dependencies
         if: matrix.platform == 'ubuntu-26.04'
         run: |

@@ -28,7 +28,9 @@
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob: https: http:; media-src 'self' asset: http://asset.localhost data: blob: https: http:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'none'",
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "**"
+        ]
       }
     }
   },
@@ -48,12 +50,28 @@
     ],
     "fileAssociations": [
       {
-        "ext": ["md", "markdown", "mdx"],
+        "ext": [
+          "md",
+          "markdown",
+          "mdx"
+        ],
         "name": "Markdown",
         "description": "Markdown document",
         "role": "Viewer",
         "mimeType": "text/markdown"
       }
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libgtk-3-0 | libgtk-3-0t64"
+        ],
+        "desktopTemplate": "linux/md-view.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "linux/md-view.desktop"
+      }
+    }
   }
 }
