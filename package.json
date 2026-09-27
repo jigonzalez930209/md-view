@@ -1,7 +1,7 @@
 {
   "name": "md-view",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Minimalist Markdown viewer and editor: tables, LaTeX formulas, Mermaid diagrams, SVG and GitHub-style code highlighting.",
   "scripts": {
