@@ -151,3 +151,17 @@ jobs:
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
+
+      # Tauri appends its own defaults to the .deb dependencies and one of them
+      # (`libgtk-3-0`) does not exist on Ubuntu 24.04+, which would make the
+      # package refuse to install there. Rewrite the field and replace the asset
+      # uploaded by the previous step.
+      - name: Fix the .deb dependencies
+        if: matrix.platform == 'ubuntu-26.04'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.create-release.outputs.tag }}
+        run: |
+          deb="$(ls src-tauri/target/release/bundle/deb/*.deb | head -1)"
+          bash scripts/fix-deb-depends.sh "$deb"
+          gh release upload "$TAG" "$deb" --clobber

@@ -77,6 +77,12 @@ package is `libgtk-3-0t64` there). `src-tauri/tauri.conf.json` therefore declare
 | `.deb` | `libwebkit2gtk-4.1-0`, `libgtk-3-0 \| libgtk-3-0t64` (the alternative covers both the old and the `t64` rename) |
 | `.rpm` | none declared: the bundler resolves the sonames automatically (`libwebkit2gtk-4.1.so.0()(64bit)`, `libgtk-3.so.0()(64bit)`), which works on Fedora and openSUSE alike |
 
+Tauri **appends** its own defaults (`libwebkit2gtk-4.1-0`, `libgtk-3-0`) to whatever the config
+declares, and `libgtk-3-0` does not exist on Ubuntu 24.04+. The release workflow therefore runs
+[`scripts/fix-deb-depends.sh`](https://github.com/jigonzalez930209/md-view/blob/main/scripts/fix-deb-depends.sh)
+on the built package (it rewrites `Depends:` with the list from `tauri.conf.json`, repacking with
+`--root-owner-group`) and replaces the uploaded asset with `gh release upload --clobber`.
+
 The desktop entry both packages install (`src-tauri/linux/md-view.desktop`) is Tauri's default
 plus two fixes:
 

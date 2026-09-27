@@ -83,6 +83,14 @@ dialog overlay only dims the background (`bg-black/50`) and the panel is centere
 wrapper instead of `top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2` plus
 `zoom-in-95`: keep it that way when touching `components/ui/dialog.tsx`.
 
+**The `.deb` does not install on Ubuntu 24.04 or newer**
+Tauri always appends `libwebkit2gtk-4.1-0` and `libgtk-3-0` to the package dependencies, and
+`libgtk-3-0` was renamed to `libgtk-3-0t64` in 24.04, so `apt install ./md-view_x.deb` stops with
+unmet dependencies. `scripts/fix-deb-depends.sh <file.deb>` rewrites the `Depends:` field with
+the list from `tauri.conf.json` (which declares both names) and repacks the package; the release
+workflow runs it automatically and re-uploads the fixed file. You can check the result with
+`dpkg-deb -I <file.deb>`.
+
 **The window can't be dragged by the title bar**
 The header uses `data-tauri-drag-region="deep"` (`components/HeaderBar.tsx`). Tauri walks the
 composed path (`window/scripts/drag.js`) and the **bare** attribute only drags when the click
