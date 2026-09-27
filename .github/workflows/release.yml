@@ -1,13 +1,13 @@
 name: Release
 
-# Se dispara al empujar un tag v* (lo hace scripts/release.sh) o a mano.
+# Triggered by pushing a v* tag (scripts/release.sh does it) or manually.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag a publicar (ej. v0.2.0). Debe coincidir con la version de package.json'
+        description: 'Tag to publish (e.g. v0.2.0). Must match the version in package.json'
         required: true
         type: string
 
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   create-release:
-    name: Crear release (borrador)
+    name: Create release (draft)
     runs-on: ubuntu-26.04
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
@@ -32,20 +32,20 @@ jobs:
         with:
           node-version: 24
 
-      - name: Resolver y validar el tag
+      - name: Resolve and validate the tag
         id: version
         shell: bash
         run: |
           tag="${{ inputs.tag || github.ref_name }}"
           pkg="v$(node -p "require('./package.json').version")"
           if [ "$tag" != "$pkg" ]; then
-            echo "El tag ($tag) no coincide con package.json ($pkg)." >&2
-            echo "Actualiza las versiones con: pnpm release ${tag#v}" >&2
+            echo "The tag ($tag) does not match package.json ($pkg)." >&2
+            echo "Update the versions with: pnpm release ${tag#v}" >&2
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: Crear el borrador de release
+      - name: Create the draft release
         id: create-release
         uses: actions/github-script@v9
         env:
@@ -59,17 +59,18 @@ jobs:
               tag_name: tag,
               name: `md-view ${tag}`,
               body: [
-                'Installers built automatically / Instaladores generados automaticamente:',
+                'Installers built automatically:',
                 '',
-                '- **Linux**: `.deb`, `.rpm` y AppImage',
-                '- **macOS**: `.dmg` universal (Intel + Apple Silicon)',
-                '- **Windows**: `.msi` y `.exe` (NSIS)',
+                '- **Linux**: `.deb`, `.rpm` and AppImage',
+                '- **macOS**: universal `.dmg` (Intel + Apple Silicon)',
+                '- **Windows**: `.msi` and `.exe` (NSIS)',
                 '',
                 'md-view is a Markdown viewer/editor with tabs, GitHub-style preview, a formatting',
                 'bar, a folder explorer and export to PDF/HTML/images.',
                 '',
-                'md-view es un visor y editor de Markdown con pestanas, vista previa estilo GitHub,',
-                'barra de formato, explorador de carpetas y exportacion a PDF/HTML/imagenes.',
+                'This build is unsigned: macOS and Windows will ask you to confirm the first launch.',
+                '',
+                'Full documentation: https://jigonzalez930209.github.io/md-view/',
               ].join('\n'),
               draft: true,
               prerelease: false,
@@ -77,7 +78,7 @@ jobs:
             return data.id;
 
   publish:
-    name: Compilar (${{ matrix.platform }})
+    name: Build (${{ matrix.platform }})
     needs: create-release
     strategy:
       fail-fast: false
@@ -93,9 +94,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Sin appindicator: la app no usa bandeja del sistema y el paquete no
-      # existe en Ubuntu 26.04.
-      - name: Dependencias de Linux
+      # No appindicator: the app has no system tray and that package does not
+      # exist on Ubuntu 26.04.
+      - name: Linux dependencies
         if: matrix.platform == 'ubuntu-26.04'
         run: |
           sudo apt-get update
@@ -117,17 +118,17 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          # En macOS compilamos un binario universal (Intel + Apple Silicon).
+          # On macOS we build a universal binary (Intel + Apple Silicon).
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - name: Dependencias del frontend
+      - name: Frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Compilar y subir los instaladores
+      - name: Build and upload the installers
         uses: tauri-apps/tauri-action@action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

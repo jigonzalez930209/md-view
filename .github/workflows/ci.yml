@@ -33,15 +33,18 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
 
+      # Fails on broken internal links in the documentation.
+      - run: pnpm docs:build
+
   backend:
     name: Backend (fmt + tests)
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
-      # Sin appindicator: la app no usa bandeja del sistema (no compilamos la
-      # feature `tray-icon` de Tauri) y ese paquete no existe en 26.04.
-      - name: Dependencias del sistema
+      # No appindicator: the app has no system tray (we don't compile Tauri's
+      # `tray-icon` feature) and that package does not exist on 26.04.
+      - name: System dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -59,7 +62,7 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Formato
+      - name: Format
         run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
 
       - name: Tests
