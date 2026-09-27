@@ -1,2 +1,4 @@
+# esbuild (a dependency of VitePress' Vite) needs its install script to
+# validate the platform binary; pnpm blocks install scripts by default.
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
