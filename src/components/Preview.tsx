@@ -129,7 +129,7 @@ function PreviewComponent({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="preview-header flex h-10 shrink-0 items-center justify-between gap-2 border-b bg-card px-3">
+      <div className="preview-header flex h-10 shrink-0 items-center justify-between gap-2 border-b bg-card px-3 select-none">
         <span className="truncate text-[11px] font-semibold tracking-wide text-subtle-foreground uppercase">
           {view === 'code' ? `${t('preview.code')}${language ? ` · ${language}` : ''}` : t('preview.label')}
         </span>

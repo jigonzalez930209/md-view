@@ -38,7 +38,7 @@ function TabBarComponent({ tabs, activeId, onSelect, onClose }: TabBarProps) {
     <Tabs
       value={activeId ?? ''}
       onValueChange={onSelect}
-      className="tabbar flex min-w-0 shrink-0 flex-col gap-0 bg-card"
+      className="tabbar flex min-w-0 shrink-0 flex-col gap-0 bg-card select-none"
     >
       <TabsList
         ref={listRef}

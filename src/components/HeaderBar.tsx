@@ -189,19 +189,11 @@ export function HeaderBar({
     };
   }, []);
 
-  const isInteractive = (target: EventTarget | null) =>
-    target instanceof Element && target.closest('button, input, a, [role="menuitem"]') !== null;
-
-  const toggleMaximize = (event: React.MouseEvent<HTMLElement>) => {
-    if (isInteractive(event.target)) return;
-    void backend.toggleMaximizeWindow().then(setMaximized);
-  };
-
   const subtitle = docName
     ? docPath
       ? compactHome(dirname(docPath))
       : t('header.infoNew')
-    : t('welcome.subtitle')
+    : t('header.tagline');
 
   return (
     <header
@@ -209,8 +201,9 @@ export function HeaderBar({
         'headerbar row-start-1 grid min-h-[47px] grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-center gap-1.5 bg-card py-1 pr-1.5 pl-2.5 select-none',
         !hasTabs && 'border-b',
       )}
-      data-tauri-drag-region
-      onDoubleClick={toggleMaximize}
+      /* "deep" so the whole bar drags the window (buttons and links still take
+         the click); Tauri also maximizes on double click. */
+      data-tauri-drag-region="deep"
     >
       <div className="flex items-center gap-0.5">
         <div className="flex items-center">
@@ -299,7 +292,6 @@ export function HeaderBar({
 
       <div
         className="min-w-0 px-2 text-center leading-tight"
-        data-tauri-drag-region
         title={docPath ?? docName ?? undefined}
       >
         <div className="flex items-center justify-center gap-1.5 text-sm font-semibold">
@@ -311,7 +303,14 @@ export function HeaderBar({
           )}
           <span className="max-w-[52ch] truncate">{docName ?? 'md-view'}</span>
         </div>
-        <div className="truncate text-[11.5px] text-subtle-foreground [direction:rtl]">{subtitle}</div>
+        <div
+          className={cn(
+            'truncate text-[11.5px] text-subtle-foreground',
+            docPath && '[direction:rtl]',
+          )}
+        >
+          {subtitle}
+        </div>
       </div>
 
       <div className="flex items-center justify-end gap-0.5">

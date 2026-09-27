@@ -41,7 +41,7 @@ export function Welcome({
   const { t } = useI18n();
 
   return (
-    <div className="flex h-full flex-col items-center overflow-auto p-8">
+    <div className="flex h-full flex-col items-center overflow-auto p-8 select-none">
       <div className="my-auto w-full max-w-[520px]">
         <div className="mb-1.5 flex items-center gap-3">
           <LogoMarkdown />

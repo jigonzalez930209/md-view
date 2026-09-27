@@ -184,7 +184,7 @@ function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onC
 
   return (
     <aside
-      className="file-tree flex min-h-0 shrink-0 flex-col bg-card"
+      className="file-tree flex min-h-0 shrink-0 flex-col bg-card select-none"
       style={{ width }}
       aria-label={t('tree.label')}
     >
