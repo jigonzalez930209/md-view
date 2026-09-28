@@ -2,3 +2,5 @@
 # validate the platform binary; pnpm blocks install scripts by default.
 allowBuilds:
   esbuild: true
+  # Downloads the ffmpeg binary used by the promo video pipeline (scripts/promo).
+  ffmpeg-static: true
