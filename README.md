@@ -8,14 +8,19 @@ Desktop **Markdown viewer and editor** (Tauri 2 + React + CodeMirror) with a GNO
 bar, tabs, a folder explorer, a formatting bar and export to PDF, HTML and images. The preview
 renders **like GitHub**.
 
-![md-view with the editor and the preview side by side](docs/public/screenshots/split-view.png)
+<p align="center">
+  <a href="docs/public/media/md-view-demo.mp4">
+    <img src="docs/public/media/md-view-demo.webp" width="420" alt="md-view in action: opening a folder, git change marks, Mermaid, KaTeX, themes and PDF export">
+  </a>
+</p>
 
 ## Features
 
 | | |
 | --- | --- |
-| **Preview** | GitHub Flavored Markdown: tables, task lists, footnotes, alerts (`> [!NOTE]`), emoji, KaTeX formulas, Mermaid diagrams, animated SVG, 30+ code languages with a copy button |
+| **Preview** | GitHub Flavored Markdown: tables, task lists, footnotes, alerts (`> [!NOTE]`), emoji, KaTeX formulas, Mermaid diagrams, animated SVG, 30+ code languages with a copy button; pinch or `Ctrl + wheel` zooms only the preview |
 | **Editor** | CodeMirror 6 one instance per tab, Markdown highlighting, search and replace, multiple cursors, folding |
+| **Change marks** | Added, modified and removed lines in the gutter against git `HEAD` (or the last save), with the branch and counts in the status bar |
 | **Tabs** | Chrome-like strip; per-document scroll, selection, undo history and view mode; unsaved dot |
 | **Formatting bar** | Headings, bold, italic, quote, code, link, bulleted/ordered/task lists, image, table, rule, undo/redo |
 | **Folder explorer** | VS Code-style tree, left or right; any plain-text file opens, binaries stay disabled |

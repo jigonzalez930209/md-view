@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- wrap path display in <bdi> element for consistent text direction (d1e2854)
+- wrap path display in `<bdi>` element for consistent text direction (d1e2854)
 - update path display to ensure proper text direction (7cfb3f4)
 - always build the Pages deployment from main (e3e38e7)
 - resolve the output directory to an absolute path (eea56ff)
