@@ -14,6 +14,7 @@ import { withBase } from 'vitepress';
 ```sh
 pnpm tauri build --no-bundle   # once, or whenever the app changes
 pnpm promo                     # → scripts/promo/out/md-view-linkedin.mp4 (+ cover.png, PDF)
+pnpm promo:webp                # → docs/public/media/md-view-demo.webp (README animation)
 ```
 
 Requirements (Linux): `xvfb`, `xdotool`, `dbus-run-session`, `git`, `pdftoppm` and, for the
@@ -62,3 +63,10 @@ The files used by the site and the README live in `docs/public/media/`:
 | `md-view-demo.mp4` | Home page hero (autoplay, muted, loop) |
 | `md-view-demo.webp` | README (animated WebP: GitHub does not play repository MP4s inline) |
 | `md-view-demo-poster.jpg` | Poster frame while the video loads |
+
+`pnpm promo:webp` rebuilds the README animation (720 px, 15 fps, quality 80) from
+`scripts/promo/out/md-view-linkedin.mp4`. ffmpeg's animated WebP encoder is single-threaded,
+so `scripts/promo/webp.mjs` splits the clip into one slice per core, encodes the slices in
+parallel and splices their frames into one file without re-encoding (each slice starts with a
+full frame). It takes seconds instead of minutes. `WEBP_WIDTH`, `WEBP_FPS`, `WEBP_QUALITY` and
+`WEBP_JOBS` override the defaults.
