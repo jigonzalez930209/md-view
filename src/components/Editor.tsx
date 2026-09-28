@@ -7,6 +7,7 @@ import {
   reconfigureTheme,
   type EditorSettings,
 } from '@/editor/setup';
+import { changeStats, setBaseline, type ChangeStats } from '@/editor/changes';
 import { HUGE_DOC_LIMIT } from '@/lib/limits';
 import { useI18n } from '@/lib/i18n-react';
 import type { Theme } from '@/lib/theme';
@@ -29,6 +30,9 @@ interface EditorProps {
   onCursorChange: (position: CursorPosition) => void;
   onReady: (view: EditorView) => void;
   onDestroy?: () => void;
+  /** Text the gutter compares against (git HEAD or last save); null hides the marks. */
+  baseline: string | null;
+  onChangeStats: (stats: ChangeStats | null) => void;
 }
 
 function cursorPosition(view: EditorView): CursorPosition {
@@ -53,6 +57,8 @@ export function Editor({
   onCursorChange,
   onReady,
   onDestroy,
+  baseline,
+  onChangeStats,
 }: EditorProps) {
   const { t } = useI18n();
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -67,6 +73,7 @@ export function Editor({
     onCursorChange,
     onReady,
     onDestroy,
+    onChangeStats,
     ariaLabel: t('editor.ariaLabel'),
   });
   /** Last text we reported to the app: comparing by reference does not copy. */
@@ -79,6 +86,7 @@ export function Editor({
     onCursorChange,
     onReady,
     onDestroy,
+    onChangeStats,
     ariaLabel: t('editor.ariaLabel'),
   };
 
@@ -96,7 +104,10 @@ export function Editor({
       ),
       parent: host,
       dispatch: (transaction) => {
+        const stats = changeStats(view.state);
         view.update([transaction]);
+        const nextStats = changeStats(view.state);
+        if (nextStats !== stats) callbacks.current.onChangeStats(nextStats);
         if (transaction.docChanged) {
           if (callbacks.current.captureContent) {
             const text = view.state.doc.toString();
@@ -141,6 +152,11 @@ export function Editor({
     const view = viewRef.current;
     if (view) reconfigureTheme(view, theme);
   }, [theme]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view) view.dispatch({ effects: setBaseline.of(plain ? null : baseline) });
+  }, [baseline, plain]);
 
   useEffect(() => {
     const view = viewRef.current;
