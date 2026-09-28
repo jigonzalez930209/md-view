@@ -28,7 +28,11 @@ jobs:
     name: Build
     runs-on: ubuntu-26.04
     steps:
+      # Always from the default branch: a release event would otherwise check
+      # out the tag's tree and build the APT repository with older scripts.
       - uses: actions/checkout@v7
+        with:
+          ref: main
 
       - uses: pnpm/action-setup@v6
         with:
