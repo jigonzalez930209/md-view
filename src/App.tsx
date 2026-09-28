@@ -33,6 +33,7 @@ import { HUGE_DOC_LIMIT, LARGE_DOC_LIMIT, PREVIEW_WINDOW_LINES, STATS_WORKER_LIM
 import { disposeTextWorker, headWindow, splitForWorker, textStats, type TextStats } from './lib/text-tasks';
 import { isMarkdownRenderable, languageOfPath } from './lib/paths';
 import { PLAIN_LIMIT } from './editor/setup';
+import type { ChangeStats } from './editor/changes';
 import { preloadDiagrams } from './lib/mermaid';
 import type { ViewMode } from './lib/view';
 import { cn } from './lib/utils';
@@ -57,6 +58,12 @@ interface Tab {
   length?: number;
   mode: ViewMode;
   cursor: CursorPosition;
+  /**
+   * What the change marks compare against: the file in git HEAD (with its
+   * branch) or, outside a repository, the text last read from or written to disk.
+   */
+  baseline: { text: string; branch: string | null } | null;
+  changes: ChangeStats | null;
 }
 
 interface Message {
@@ -76,13 +83,21 @@ function countTreeFiles(entry: backend.TreeEntry): number {
  * Value that only changes once the user pauses typing for a moment.
  * Redrawing the preview (KaTeX, Mermaid, highlighting) on every keystroke stutters.
  */
-function useDebouncedValue<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
+/**
+ * Debounces edits. When `key` changes (another tab) the new value goes through
+ * at once, so it never pairs with the previous document.
+ */
+function useDebouncedValue<T>(value: T, delay: number, key?: unknown): T {
+  const [debounced, setDebounced] = useState({ value, key });
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(value), delay);
+    if (key !== debounced.key) {
+      setDebounced({ value, key });
+      return;
+    }
+    const timer = window.setTimeout(() => setDebounced({ value, key }), delay);
     return () => window.clearTimeout(timer);
-  }, [value, delay]);
-  return debounced;
+  }, [value, delay, key]);
+  return debounced.key === key ? debounced.value : value;
 }
 
 export default function App() {
@@ -127,7 +142,7 @@ export default function App() {
   const dirty = activeTab?.dirty ?? false;
   // The preview waits for the user to pause: meanwhile the editor stays
   // instant (and the layout doesn't shift under your feet).
-  const deferredContent = useDebouncedValue(content, 220);
+  const deferredContent = useDebouncedValue(content, 220, activeId);
 
   /* ----------------------------- state in refs ------------------------------ */
 
@@ -188,8 +203,30 @@ export default function App() {
       length: huge ? body.length : undefined,
       mode: viewMode,
       cursor: { line: 1, column: 1 },
+      baseline: document.path ? { text: body, branch: null } : null,
+      changes: null,
     };
   }, []);
+
+  /** Compares against git HEAD when the file is tracked, else against `saved`. */
+  const refreshBaseline = useCallback(
+    async (id: string, path: string, saved: string) => {
+      const git = await backend.gitBaseline(path);
+      updateTab(id, { baseline: git ?? { text: saved, branch: null } });
+    },
+    [updateTab],
+  );
+
+  const handleChangeStats = useCallback(
+    (id: string, next: ChangeStats | null) => {
+      const tab = tabsRef.current.find((item) => item.id === id);
+      const same =
+        tab?.changes === next ||
+        (tab?.changes && next && tab.changes.added === next.added && tab.changes.modified === next.modified && tab.changes.removed === next.removed);
+      if (tab && !same) updateTab(id, { changes: next });
+    },
+    [updateTab],
+  );
 
   /** Mode a new tab inherits: the active tab's mode. */
   const inheritedMode = useCallback((): ViewMode => {
@@ -217,8 +254,9 @@ export default function App() {
       if (!isSimplified(file.content) && hasDiagrams(file.content)) {
         preloadDiagrams({ theme: themeRef.current, palette: preferencesRef.current.palette });
       }
+      void refreshBaseline(tab.id, file.path, file.content);
     },
-    [inheritedMode, makeTab],
+    [inheritedMode, makeTab, refreshBaseline],
   );
 
   const openFile = useCallback(
@@ -402,11 +440,12 @@ export default function App() {
         text,
       );
       updateTab(tab.id, { dirty: false });
+      void refreshBaseline(tab.id, path, text);
       showMessage(t('app.saved'));
     } catch (error) {
       showMessage(error instanceof Error ? error.message : String(error), 'error');
     }
-  }, [currentTab, flushContent, showMessage, updateTab]);
+  }, [currentTab, flushContent, refreshBaseline, showMessage, updateTab]);
 
   /** Ref so `save` can trigger "Save as" without a circular dependency. */
   const saveAsRef = useRef<() => Promise<void>>(async () => {});
@@ -423,12 +462,23 @@ export default function App() {
       const nextDoc: OpenDoc = { path: target, name: basename(target), eol: tab.doc.eol, bom: tab.doc.bom };
       await backend.saveFile({ ...nextDoc, path: target, content: text }, text);
       updateTab(tab.id, { doc: nextDoc, dirty: false });
+      void refreshBaseline(tab.id, target, text);
       setRecents(await backend.addRecent(target));
       showMessage(t('app.savedIn', { dir: dirname(target) }));
     } catch (error) {
       showMessage(error instanceof Error ? error.message : String(error), 'error');
     }
-  }, [currentTab, flushContent, showMessage, updateTab]);
+  }, [currentTab, flushContent, refreshBaseline, showMessage, updateTab]);
+
+  // A commit or checkout made elsewhere moves HEAD: re-read it on focus.
+  useEffect(() => {
+    const onFocus = () => {
+      const tab = currentTab();
+      if (tab?.doc.path && tab.baseline?.branch) void refreshBaseline(tab.id, tab.doc.path, tab.baseline.text);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [currentTab, refreshBaseline]);
 
   // Actions reachable from global listeners without re-subscribing.
   const toggleTree = useCallback(() => setTreeOpen((current) => !current), []);
@@ -621,11 +671,21 @@ export default function App() {
     invalidatePreviewAnchors(previewAnchors.current);
     if (!activeId) return;
 
+    // The new tab's HTML (and its diagrams) arrives asynchronously: until it is
+    // tall enough the browser clamps the scroll, so we retry for a moment.
     const target = previewScroll.current.get(activeId) ?? 0;
-    suppressUntil.current = performance.now() + 400;
-    const frame = window.requestAnimationFrame(() => {
-      previewRef.current?.scrollTo({ top: target });
-    });
+    const deadline = performance.now() + 1500;
+    let frame = 0;
+    const restore = () => {
+      const host = previewRef.current;
+      if (!host) return;
+      suppressUntil.current = performance.now() + 400;
+      host.scrollTo({ top: target });
+      if (Math.abs(host.scrollTop - target) > 1 && performance.now() < deadline) {
+        frame = window.requestAnimationFrame(restore);
+      }
+    };
+    frame = window.requestAnimationFrame(restore);
     return () => window.cancelAnimationFrame(frame);
   }, [activeId]);
 
@@ -1058,6 +1118,8 @@ export default function App() {
                           onCursorChange={(position) => handleCursorChange(tab.id, position)}
                           onReady={(view) => handleEditorReady(tab.id, view)}
                           onDestroy={() => handleEditorDestroy(tab.id)}
+                          baseline={tab.baseline?.text ?? null}
+                          onChangeStats={(next) => handleChangeStats(tab.id, next)}
                         />
                       </div>
                     ))}
@@ -1129,6 +1191,8 @@ export default function App() {
             words={stats.words}
             chars={activeTab?.length ?? content.length}
             message={message}
+            branch={activeTab?.baseline?.branch ?? null}
+            changes={activeTab?.changes ?? null}
           />
 
           <SettingsDialog
