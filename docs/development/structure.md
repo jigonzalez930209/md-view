@@ -52,12 +52,14 @@ src-tauri/
   icons/                      App icons (PNG, ICO, ICNS)
   linux/md-view.desktop       Desktop entry template (Exec=md-view %U)
   linux/com.mdview.desktop.metainfo.xml  AppStream metadata for app centers
+  linux/copyright             DEP-5 copyright for the .deb
 docs/                         This documentation site (VitePress)
 scripts/
   generate-icons.py           Draws the app icon and exports every size
   changelog.mjs               Builds a version's changelog entry from the commits
   release.sh                  Version bump + changelog + tag + push
   fix-deb-depends.sh          Rewrites the .deb dependencies after Tauri builds it
+  apt-repo.sh                 Builds and signs the APT repository for Pages
 .github/
   workflows/ci.yml            Typecheck, build, fmt and tests
   workflows/release.yml       Installers per platform

@@ -34,6 +34,29 @@ ship (`/usr/share/metainfo/com.mdview.desktop.metainfo.xml`). The *third-party p
 is App Center's own notice for anything installed outside a distribution repository.
 :::
 
+## APT repository (Debian, Ubuntu and derivatives)
+
+The project publishes a signed APT repository next to its documentation, rebuilt with the `.deb`
+of every published release:
+
+```bash
+# Trust the repository key once
+curl -fsSL https://jigonzalez930209.github.io/md-view/apt/md-view-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/md-view-archive-keyring.gpg > /dev/null
+
+# Add the repository
+echo "deb [signed-by=/usr/share/keyrings/md-view-archive-keyring.gpg] https://jigonzalez930209.github.io/md-view/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/md-view.list
+
+# Install (and update with the rest of the system)
+sudo apt update
+sudo apt install md-view
+```
+
+`apt upgrade` keeps md-view up to date from then on. The repository is rebuilt automatically when
+a release is published (see [Workflows](/deployment/workflows)); the package itself is the same
+`.deb` from the releases page.
+
 ## From source
 
 ### Requirements

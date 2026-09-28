@@ -8,6 +8,10 @@ on:
       - '.github/workflows/docs.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'scripts/apt-repo.sh'
+  # Publishing a release refreshes the APT repository with its .deb.
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -39,6 +43,23 @@ jobs:
 
       # Falla si hay enlaces internos rotos.
       - run: pnpm docs:build
+
+      # The APT repository lives next to the documentation, at /md-view/apt,
+      # and is rebuilt from the .deb of the latest published release.
+      - name: Build the APT repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: |
+          mkdir -p /tmp/deb
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern '*.deb' --dir /tmp/deb --clobber || true
+          if ! ls /tmp/deb/*.deb >/dev/null 2>&1; then
+            echo "::warning::No .deb found in the latest release; skipping the APT repository"
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev gnupg
+          bash scripts/apt-repo.sh docs/.vitepress/dist/apt /tmp/deb/*.deb
 
       # Pages must be enabled once for the repository with
       # Settings -> Pages -> Build and deployment -> Source: GitHub Actions.

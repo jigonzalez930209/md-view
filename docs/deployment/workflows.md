@@ -71,23 +71,33 @@ and replaces the uploaded asset with `gh release upload --clobber`.
 Node 24.
 :::
 
-## Documentation
+## Documentation and APT repository
 
-`docs.yml` builds the VitePress site (`pnpm docs:build`, which fails on dead links) and
-publishes it to GitHub Pages:
+`docs.yml` builds the VitePress site (`pnpm docs:build`, which fails on dead links), adds the APT
+repository next to it and publishes both to GitHub Pages:
 
 ```yaml
+on:
+  push: { branches: [main], paths: ['docs/**', …] }
+  release: { types: [published] }   # refreshes the APT repository with the new .deb
 permissions: { contents: read, pages: write, id-token: write }
 steps:
   - pnpm install --frozen-lockfile
   - pnpm docs:build
+  - gh release download --pattern '*.deb'      # the latest published release
+  - scripts/apt-repo.sh docs/.vitepress/dist/apt /tmp/deb/*.deb
   - actions/upload-pages-artifact
   - actions/deploy-pages
 ```
 
-Enable Pages once in **Settings → Pages → Build and deployment → Source: GitHub Actions**. The
-site is served from `https://<user>.github.io/md-view/`, which is why `base: '/md-view/'` is set
-in `docs/.vitepress/config.ts` (change it to `'/'` for a custom domain).
+The site is served from `https://<user>.github.io/md-view/`, which is why `base: '/md-view/'` is
+set in `docs/.vitepress/config.ts` (change it to `'/'` for a custom domain). The APT repository
+lives under the same site at `/md-view/apt`, so the two share a single Pages deployment: the
+documentation in the root and the packages in `apt/`. `scripts/apt-repo.sh` builds the pool,
+`Packages` and `Release` and signs them with the `APT_SIGNING_KEY` secret (the public keyring is
+the committed file `docs/public/apt/md-view-archive-keyring.gpg`).
+
+Enable Pages once in **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
 ## Required repository settings
 

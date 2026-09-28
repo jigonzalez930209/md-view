@@ -77,6 +77,13 @@ package is `libgtk-3-0t64` there). `src-tauri/tauri.conf.json` therefore declare
 | `.deb` | `libwebkit2gtk-4.1-0`, `libgtk-3-0 \| libgtk-3-0t64` (the alternative covers both the old and the `t64` rename) |
 | `.rpm` | none declared: the bundler resolves the sonames automatically (`libwebkit2gtk-4.1.so.0()(64bit)`, `libgtk-3.so.0()(64bit)`), which works on Fedora and openSUSE alike |
 
+The packages also ship `/usr/share/metainfo/com.mdview.desktop.metainfo.xml` (AppStream, what app
+centers read), the desktop entry, `/usr/share/doc/md-view/copyright` (DEP-5, required by Debian
+policy) and `/usr/share/licenses/md-view/LICENSE` in the `.rpm`.
+
+Publishing a release also refreshes the [APT repository](/guide/installation#apt-repository-debian-ubuntu-and-derivatives)
+through the docs workflow, so `apt install md-view` picks up the new `.deb`.
+
 Tauri **appends** its own defaults (`libwebkit2gtk-4.1-0`, `libgtk-3-0`) to whatever the config
 declares, and `libgtk-3-0` does not exist on Ubuntu 24.04+. The release workflow therefore runs
 [`scripts/fix-deb-depends.sh`](https://github.com/jigonzalez930209/md-view/blob/main/scripts/fix-deb-depends.sh)

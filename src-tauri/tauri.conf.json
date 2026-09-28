@@ -69,13 +69,15 @@
         ],
         "desktopTemplate": "linux/md-view.desktop",
         "files": {
-          "/usr/share/metainfo/com.mdview.desktop.metainfo.xml": "linux/com.mdview.desktop.metainfo.xml"
+          "/usr/share/metainfo/com.mdview.desktop.metainfo.xml": "linux/com.mdview.desktop.metainfo.xml",
+          "/usr/share/doc/md-view/copyright": "linux/copyright"
         }
       },
       "rpm": {
         "desktopTemplate": "linux/md-view.desktop",
         "files": {
-          "/usr/share/metainfo/com.mdview.desktop.metainfo.xml": "linux/com.mdview.desktop.metainfo.xml"
+          "/usr/share/metainfo/com.mdview.desktop.metainfo.xml": "linux/com.mdview.desktop.metainfo.xml",
+          "/usr/share/licenses/md-view/LICENSE": "../LICENSE"
         }
       },
       "appimage": {
