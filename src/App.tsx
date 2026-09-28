@@ -22,7 +22,7 @@ import {
   scrollPreviewToLine,
   syncProportional,
 } from './lib/scroll-sync';
-import { applyAppearance, type Theme } from './lib/theme';
+import { applyAppearance } from './lib/theme';
 import { plural, setActiveLanguage, t } from './lib/i18n';
 import { I18nProvider } from './lib/i18n-react';
 import { usePreferences } from './lib/prefs';
@@ -35,6 +35,7 @@ import { isMarkdownRenderable, languageOfPath } from './lib/paths';
 import { PLAIN_LIMIT } from './editor/setup';
 import type { ChangeStats } from './editor/changes';
 import { preloadDiagrams } from './lib/mermaid';
+import { withLightPrint } from './lib/print-theme';
 import type { ViewMode } from './lib/view';
 import { cn } from './lib/utils';
 import demoMarkdown from './demo.md?raw';
@@ -110,8 +111,6 @@ export default function App() {
   const [folder, setFolder] = useState<backend.FolderTree | null>(null);
   const [treeOpen, setTreeOpen] = useState(true);
   const [treeWidth, setTreeWidth] = useState(300);
-  /** Theme forced while exporting (light PDF); not persisted. */
-  const [printTheme, setPrintTheme] = useState<Theme | null>(null);
   const [ratio, setRatio] = useState(0.5);
   const [recents, setRecents] = useState<string[]>([]);
   const [message, setMessage] = useState<Message | null>(null);
@@ -513,6 +512,7 @@ export default function App() {
 
   useEffect(() => {
     applyAppearance(theme, preferences.palette);
+    void backend.syncWindowBackground();
     // Switching theme redraws the diagrams: so scroll sync doesn't fight it.
     suppressUntil.current = performance.now() + 600;
   }, [theme, preferences.palette]);
@@ -987,28 +987,23 @@ export default function App() {
       const restoreMode = needsPreview && tab.mode === 'edit' ? tab.mode : null;
       if (restoreMode) setMode('preview');
 
-      // The PDF is exported light unless the user turns that off.
+      // The PDF is exported light unless the user turns that off; only print
+      // gets the light palette, the window keeps its theme.
+      const palette = preferencesRef.current.palette;
       const lightPdf = format === 'pdf' && preferencesRef.current.pdfLight && themeRef.current !== 'light';
-      if (lightPdf) {
-        applyAppearance('light', preferencesRef.current.palette);
-        setPrintTheme('light');
-        await new Promise((resolve) => window.setTimeout(resolve, 350));
-      }
-
-      try {
-        const result = await exportDocument(format, article, target, {
+      const run = () =>
+        exportDocument(format, article, target, {
           title: tab.doc.name,
           theme: lightPdf ? 'light' : themeRef.current,
-          palette: preferencesRef.current.palette,
+          palette,
         });
+
+      try {
+        const result = lightPdf ? await withLightPrint(palette, article, run) : await run();
         showMessage(result);
       } catch (error) {
         showMessage(error instanceof Error ? error.message : String(error), 'error');
       } finally {
-        if (lightPdf) {
-          setPrintTheme(null);
-          applyAppearance(themeRef.current, preferencesRef.current.palette);
-        }
         if (restoreMode) setMode(restoreMode);
       }
     },
@@ -1018,7 +1013,9 @@ export default function App() {
   return (
     <I18nProvider language={preferences.language}>
         <TooltipProvider>
-          <div className="app-shell grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
+          {/* The single column is capped to the window: no content may widen the
+              shell and push the window buttons off screen. */}
+          <div className="app-shell grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
           <HeaderBar
             docName={doc?.name ?? null}
             docPath={doc?.path ?? null}
@@ -1108,7 +1105,7 @@ export default function App() {
                       >
                         <Editor
                           value={tab.content}
-                          theme={printTheme ?? theme}
+                          theme={theme}
                           fontSize={preferences.editorFontSize}
                           lineNumbers={preferences.editorLineNumbers}
                           wrap={preferences.editorWrap}
@@ -1149,7 +1146,7 @@ export default function App() {
                     content={activeTab.window ?? deferredContent}
                     windowed={activeTab.window !== undefined}
                     totalLength={activeTab.length ?? content.length}
-                    theme={printTheme ?? theme}
+                    theme={theme}
                     palette={preferences.palette}
                     fontSize={preferences.previewFontSize}
                     docPath={doc?.path ?? null}
