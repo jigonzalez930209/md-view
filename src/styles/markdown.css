@@ -601,9 +601,11 @@
   overflow-x: auto;
 }
 
+/* Tailwind's preflight makes svg a block: text-align alone would not center it. */
 .markdown-body .mermaid-stage svg {
   max-width: 100%;
   height: auto;
+  margin-inline: auto;
 }
 
 .markdown-body .mermaid-block.is-loading .mermaid-source {
@@ -613,8 +615,19 @@
 }
 
 .markdown-body .mermaid-block.is-loading::after {
-  content: 'Dibujando diagrama…';
+  content: attr(data-loading);
   margin-top: 6px;
+  color: var(--fg-subtle);
+  font-size: 12px;
+}
+
+.markdown-body .mermaid-block.is-stale .mermaid-stage {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+
+.markdown-body .mermaid-stale-note {
+  margin: 6px 0 0;
   color: var(--fg-subtle);
   font-size: 12px;
 }
