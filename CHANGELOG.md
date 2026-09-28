@@ -4,6 +4,23 @@ All notable changes to md-view are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-09-28
+
+### Added
+
+- add detailed changelog for version 0.3.0 and introduce promo video documentation (3d0a4f8)
+- add video hero component and custom styles (2148dd7)
+
+### Changed
+
+- improve code formatting and readability in lib.rs (6eb88b4)
+
+### Documentation
+
+- update README and CHANGELOG for improved clarity and media integration (31686e4)
+
+**Full changelog**: https://github.com/jigonzalez930209/md-view/compare/v0.3.0...v0.3.1
+
 ## [0.3.0] - 2026-09-28
 
 ### Added
