@@ -195,16 +195,12 @@ export const PDF_DOC = PIPELINE;
  * same X display). Falls back to a PDF card if it is not installed.
  */
 export const PDF_VIEWER = { command: 'papers', windowClass: 'papers', name: 'GNOME Papers' };
-
-/** Close-up on the first page inside the viewer (logical pixels, viewer full screen). */
-export const PDF_VIEWER_PAGE = { x: 268, y: 52, width: 742, height: 520 };
-
 /** On-screen copy per scene: headline above the window, detail below it. */
 export const CAPTIONS = {
   launch: {
     kicker: 'Native · Rust + Tauri · no Electron',
     title: 'A 7.7 MB Markdown editor',
-    detail: 'Real recording of the app, no mockups',
+    detail: '',
   },
   folder: {
     kicker: 'Explorer',
@@ -229,7 +225,7 @@ export const CAPTIONS = {
   tabs: {
     kicker: 'Tabs',
     title: 'Every tab keeps its place',
-    detail: 'Switch documents, come back where you left',
+    detail: 'Back to notes.md, scrolled right where you left it',
   },
   themes: {
     kicker: 'Themes',

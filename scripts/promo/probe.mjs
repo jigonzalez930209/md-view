@@ -14,6 +14,8 @@ import { chromium } from 'playwright';
 import * as S from './script.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Radix menus open with a scale animation: measuring earlier gives shifted rectangles. */
+const MENU_ANIMATION = 450;
 
 async function launchBrowser() {
   const forced = process.env.PROMO_BROWSER;
@@ -74,6 +76,7 @@ async function measure(page, demoPath) {
   // Open the folder from the "Open" menu.
   layout.openMenu = await rect('button[aria-label="Recent files"]');
   await page.locator('button[aria-label="Recent files"]').click();
+  await sleep(MENU_ANIMATION);
   layout.openFolderItem = await rect('[role="menuitem"]:has-text("Open folder")');
   await page.locator('[role="menuitem"]:has-text("Open folder")').click();
   await page.waitForSelector('[role="treeitem"]');
@@ -117,9 +120,10 @@ async function measure(page, demoPath) {
   // Export menu (Radix opens the submenu on hover).
   await page.locator(tab(S.PDF_DOC)).click();
   await page.locator('button[aria-label="Main menu"]').click();
+  await sleep(MENU_ANIMATION);
   layout.exportItem = await rect('[role="menuitem"]:has-text("Export")');
   await page.locator('[role="menuitem"]:has-text("Export")').hover();
-  await sleep(300);
+  await sleep(MENU_ANIMATION);
   layout.pdfItem = await rect('[role="menuitem"]:has-text("PDF (paged)")');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
@@ -128,9 +132,10 @@ async function measure(page, demoPath) {
 
   // Appearance submenu: theme mode and palettes.
   await page.locator('button[aria-label="Main menu"]').click();
+  await sleep(MENU_ANIMATION);
   layout.appearanceItem = await rect('[role="menuitem"]:has-text("Appearance")');
   await page.locator('[role="menuitem"]:has-text("Appearance")').hover();
-  await sleep(300);
+  await sleep(MENU_ANIMATION);
   const radio = (name) =>
     page.getByRole('menuitemradio', { name, exact: true }).evaluate((element) => {
       const r = element.getBoundingClientRect();

@@ -171,8 +171,14 @@ function input(env) {
 /* App and capture                                                            */
 /* ------------------------------------------------------------------------ */
 
+/** Started from the demo folder: that is where the native file dialogs open. */
 function launchApp(env, files) {
-  return spawn('dbus-run-session', ['--', APP_BIN, ...files], { env, stdio: 'ignore', detached: true });
+  return spawn('dbus-run-session', ['--', APP_BIN, ...files], {
+    env,
+    cwd: join(homedir(), S.DEMO_DIR),
+    stdio: 'ignore',
+    detached: true,
+  });
 }
 
 function kill(child) {
@@ -347,9 +353,9 @@ async function record(layout, env, display) {
     await clickAt(center(layout.openFolderItem), 400);
     const folderDialog = await waitForDialog(env, mainId);
     if (folderDialog) {
-      const strip = { x: folderDialog.x, y: folderDialog.y, width: Math.min(folderDialog.width, 640), height: 150 };
-      await camera(strip, 2, 0.6);
       await io.key('ctrl+l');
+      // The location entry comes pre-filled with the current folder.
+      await io.key('ctrl+a');
       await io.type(`~/${S.DEMO_DIR}`, 14);
       await sleep(250);
       await io.key('Return');
@@ -358,7 +364,6 @@ async function record(layout, env, display) {
         await io.key('Return');
         await waitForDialogClosed(env, mainId, 2000);
       }
-      await camera(null, 1, 0.6);
     }
     await sleep(400);
     for (const name of S.BROWSE) {
@@ -369,13 +374,12 @@ async function record(layout, env, display) {
       await clickAt(center(layout.tree[name]), 450);
       await sleep(600);
       if (name === S.NOTES) {
-        const gutter = layout.notesGutter;
-        await camera({ x: gutter.x - 70, y: layout.workspace.y + 30, width: 430, height: 300 }, 1.7, 0.7);
-        await sleep(700);
-        const status = layout.statusBar;
-        await camera({ x: status.x + status.width - 560, y: status.y - 40, width: 560, height: status.height + 50 }, 2, 0.7);
-        await sleep(800);
-        await camera(null, 1, 0.6);
+        await sleep(900);
+        // Scrolled now, so coming back to this tab later shows it kept its place.
+        const notesPreview = center(layout.previewPane);
+        await io.moveTo(notesPreview.x, notesPreview.y, 350);
+        await io.wheel(7);
+        await sleep(250);
       }
     }
 
@@ -384,8 +388,6 @@ async function record(layout, env, display) {
     const editorPoint = { x: layout.editor.x + layout.editor.width * 0.35, y: layout.workspace.y + layout.workspace.height * 0.8 };
     await clickAt(editorPoint, 650);
     await io.key('ctrl+End');
-    const lower = { x: 0, y: layout.workspace.y + layout.workspace.height * 0.1, width: S.APP.width, height: layout.workspace.height * 0.8 };
-    await camera(lower, S.CAMERA.medium);
     await type(S.TYPING.mermaid);
     const art = layout.diagramArt;
     const pad = 24;
@@ -394,7 +396,7 @@ async function record(layout, env, display) {
 
     mark('math');
     caption('math');
-    await camera(lower, S.CAMERA.medium, 0.7);
+    await camera(null, 1, 0.7);
     await type(S.TYPING.math);
     const bottom = layout.formula.y + layout.formula.height;
     const result = { x: layout.previewPane.x, y: layout.diagram.y, width: layout.previewPane.width, height: bottom - layout.diagram.y };
@@ -405,18 +407,9 @@ async function record(layout, env, display) {
     mark('tabs');
     caption('tabs');
     await camera(null, 1, 0.7);
-    await clickAt(center(layout.tabs[S.NOTES]), 500);
-    await sleep(300);
-    const preview = center(layout.previewPane);
-    await io.moveTo(preview.x, preview.y, 300);
-    await io.wheel(7);
-    await sleep(200);
-    await clickAt(center(layout.tabs[S.PIPELINE]), 400);
-    await sleep(500);
-    await clickAt(center(layout.tabs[S.NOTES]), 350);
-    await io.moveTo(preview.x, preview.y, 300);
-    await sleep(500);
-    await clickAt(center(layout.tabs[S.PDF_DOC]), 350);
+    await clickAt(center(layout.tabs[S.NOTES]), 450);
+    await sleep(900);
+    await clickAt(center(layout.tabs[S.PDF_DOC]), 400);
     await sleep(300);
 
     // Themes and export share one open menu: appearance choices keep it open.
@@ -436,18 +429,14 @@ async function record(layout, env, display) {
     caption('pdf');
     const pdfFile = demoPath(S.PDF_DOC.replace(/\.md$/, '.pdf'));
     await rm(pdfFile, { force: true });
-    const menuArea = { x: S.APP.width - 620, y: 0, width: 620, height: 500 };
     const exportAt = center(layout.exportItem);
     await io.moveTo(appearance.x, appearance.y, 300);
-    await Promise.all([camera(menuArea, 1.35, 0.7), io.moveTo(exportAt.x, exportAt.y, 450)]);
+    await io.moveTo(exportAt.x, exportAt.y, 450);
     await sleep(250);
     await clickAt(center(layout.pdfItem), 400);
-    const dialog = await waitForDialog(env, mainId);
-    const nameStrip = dialog && { x: dialog.x, y: dialog.y, width: Math.min(dialog.width, 640), height: 150 };
-    await camera(nameStrip, nameStrip ? 2 : 1, 0.6);
-    await sleep(400);
+    await waitForDialog(env, mainId);
+    await sleep(500);
     await io.key('Return');
-    await camera(null, 1, 0.7);
     for (let i = 0; i < 100 && !existsSync(pdfFile); i += 1) await sleep(100);
     await sleep(300);
     if (viewerAvailable && existsSync(pdfFile)) {
@@ -459,9 +448,7 @@ async function record(layout, env, display) {
       await io.xdo('windowmove', viewerId, '0', '0', 'windowsize', viewerId, String(SCREEN.width), String(SCREEN.height));
       caption('viewer');
       timeline.viewer = { t: now() };
-      await sleep(800);
-      await camera(S.PDF_VIEWER_PAGE, 1.35, 0.9);
-      await sleep(1300);
+      await sleep(2000);
     } else {
       timeline.pdf = { t: now(), file: pdfFile };
       await sleep(2000);
