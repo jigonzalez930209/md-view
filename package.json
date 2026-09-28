@@ -18,7 +18,8 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "changelog": "node scripts/changelog.mjs generate",
-    "promo": "node scripts/promo/record.mjs"
+    "promo": "node scripts/promo/record.mjs",
+    "promo:webp": "node scripts/promo/webp.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

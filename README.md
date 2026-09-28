@@ -10,7 +10,7 @@ renders **like GitHub**.
 
 <p align="center">
   <a href="docs/public/media/md-view-demo.mp4">
-    <img src="docs/public/media/md-view-demo.webp" width="420" alt="md-view in action: opening a folder, git change marks, Mermaid, KaTeX, themes and PDF export">
+    <img src="docs/public/media/md-view-demo.webp" width="640" alt="md-view in action: opening a folder, git change marks, Mermaid, KaTeX, themes and PDF export">
   </a>
 </p>
 
