@@ -142,6 +142,7 @@
   .markdown-body {
     max-width: none !important;
     padding: 0 !important;
+    zoom: 1 !important;
   }
 
   .markdown-body pre,
@@ -162,5 +163,13 @@
 
   .markdown-body a {
     color: inherit !important;
+  }
+
+  .markdown-body .has-print-copy > .mermaid-stage:not(.mermaid-print) {
+    display: none;
+  }
+
+  .markdown-body .has-print-copy > .mermaid-print {
+    display: block;
   }
 }

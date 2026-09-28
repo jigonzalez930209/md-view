@@ -608,6 +608,11 @@
   margin-inline: auto;
 }
 
+/* Light copy for the PDF of a dark window: only print shows it (index.css). */
+.markdown-body .mermaid-print {
+  display: none;
+}
+
 .markdown-body .mermaid-block.is-loading .mermaid-source {
   display: block;
   width: 100%;
