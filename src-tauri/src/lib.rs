@@ -816,7 +816,82 @@ fn files_from_urls<I: IntoIterator<Item = tauri::Url>>(urls: I) -> Vec<String> {
         .collect()
 }
 
+fn background_file(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_config_dir().ok()?;
+    fs::create_dir_all(&dir).ok()?;
+    Some(dir.join("background"))
+}
+
+fn apply_background(window: &tauri::WebviewWindow, [red, green, blue]: [u8; 3]) {
+    let _ = window.set_background_color(Some(tauri::window::Color(red, green, blue, 255)));
+}
+
+/// Last theme background, so the window opens in its color before the page loads.
+fn saved_background(app: &AppHandle) -> Option<[u8; 3]> {
+    let data = fs::read_to_string(background_file(app)?).ok()?;
+    let mut parts = data.split(',').map(|part| part.trim().parse::<u8>().ok());
+    Some([parts.next()??, parts.next()??, parts.next()??])
+}
+
+/// Paints the native window and webview with the theme background, so the
+/// area uncovered while growing the window is not black until WebKit repaints.
+#[tauri::command]
+fn set_window_background(app: AppHandle, window: tauri::WebviewWindow, red: u8, green: u8, blue: u8) {
+    apply_background(&window, [red, green, blue]);
+    if saved_background(&app) != Some([red, green, blue]) {
+        if let Some(file) = background_file(&app) {
+            let _ = fs::write(file, format!("{red},{green},{blue}"));
+        }
+    }
+}
+
+/// WebKitGTK's DMA-BUF renderer hands frames to the compositor late during a
+/// resize: growing the window shows a black band and shrinking it clips the
+/// content until the page catches up (Wayland, hybrid GPUs). The older path
+/// keeps GPU rendering and follows the window like a native app. Runs before
+/// GTK starts; a value set by the user wins.
+#[cfg(target_os = "linux")]
+fn prefer_synchronous_resize() {
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
+/// Touchpad pinch forwarded to the frontend. `scale` is relative to the start
+/// of the gesture; `x`/`y` are CSS pixels inside the webview.
+#[cfg(target_os = "linux")]
+#[derive(Clone, Serialize)]
+struct PinchEvent {
+    phase: &'static str,
+    scale: f64,
+    x: f64,
+    y: f64,
+}
+
+/// Share of the monitor's work area the window may take when it does not fit.
+const FIT_RATIO: f64 = 0.92;
+
+/// The window has no frame, so if the configured size is larger than the
+/// screen (small laptops, fractional scaling) the window buttons end up off
+/// screen with no title bar to drag it back. Shrink it to the work area.
+fn fit_to_monitor(window: &tauri::WebviewWindow) {
+    let (Ok(Some(monitor)), Ok(size)) = (window.current_monitor(), window.outer_size()) else {
+        return;
+    };
+    let area = monitor.work_area().size;
+    if size.width <= area.width && size.height <= area.height {
+        return;
+    }
+    let width = size.width.min((f64::from(area.width) * FIT_RATIO) as u32);
+    let height = size.height.min((f64::from(area.height) * FIT_RATIO) as u32);
+    let _ = window.set_size(tauri::PhysicalSize::new(width, height));
+    let _ = window.center();
+}
+
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    prefer_synchronous_resize();
+
     let pending = PendingOpen(Mutex::new(files_from_args(std::env::args())));
 
     let app = tauri::Builder::default()
@@ -831,17 +906,51 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(pending)
         .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                if let Some(color) = saved_background(app.handle()) {
+                    apply_background(&window, color);
+                }
+                fit_to_monitor(&window);
+                // Created hidden (tauri.conf.json) so the first frame already has the theme color.
+                let _ = window.show();
+            }
+
             // WebKitGTK's "smooth scrolling" adds momentum that keeps coasting
             // after the wheel stops: we leave it off (default) so scrolling
             // responds crisply, like in the browser.
             #[cfg(target_os = "linux")]
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.with_webview(|webview| {
+                let target = window.clone();
+                let _ = window.with_webview(move |webview| {
+                    use gtk::prelude::*;
                     use webkit2gtk::{SettingsExt, WebViewExt};
 
-                    if let Some(settings) = webview.inner().settings() {
+                    let view = webview.inner();
+                    if let Some(settings) = WebViewExt::settings(&view) {
                         settings.set_enable_smooth_scrolling(false);
                     }
+
+                    // A touchpad pinch would scale the whole page and leave
+                    // the app overflowing its window. We swallow it and hand
+                    // it to the frontend, which zooms only the preview.
+                    view.connect_event(move |_, event| {
+                        let Some(pinch) = event.downcast_ref::<gtk::gdk::EventTouchpadPinch>() else {
+                            return gtk::glib::Propagation::Proceed;
+                        };
+                        // gdk-rs only exposes the phase as a bool: read the C field.
+                        let raw: &gtk::gdk::ffi::GdkEventTouchpadPinch = pinch.as_ref();
+                        let phase = match i32::from(raw.phase) {
+                            gtk::gdk::ffi::GDK_TOUCHPAD_GESTURE_PHASE_BEGIN => "begin",
+                            gtk::gdk::ffi::GDK_TOUCHPAD_GESTURE_PHASE_UPDATE => "update",
+                            _ => "end",
+                        };
+                        let (x, y) = pinch.position();
+                        let _ = target.emit(
+                            "touchpad-pinch",
+                            PinchEvent { phase, scale: pinch.scale(), x, y },
+                        );
+                        gtk::glib::Propagation::Stop
+                    });
                 });
             }
             Ok(())
@@ -857,6 +966,7 @@ pub fn run() {
             export_pdf,
             path_exists,
             git_baseline,
+            set_window_background,
             open_external,
             open_path,
             take_pending_open,
