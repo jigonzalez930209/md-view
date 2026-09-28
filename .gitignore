@@ -1,5 +1,6 @@
 # Dependencias
 node_modules/
+.pnpm-store/
 
 # Build del frontend
 dist/
@@ -14,6 +15,9 @@ src-tauri/gen/schemas/
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Video promocional (scripts/promo)
+scripts/promo/out/
 
 # Documentacion (VitePress)
 docs/.vitepress/cache/
