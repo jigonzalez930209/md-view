@@ -39,6 +39,21 @@ The packages register `.md`, `.markdown` and `.mdx`, so you can also open a docu
 double-clicking it. Builds are unsigned: macOS and Windows will ask you to confirm the first
 launch.
 
+### APT repository (Debian, Ubuntu and derivatives)
+
+The project publishes a signed APT repository next to its documentation, rebuilt with every
+release:
+
+```bash
+curl -fsSL https://jigonzalez930209.github.io/md-view/apt/md-view-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/md-view-archive-keyring.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/md-view-archive-keyring.gpg] https://jigonzalez930209.github.io/md-view/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/md-view.list
+sudo apt update && sudo apt install md-view
+```
+
+From then on `apt upgrade` keeps it up to date.
+
 ### From source
 
 Requires **Node 24+**, **pnpm 10+**, **Rust 1.77+** and the Tauri system dependencies
