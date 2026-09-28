@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>md-view promo stage</title>
+<style>
+  :root {
+    --font: 'Inter', 'SF Pro Display', 'Segoe UI', Ubuntu, Cantarell, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1080px; height: 1350px; overflow: hidden; background: #0b1020; }
+  body { font-family: var(--font); color: #f0f4ff; -webkit-font-smoothing: antialiased; }
+
+  #stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
+  .bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(900px 600px at 15% -5%, rgba(31, 111, 235, 0.45), transparent 60%),
+      radial-gradient(700px 520px at 100% 105%, rgba(130, 80, 223, 0.35), transparent 60%),
+      linear-gradient(180deg, #0d1426 0%, #0a0f1d 100%);
+  }
+
+  /* ------------------------------ captions ----------------------------- */
+  #captions { position: absolute; left: 60px; right: 60px; top: 70px; height: 230px; }
+  .caption { position: absolute; inset: 0; }
+  .kicker {
+    display: inline-block; padding: 8px 18px; border-radius: 999px;
+    background: rgba(31, 111, 235, 0.18); border: 1px solid rgba(88, 151, 255, 0.45);
+    color: #a9c8ff; font-size: 27px; font-weight: 600;
+  }
+  .title { margin: 20px 0 0; font-size: 66px; line-height: 1.06; font-weight: 800; letter-spacing: -0.02em; }
+  #details { position: absolute; left: 60px; right: 60px; top: 1030px; height: 60px; }
+  .detail { position: absolute; inset: 0; text-align: center; font-size: 34px; font-weight: 500; color: #c3d3f5; }
+
+  /* ------------------------------- window ------------------------------ */
+  #window {
+    position: absolute; left: 40px; top: 330px; width: 1000px; height: 661px;
+    border-radius: 14px; overflow: hidden; background: #0d1117;
+    box-shadow: 0 40px 90px -20px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+  #cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #shot { display: block; width: 1180px; height: 780px; }
+
+  #stopwatch {
+    position: absolute; left: 50%; top: 1112px; transform: translateX(-50%);
+    padding: 12px 24px; border-radius: 14px; white-space: nowrap;
+    background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 30px; font-weight: 600; color: #e6edff; font-variant-numeric: tabular-nums;
+  }
+  #stopwatch b { color: #7ee2a8; }
+
+  .ripple {
+    position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%;
+    border: 3px solid rgba(88, 151, 255, 0.95); pointer-events: none;
+  }
+
+  /* -------------------------------- pdf -------------------------------- */
+  #pdf { position: absolute; inset: 0; overflow: hidden; }
+  .sheet {
+    position: absolute; left: 50%; top: 40px; width: 470px; margin-left: -235px;
+    border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  }
+  .sheet header {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: #f3f4f6; border-bottom: 1px solid #e5e7eb; color: #111827; font-size: 16px; font-weight: 600;
+  }
+  .sheet header b { padding: 3px 7px; border-radius: 6px; background: #dc2626; color: #fff; font-size: 12px; }
+  .sheet header small { margin-left: auto; color: #6b7280; font-weight: 500; font-size: 13px; }
+  .sheet img { display: block; width: 100%; height: 560px; object-fit: cover; object-position: top; }
+
+  /* ------------------------------- footer ------------------------------ */
+  #footer {
+    position: absolute; left: 0; right: 0; bottom: 34px; display: flex; justify-content: center; align-items: center; gap: 12px;
+    font-size: 25px; color: #9fb0d4; font-weight: 500;
+  }
+  #footer svg { width: 32px; height: 32px; }
+  #footer strong { color: #f0f4ff; font-weight: 700; }
+
+  /* ------------------------------ end card ----------------------------- */
+  #end {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    background:
+      radial-gradient(800px 600px at 50% 30%, rgba(31, 111, 235, 0.55), transparent 65%),
+      linear-gradient(180deg, #0d1426 0%, #0a0f1d 100%);
+  }
+  #end svg { width: 190px; height: 190px; filter: drop-shadow(0 22px 40px rgba(31, 111, 235, 0.55)); }
+  #end h2 { margin: 36px 0 6px; font-size: 96px; font-weight: 800; letter-spacing: -0.03em; }
+  #end .tagline { font-size: 38px; color: #cdd9f5; font-weight: 500; }
+  #end .facts { margin-top: 44px; font-size: 30px; color: #a9c8ff; font-weight: 600; }
+  #end .url {
+    margin-top: 40px; padding: 18px 30px; border-radius: 16px; font-size: 32px; font-weight: 700;
+    background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg"></div>
+  <div id="captions"></div>
+  <div id="window">
+    <div id="cam"><img id="shot" alt=""></div>
+    <div id="pdf">
+      <div class="sheet">
+        <header><b>PDF</b><span id="pdf-name"></span><small>Page 1</small></header>
+        <img id="pdf-img" alt="">
+      </div>
+    </div>
+  </div>
+  <div id="details"></div>
+  <div id="stopwatch"></div>
+  <div id="ripples"></div>
+  <div id="footer">
+    <svg viewBox="0 0 32 32"><use href="#logo"/></svg>
+    <span><strong>md-view</strong> · free &amp; open source</span>
+  </div>
+  <div id="end">
+    <svg viewBox="0 0 32 32"><use href="#logo"/></svg>
+    <h2 id="end-name"></h2>
+    <div class="tagline" id="end-tagline"></div>
+    <div class="facts" id="end-facts"></div>
+    <div class="url" id="end-url"></div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="logo" viewBox="0 0 32 32">
+    <rect x="1" y="1" width="30" height="30" rx="7" fill="#1f6feb"/>
+    <path d="M8 22V10h2.7l3 3.9 3-3.9H19.4v12h-2.7v-5.6L13.7 20l-3-3.6V22H8Z" fill="#fff"/>
+    <path d="M21.5 10h2.6v5.3h2.9L23.1 20l-3.9-4.7h2.9V10Z" fill="#fff"/>
+  </symbol>
+</svg>
+
+<script>
+  /*
+   * Deterministic compositor: render(t) draws the frame at time t from the
+   * timeline alone, so the output never depends on how fast Chrome is.
+   */
+  const WIN = { x: 40, y: 330, w: 1000, h: 661 };
+  const $ = (id) => document.getElementById(id);
+  const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+  const easeInOut = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+  const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+  const easeOutBack = (p) => 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2);
+  const lerp = (a, b, p) => a + (b - a) * p;
+
+  let T = null;
+  let segments = [];
+
+  function cameraTarget(rect, zoom) {
+    const base = WIN.w / T.app.width;
+    const s = base * zoom;
+    const cx = rect ? rect.x + rect.width / 2 : T.app.width / 2;
+    const cy = rect ? rect.y + rect.height / 2 : T.app.height / 2;
+    return {
+      s,
+      tx: clamp(WIN.w / 2 - cx * s, WIN.w - T.app.width * s, 0),
+      ty: clamp(WIN.h / 2 - cy * s, WIN.h - T.app.height * s, 0),
+    };
+  }
+
+  function cameraAt(t) {
+    let state = cameraTarget(null, 1);
+    for (const segment of segments) {
+      if (t < segment.t) break;
+      const p = easeInOut(clamp((t - segment.t) / segment.dur));
+      state = {
+        s: lerp(segment.from.s, segment.to.s, p),
+        tx: lerp(segment.from.tx, segment.to.tx, p),
+        ty: lerp(segment.from.ty, segment.to.ty, p),
+      };
+    }
+    return state;
+  }
+
+  function buildSegments() {
+    segments = [];
+    for (const key of T.camera) {
+      const from = cameraAt(key.t);
+      segments.push({ t: key.t, dur: key.dur, from, to: cameraTarget(key.rect, key.zoom) });
+    }
+  }
+
+  /** Renders the current/previous item of a list of timed texts with a slide. */
+  function renderTimed(host, items, t, build) {
+    let current = -1;
+    items.forEach((item, index) => { if (t >= item.t) current = index; });
+    host.innerHTML = '';
+    for (const index of [current - 1, current]) {
+      const item = items[index];
+      if (!item) continue;
+      const leaving = index < current;
+      // The old text is gone before the new one slides in: they never overlap.
+      const p = leaving ? clamp((t - items[current].t) / 0.2) : easeOut(clamp((t - item.t - (index > 0 ? 0.2 : 0)) / 0.45));
+      if (leaving && p >= 1) continue;
+      const element = build(item);
+      element.style.opacity = leaving ? 1 - p : p;
+      element.style.transform = `translateY(${leaving ? -14 * p : 18 * (1 - p)}px)`;
+      host.appendChild(element);
+    }
+  }
+
+  function caption(item) {
+    const element = document.createElement('div');
+    element.className = 'caption';
+    element.innerHTML = '<span class="kicker"></span><h1 class="title"></h1>';
+    element.querySelector('.kicker').textContent = item.kicker;
+    element.querySelector('.title').textContent = item.title;
+    return element;
+  }
+
+  function detail(item) {
+    const element = document.createElement('div');
+    element.className = 'detail';
+    element.textContent = item.detail;
+    return element;
+  }
+
+  window.stage = {
+    setup(timeline) {
+      T = timeline;
+      buildSegments();
+      $('pdf-name').textContent = T.pdf?.name ?? '';
+      if (T.pdf) $('pdf-img').src = T.pdf.src;
+      $('end-name').textContent = T.end.card.name;
+      $('end-tagline').textContent = T.end.card.tagline;
+      $('end-facts').textContent = T.end.card.facts;
+      $('end-url').textContent = T.end.card.url;
+      return $('pdf-img').decode?.().catch(() => {});
+    },
+
+    async render(t, options = {}) {
+      const index = clamp(Math.round((t + T.captureOffset) * T.fps), 1, T.frameCount);
+      const shot = $('shot');
+      const src = `${T.framesUrl}/${String(index).padStart(5, '0')}.jpg`;
+      if (shot.getAttribute('src') !== src) {
+        shot.src = src;
+        await shot.decode().catch(() => {});
+      }
+
+      const cam = cameraAt(t);
+      $('cam').style.transform = `translate(${cam.tx}px, ${cam.ty}px) scale(${cam.s})`;
+
+      const pop = clamp((t - T.windowIn) / 0.35);
+      $('window').style.opacity = t < T.windowIn ? 0 : 1;
+      $('window').style.transform = `scale(${lerp(0.9, 1, easeOutBack(pop))})`;
+
+      const captions = options.captions ?? T.captions;
+      renderTimed($('captions'), captions, t, caption);
+      renderTimed($('details'), captions.filter((item) => item.detail !== undefined), t, detail);
+
+      const watch = $('stopwatch');
+      const launch = T.launch;
+      const visible = launch && t >= launch.t && t < launch.hideAt && !options.hideStopwatch;
+      watch.style.opacity = visible ? clamp((launch.hideAt - t) / 0.3) : 0;
+      if (visible) {
+        const elapsed = Math.min(t, launch.ready) - launch.t;
+        watch.innerHTML = t >= launch.ready
+          ? `Launch → UI on screen in <b>${launch.seconds.toFixed(2)} s</b>`
+          : `Launching… ${elapsed.toFixed(2)} s`;
+      }
+
+      const ripples = $('ripples');
+      ripples.innerHTML = '';
+      for (const click of T.clicks) {
+        const p = (t - click.t) / 0.5;
+        if (p < 0 || p > 1) continue;
+        const at = cameraAt(click.t);
+        const element = document.createElement('div');
+        element.className = 'ripple';
+        element.style.left = `${WIN.x + at.tx + click.x * at.s}px`;
+        element.style.top = `${WIN.y + at.ty + click.y * at.s}px`;
+        element.style.transform = `scale(${lerp(0.4, 3.2, easeOut(p))})`;
+        element.style.opacity = 1 - p;
+        ripples.appendChild(element);
+      }
+
+      const pdf = T.pdf && !options.hidePdf ? clamp((t - T.pdf.t) / 0.7) : 0;
+      $('pdf').style.background = `rgba(6, 10, 20, ${0.62 * clamp(pdf * 1.6)})`;
+      $('pdf').style.visibility = pdf > 0 ? 'visible' : 'hidden';
+      $('pdf').querySelector('.sheet').style.transform = `translateY(${lerp(700, 0, easeOut(pdf))}px)`;
+
+      const end = options.hideEnd ? 0 : clamp((t - T.end.t) / 0.5);
+      $('end').style.opacity = end;
+      $('end').style.visibility = end > 0 ? 'visible' : 'hidden';
+      [...$('end').children].forEach((child, i) => {
+        const p = easeOut(clamp((t - T.end.t - i * 0.1) / 0.5));
+        child.style.opacity = p;
+        child.style.transform = `translateY(${16 * (1 - p)}px)`;
+      });
+    },
+  };
+</script>
+</body>
+</html>
