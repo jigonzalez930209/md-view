@@ -22,7 +22,10 @@ if [[ $# -lt 2 ]]; then
   exit 1
 fi
 
-out="$1"
+# Absolute output dir: some steps change directory, so relative paths would
+# resolve against the wrong place.
+mkdir -p "$1"
+out="$(cd "$1" && pwd)"
 shift
 suite="stable"
 component="main"
