@@ -193,7 +193,9 @@ function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onC
         className="flex h-[29px] shrink-0 items-center px-3 text-[10.5px] text-subtle-foreground"
         title={tree.root.path}
       >
-        <span className="min-w-0 truncate [direction:rtl]">{compactPath(tree.root.path)}</span>
+        <span className="min-w-0 truncate [direction:rtl]">
+          <bdi dir="ltr">{compactPath(tree.root.path)}</bdi>
+        </span>
       </div>
 
       <div className="flex h-10 shrink-0 items-center gap-1 border-b px-2">
