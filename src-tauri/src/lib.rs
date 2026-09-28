@@ -836,7 +836,13 @@ fn saved_background(app: &AppHandle) -> Option<[u8; 3]> {
 /// Paints the native window and webview with the theme background, so the
 /// area uncovered while growing the window is not black until WebKit repaints.
 #[tauri::command]
-fn set_window_background(app: AppHandle, window: tauri::WebviewWindow, red: u8, green: u8, blue: u8) {
+fn set_window_background(
+    app: AppHandle,
+    window: tauri::WebviewWindow,
+    red: u8,
+    green: u8,
+    blue: u8,
+) {
     apply_background(&window, [red, green, blue]);
     if saved_background(&app) != Some([red, green, blue]) {
         if let Some(file) = background_file(&app) {
@@ -934,7 +940,8 @@ pub fn run() {
                     // the app overflowing its window. We swallow it and hand
                     // it to the frontend, which zooms only the preview.
                     view.connect_event(move |_, event| {
-                        let Some(pinch) = event.downcast_ref::<gtk::gdk::EventTouchpadPinch>() else {
+                        let Some(pinch) = event.downcast_ref::<gtk::gdk::EventTouchpadPinch>()
+                        else {
                             return gtk::glib::Propagation::Proceed;
                         };
                         // gdk-rs only exposes the phase as a bool: read the C field.
@@ -947,7 +954,12 @@ pub fn run() {
                         let (x, y) = pinch.position();
                         let _ = target.emit(
                             "touchpad-pinch",
-                            PinchEvent { phase, scale: pinch.scale(), x, y },
+                            PinchEvent {
+                                phase,
+                                scale: pinch.scale(),
+                                x,
+                                y,
+                            },
                         );
                         gtk::glib::Propagation::Stop
                     });
@@ -1014,7 +1026,16 @@ mod tests {
         let setup: &[&[&str]] = &[
             &["init", "-q", "-b", "main"],
             &["add", "notes.md"],
-            &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init"],
+            &[
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@t",
+                "commit",
+                "-q",
+                "-m",
+                "init",
+            ],
         ];
         for args in setup {
             if git(&dir, args).is_none() {
@@ -1025,7 +1046,10 @@ mod tests {
 
         assert_eq!(
             git_baseline_impl(&tracked),
-            Some(GitBaseline { text: String::from("one\ntwo\n"), branch: String::from("main") })
+            Some(GitBaseline {
+                text: String::from("one\ntwo\n"),
+                branch: String::from("main")
+            })
         );
         assert_eq!(git_baseline_impl(&untracked), None);
     }
