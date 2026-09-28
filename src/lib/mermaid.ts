@@ -14,6 +14,11 @@ type MermaidApi = typeof import('mermaid').default;
 export interface Appearance {
   theme: Theme;
   palette: Palette;
+  /**
+   * Values of the palette's CSS variables, when they are not the ones on
+   * screen (the light PDF of a dark window). Defaults to the live :root.
+   */
+  variables?: Record<string, string>;
 }
 
 let loader: Promise<MermaidApi> | null = null;
@@ -24,9 +29,11 @@ let renderSeq = 0;
 const svgCache = new Map<string, string>();
 const CACHE_LIMIT = 40;
 
-function read(name: string, fallback: string): string {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
+type Reader = (name: string, fallback: string) => string;
+
+function readerFor(variables: Record<string, string> | undefined): Reader {
+  const style = variables ? null : getComputedStyle(document.documentElement);
+  return (name, fallback) => (variables?.[name] ?? style?.getPropertyValue(name) ?? '').trim() || fallback;
 }
 
 /**
@@ -36,7 +43,7 @@ function read(name: string, fallback: string): string {
  * of a flowchart) in a very dark gray, unreadable on the app background.
  * We pin the colors that matter so it matches the md-view palette.
  */
-function themeVariables(theme: Theme): Record<string, unknown> {
+function themeVariables(theme: Theme, read: Reader): Record<string, unknown> {
   const background = read('--background', '#ffffff');
   const card = read('--card', '#f6f8fa');
   const muted = read('--muted', '#f6f8fa');
@@ -100,7 +107,7 @@ async function getMermaid(appearance: Appearance): Promise<MermaidApi> {
       startOnLoad: false,
       securityLevel: 'strict',
       theme: appearance.theme === 'dark' ? 'dark' : 'default',
-      themeVariables: themeVariables(appearance.theme),
+      themeVariables: themeVariables(appearance.theme, readerFor(appearance.variables)),
       fontFamily:
         '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif',
       flowchart: { useMaxWidth: true, htmlLabels: false },

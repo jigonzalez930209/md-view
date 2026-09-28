@@ -315,6 +315,13 @@ function rememberDiagram(key: string, svg: string): void {
   }
 }
 
+const diagramSources = new WeakMap<Element, string>();
+
+/** Mermaid source of a rendered `.mermaid-block`. */
+export function diagramSource(block: Element): string | undefined {
+  return diagramSources.get(block);
+}
+
 async function renderDiagrams(root: HTMLElement, appearance: Appearance, docPath: string | null): Promise<void> {
   const blocks = Array.from(root.querySelectorAll('code.language-mermaid'));
   if (blocks.length === 0) return;
@@ -331,6 +338,7 @@ async function renderDiagrams(root: HTMLElement, appearance: Appearance, docPath
     const holder = document.createElement('div');
     holder.className = 'mermaid-block';
     if (line) holder.dataset.line = line;
+    diagramSources.set(holder, source);
 
     const stage = document.createElement('div');
     stage.className = 'mermaid-stage';

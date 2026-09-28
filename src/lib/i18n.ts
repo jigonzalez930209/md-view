@@ -140,6 +140,7 @@ const en = {
   'preview.code': 'Code',
   'preview.viewMarkdown': 'View as Markdown',
   'preview.viewCode': 'View as code',
+  'preview.resetZoom': 'Reset zoom to 100%',
   'preview.windowed': 'Large document ({mb} MB): showing the first {lines} lines.',
   'preview.simplified': 'Large document: preview without syntax highlighting or diagrams.',
 
@@ -363,6 +364,7 @@ const es: Record<TranslationKey, string> = {
   'preview.code': 'Código',
   'preview.viewMarkdown': 'Ver como Markdown',
   'preview.viewCode': 'Ver como código',
+  'preview.resetZoom': 'Volver el zoom al 100 %',
   'preview.windowed': 'Documento grande ({mb} MB): se muestran las primeras {lines} líneas.',
   'preview.simplified':
     'Documento grande: la vista previa va sin resaltado de código ni diagramas.',

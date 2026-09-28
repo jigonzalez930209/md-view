@@ -11,7 +11,7 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { ask, open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
-import type { UnlistenFn } from '@tauri-apps/api/event';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { basename, extname, MARKDOWN_EXTENSIONS } from './paths';
 import { t } from './i18n';
 import type { Theme } from './theme';
@@ -575,6 +575,38 @@ export async function startWindowResize(direction: WindowResizeDirection): Promi
     await getCurrentWindow().startResizeDragging(direction);
   } catch {
     /* no permission: not critical */
+  }
+}
+
+export interface TouchpadPinch {
+  phase: 'begin' | 'update' | 'end';
+  /** Relative to the start of the gesture. */
+  scale: number;
+  /** CSS pixels inside the window. */
+  x: number;
+  y: number;
+}
+
+/** Touchpad pinches (Linux: the backend blocks the native page zoom and forwards them). */
+export async function onTouchpadPinch(callback: (pinch: TouchpadPinch) => void): Promise<UnlistenFn> {
+  if (!isTauri) return () => {};
+  try {
+    return await listen<TouchpadPinch>('touchpad-pinch', (event) => callback(event.payload));
+  } catch {
+    return () => {};
+  }
+}
+
+/** Gives the native window the page background (read from <body>). */
+export async function syncWindowBackground(): Promise<void> {
+  if (!isTauri) return;
+  const match = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g);
+  if (!match || match.length < 3) return;
+  const [red, green, blue] = match.map((part) => Math.round(Number(part)));
+  try {
+    await invoke('set_window_background', { red, green, blue });
+  } catch {
+    // Cosmetic only.
   }
 }
 

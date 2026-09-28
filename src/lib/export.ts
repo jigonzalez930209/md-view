@@ -227,6 +227,9 @@ async function withPreparedArticle<T>(article: HTMLElement, task: () => Promise<
   decorations.forEach((node) => {
     node.style.display = 'none';
   });
+  // The preview zoom is a viewing aid: exports are always at 100%.
+  const previousZoom = article.style.zoom;
+  article.style.zoom = '';
 
   const images = Array.from(article.querySelectorAll('img'));
   const previousSources = images.map((image) => image.getAttribute('src') ?? '');
@@ -241,6 +244,7 @@ async function withPreparedArticle<T>(article: HTMLElement, task: () => Promise<
   try {
     return await task();
   } finally {
+    article.style.zoom = previousZoom;
     decorations.forEach((node, index) => {
       node.style.display = previousDisplay[index];
     });
@@ -251,6 +255,7 @@ async function withPreparedArticle<T>(article: HTMLElement, task: () => Promise<
 /** Leaves the clone ready to export: no decorations or internal attributes. */
 function cleanClone(article: HTMLElement): HTMLElement {
   const clone = article.cloneNode(true) as HTMLElement;
+  clone.style.zoom = '';
   clone.querySelectorAll('.code-copy, .md-anchor, .mermaid-source').forEach((node) => node.remove());
   clone.querySelectorAll('[data-line]').forEach((node) => node.removeAttribute('data-line'));
   clone.querySelectorAll('.md-image--broken').forEach((node) => node.classList.remove('md-image--broken'));
