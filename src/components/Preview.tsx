@@ -1,4 +1,5 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import * as backend from '@/lib/backend';
 import { Code2, FileText } from 'lucide-react';
 import { HIGHLIGHT_LIMIT, isSimplified, previewNeedsWindow, renderMarkdownAsync } from '@/lib/markdown';
 import { PREVIEW_WINDOW_LINES } from '@/lib/limits';
@@ -12,6 +13,13 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 type PreviewView = 'markdown' | 'code';
+
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+
+function clampZoom(value: number): number {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+}
 
 interface PreviewProps extends PreviewHandlers {
   content: string;
@@ -65,6 +73,73 @@ function PreviewComponent({
   /** The HTML travels with its document: right after a tab switch they differ for a moment. */
   const [rendered, setRendered] = useState<{ html: string; docPath: string | null }>({ html: '', docPath });
   const [viewOverride, setViewOverride] = useState<PreviewView | null>(null);
+
+  const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
+
+  /** Zooms the preview only, keeping the point under the pointer in place. */
+  const applyZoom = useCallback(
+    (requested: number, clientX?: number, clientY?: number) => {
+      const scroller = scrollRef.current;
+      const article = articleRef.current;
+      const next = clampZoom(requested);
+      const previous = zoomRef.current;
+      if (!scroller || !article || Math.abs(next - previous) < 0.001) return;
+      const rect = scroller.getBoundingClientRect();
+      const offsetX = (clientX ?? rect.left) - rect.left;
+      const offsetY = (clientY ?? rect.top) - rect.top;
+      const ratio = next / previous;
+      const top = (scroller.scrollTop + offsetY) * ratio - offsetY;
+      const left = (scroller.scrollLeft + offsetX) * ratio - offsetX;
+      zoomRef.current = next;
+      // Applied right away: waiting for React would lag behind the fingers.
+      article.style.zoom = String(next);
+      scroller.scrollTop = top;
+      scroller.scrollLeft = left;
+      setZoom(next);
+    },
+    [scrollRef],
+  );
+
+  // Touchpad pinch (forwarded by the backend) over the preview.
+  useEffect(() => {
+    let base: number | null = null;
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    void backend
+      .onTouchpadPinch((pinch) => {
+        if (pinch.phase === 'begin') {
+          const target = document.elementFromPoint(pinch.x, pinch.y);
+          base = target && scrollRef.current?.contains(target) ? zoomRef.current : null;
+        } else if (pinch.phase === 'update') {
+          if (base !== null) applyZoom(base * pinch.scale, pinch.x, pinch.y);
+        } else {
+          base = null;
+        }
+      })
+      .then((fn) => {
+        if (disposed) fn();
+        else unlisten = fn;
+      });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [applyZoom, scrollRef]);
+
+  // Ctrl + wheel (and pinch where the webview reports it that way): only the
+  // preview zooms; anywhere else the page must not scale.
+  useEffect(() => {
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      if (!(event.target instanceof Node) || !scrollRef.current?.contains(event.target)) return;
+      const delta = Math.max(-1, Math.min(1, event.deltaY / 100));
+      applyZoom(zoomRef.current * Math.exp(-delta * 0.2), event.clientX, event.clientY);
+    };
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    return () => window.removeEventListener('wheel', onWheel, { capture: true });
+  }, [applyZoom, scrollRef]);
 
   /** Non-Markdown files are shown as code, unless the opposite is chosen. */
   const view: PreviewView = viewOverride ?? (markdownDefault ? 'markdown' : 'code');
@@ -136,6 +211,21 @@ function PreviewComponent({
           {view === 'code' ? `${t('preview.code')}${language ? ` · ${language}` : ''}` : t('preview.label')}
         </span>
         <div className="flex shrink-0 items-center gap-0.5">
+          {zoom !== 1 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t('preview.resetZoom')}
+                  onClick={() => applyZoom(1)}
+                  className="mr-1 inline-flex h-6 items-center rounded-md px-1.5 text-[11px] text-muted-foreground tabular-nums hover:bg-accent hover:text-foreground"
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{t('preview.resetZoom')}</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -190,7 +280,7 @@ function PreviewComponent({
         )}
         <article
           className="markdown-body mx-auto max-w-[980px] px-8 pt-7 pb-30"
-          style={{ fontSize: `${fontSize}px` }}
+          style={{ fontSize: `${fontSize}px`, zoom }}
           ref={(node) => {
             articleRef.current = node;
             if (contentRef) contentRef.current = node;

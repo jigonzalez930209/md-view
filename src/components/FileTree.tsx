@@ -185,7 +185,7 @@ function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onC
   return (
     <aside
       className="file-tree flex min-h-0 shrink-0 flex-col bg-card select-none"
-      style={{ width }}
+      style={{ width, maxWidth: '45%' }}
       aria-label={t('tree.label')}
     >
       {/* Top band (same height as the tab strip) with the path. */}

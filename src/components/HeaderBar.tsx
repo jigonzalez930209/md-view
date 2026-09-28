@@ -178,18 +178,25 @@ export function HeaderBar({
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | null = null;
-    void backend.isWindowMaximized().then((value) => {
-      if (!disposed) setMaximized(value);
-    });
-    void backend.onWindowResized(() => {
+    let timer: number | undefined;
+    const check = () => {
       void backend.isWindowMaximized().then((value) => {
         if (!disposed) setMaximized(value);
       });
+    };
+    check();
+    // A drag fires dozens of resizes per second: one IPC round trip each
+    // would compete with the repaint, so we only ask once it settles.
+    void backend.onWindowResized(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(check, 150);
     }).then((fn) => {
-      unlisten = fn;
+      if (disposed) fn();
+      else unlisten = fn;
     });
     return () => {
       disposed = true;
+      window.clearTimeout(timer);
       unlisten?.();
     };
   }, []);
@@ -203,12 +210,14 @@ export function HeaderBar({
   return (
     <header
       className={cn(
-        'headerbar row-start-1 grid min-h-[47px] grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-center gap-1.5 bg-card py-1 pr-1.5 pl-2.5 select-none',
+        'headerbar row-start-1 grid min-h-[47px] grid-cols-[minmax(max-content,1fr)_minmax(0,2fr)_minmax(max-content,1fr)] items-center gap-1.5 bg-card py-1 pr-1.5 pl-2.5 select-none',
         !hasTabs && 'border-b',
       )}
       /* "deep" so the whole bar drags the window (buttons and links still take
          the click); Tauri also maximizes on double click. */
       data-tauri-drag-region="deep"
+      /* The side columns never shrink below their buttons; the title takes the
+         squeeze and truncates. */
     >
       <div className="flex items-center gap-0.5">
         <div className="flex items-center">
