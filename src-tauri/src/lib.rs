@@ -616,6 +616,63 @@ fn path_exists(path: String) -> bool {
     Path::new(&path).exists()
 }
 
+/* ------------------------------------------------------------------ */
+/* Git                                                                 */
+/* ------------------------------------------------------------------ */
+
+#[derive(Debug, Serialize, PartialEq)]
+struct GitBaseline {
+    /// The file as committed in HEAD, normalized to LF.
+    text: String,
+    /// Current branch (or short commit when detached).
+    branch: String,
+}
+
+/// Runs git inside `dir`; None if git is missing or the command fails.
+fn git(dir: &Path, args: &[&str]) -> Option<Vec<u8>> {
+    let mut command = std::process::Command::new("git");
+    command.current_dir(dir).args(args);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: no console flashing on every file opened.
+        command.creation_flags(0x0800_0000);
+    }
+    let output = command.output().ok()?;
+    output.status.success().then_some(output.stdout)
+}
+
+fn git_line(dir: &Path, args: &[&str]) -> Option<String> {
+    let out = git(dir, args)?;
+    let text = String::from_utf8_lossy(&out).trim().to_string();
+    (!text.is_empty()).then_some(text)
+}
+
+/// The committed version of a file tracked by git, to show changed lines.
+/// None when the file is not in a repository, is untracked or git is absent.
+fn git_baseline_impl(path: &Path) -> Option<GitBaseline> {
+    let dir = path.parent()?;
+    let name = path.file_name()?.to_str()?;
+    if git_line(dir, &["rev-parse", "--is-inside-work-tree"])? != "true" {
+        return None;
+    }
+    git(dir, &["ls-files", "--error-unmatch", "--", name])?;
+    let branch = git_line(dir, &["symbolic-ref", "--short", "-q", "HEAD"])
+        .or_else(|| git_line(dir, &["rev-parse", "--short", "HEAD"]))?;
+    // Staged but never committed: everything is new.
+    let committed = git(dir, &["show", &format!("HEAD:./{name}")]).unwrap_or_default();
+    let (text, _) = decode(&committed);
+    Some(GitBaseline {
+        text: text.replace("\r\n", "\n"),
+        branch,
+    })
+}
+
+#[tauri::command]
+async fn git_baseline(path: String) -> Option<GitBaseline> {
+    git_baseline_impl(Path::new(&path))
+}
+
 #[tauri::command]
 fn open_external(app: AppHandle, url: String) -> Result<(), String> {
     app.opener()
@@ -799,6 +856,7 @@ pub fn run() {
             read_file_base64,
             export_pdf,
             path_exists,
+            git_baseline,
             open_external,
             open_path,
             take_pending_open,
@@ -830,6 +888,36 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("md-view-test-{}", std::process::id()));
         fs::create_dir_all(&dir).expect("temp folder");
         dir
+    }
+
+    #[test]
+    fn git_baseline_reads_head_and_skips_untracked() {
+        let dir = temp_dir().join("git-baseline");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("repo folder");
+        let tracked = dir.join("notes.md");
+        let untracked = dir.join("draft.md");
+        fs::write(&tracked, "one\r\ntwo\r\n").expect("write tracked");
+        fs::write(&untracked, "draft").expect("write untracked");
+        assert_eq!(git_baseline_impl(&tracked), None, "not a repository yet");
+
+        let setup: &[&[&str]] = &[
+            &["init", "-q", "-b", "main"],
+            &["add", "notes.md"],
+            &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init"],
+        ];
+        for args in setup {
+            if git(&dir, args).is_none() {
+                return; // git is not installed: nothing to test.
+            }
+        }
+        fs::write(&tracked, "one\nchanged\n").expect("edit tracked");
+
+        assert_eq!(
+            git_baseline_impl(&tracked),
+            Some(GitBaseline { text: String::from("one\ntwo\n"), branch: String::from("main") })
+        );
+        assert_eq!(git_baseline_impl(&untracked), None);
     }
 
     #[test]
