@@ -62,7 +62,8 @@ function PreviewComponent({
   // Huge documents are shown windowed (the first lines).
   const windowed = windowedProp || previewNeedsWindow(content);
   const simplified = isSimplified(content) && !windowed;
-  const [html, setHtml] = useState('');
+  /** The HTML travels with its document: right after a tab switch they differ for a moment. */
+  const [rendered, setRendered] = useState<{ html: string; docPath: string | null }>({ html: '', docPath });
   const [viewOverride, setViewOverride] = useState<PreviewView | null>(null);
 
   /** Non-Markdown files are shown as code, unless the opposite is chosen. */
@@ -80,6 +81,7 @@ function PreviewComponent({
    */
   useEffect(() => {
     let cancelled = false;
+    const setHtml = (html: string) => setRendered({ html, docPath });
 
     const compose = () => {
       // Huge documents: we render only the initial window.
@@ -111,19 +113,19 @@ function PreviewComponent({
 
   useEffect(() => {
     const article = articleRef.current;
-    if (!article || !html) return;
+    if (!article || !rendered.html) return;
 
     // `html` is already sanitized by DOMPurify inside renderMarkdown.
-    article.innerHTML = html;
+    article.innerHTML = rendered.html;
     void enhance(article, {
-      docPath,
+      docPath: rendered.docPath,
       theme,
       palette,
       diagrams: view === 'markdown' && !simplified && !windowed,
       onOpenFile,
       onMessage,
     });
-  }, [html, docPath, theme, palette, simplified, view, onOpenFile, onMessage]);
+  }, [rendered, theme, palette, simplified, view, onOpenFile, onMessage]);
 
   const language = languageOfPath(docPath);
 
