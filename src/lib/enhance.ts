@@ -296,29 +296,57 @@ async function copyText(text: string): Promise<boolean> {
 /* Mermaid diagrams                                                   */
 /* ------------------------------------------------------------------ */
 
-async function renderDiagrams(root: HTMLElement, appearance: Appearance): Promise<void> {
+/**
+ * Last diagram drawn successfully at each position of each document. The
+ * preview is rebuilt on every edit: while a new version is drawn, or while
+ * its source is half-typed and invalid, the previous one stays on screen
+ * instead of flashing the source code or a parse error.
+ */
+const lastDiagrams = new Map<string, string>();
+const LAST_DIAGRAMS_LIMIT = 100;
+const STALE_NOTICE_DELAY = 900;
+
+function rememberDiagram(key: string, svg: string): void {
+  lastDiagrams.delete(key);
+  lastDiagrams.set(key, svg);
+  if (lastDiagrams.size > LAST_DIAGRAMS_LIMIT) {
+    const oldest = lastDiagrams.keys().next().value;
+    if (oldest !== undefined) lastDiagrams.delete(oldest);
+  }
+}
+
+async function renderDiagrams(root: HTMLElement, appearance: Appearance, docPath: string | null): Promise<void> {
   const blocks = Array.from(root.querySelectorAll('code.language-mermaid'));
   if (blocks.length === 0) return;
 
-  for (const code of blocks) {
+  for (const [index, code] of blocks.entries()) {
     const source = code.textContent ?? '';
     const previous = code.closest('.code-wrap') ?? code.closest('pre');
     if (!previous) continue;
     // We keep the source line for synchronized scrolling.
     const line = code.closest('pre')?.getAttribute('data-line') ?? null;
+    const key = `${docPath ?? ''}#${index}`;
+    const last = lastDiagrams.get(key);
 
     const holder = document.createElement('div');
-    holder.className = 'mermaid-block is-loading';
+    holder.className = 'mermaid-block';
     if (line) holder.dataset.line = line;
 
     const stage = document.createElement('div');
     stage.className = 'mermaid-stage';
     holder.appendChild(stage);
 
-    const ghost = document.createElement('pre');
-    ghost.className = 'mermaid-source';
-    ghost.textContent = source;
-    holder.appendChild(ghost);
+    let ghost: HTMLPreElement | null = null;
+    if (last !== undefined) {
+      stage.innerHTML = last;
+    } else {
+      holder.classList.add('is-loading');
+      holder.dataset.loading = t('enhance.diagramLoading');
+      ghost = document.createElement('pre');
+      ghost.className = 'mermaid-source';
+      ghost.textContent = source;
+      holder.appendChild(ghost);
+    }
 
     previous.replaceWith(holder);
 
@@ -327,12 +355,26 @@ async function renderDiagrams(root: HTMLElement, appearance: Appearance): Promis
       if (!holder.isConnected) continue;
       stage.innerHTML = svg;
       holder.classList.remove('is-loading');
-      ghost.remove();
+      ghost?.remove();
+      rememberDiagram(key, svg);
     } catch (error) {
       if (!holder.isConnected) continue;
+      const detail = error instanceof Error ? error.message : String(error);
+      if (last !== undefined) {
+        // Only flag it if the error outlives the keystrokes that caused it.
+        window.setTimeout(() => {
+          if (!holder.isConnected) return;
+          holder.classList.add('is-stale');
+          const note = document.createElement('p');
+          note.className = 'mermaid-stale-note';
+          note.textContent = t('enhance.diagramStale');
+          note.title = detail;
+          holder.appendChild(note);
+        }, STALE_NOTICE_DELAY);
+        continue;
+      }
       holder.classList.remove('is-loading');
       holder.classList.add('mermaid-block--error');
-      const detail = error instanceof Error ? error.message : String(error);
       const message = document.createElement('p');
       message.className = 'mermaid-error-title';
       message.textContent = t('enhance.diagramError', { detail });
@@ -351,6 +393,6 @@ export async function enhance(root: HTMLElement, options: EnhanceOptions): Promi
   prepareLinks(root, options.docPath);
   decorateCodeBlocks(root, options.onMessage);
   if (options.diagrams !== false) {
-    await renderDiagrams(root, { theme: options.theme, palette: options.palette });
+    await renderDiagrams(root, { theme: options.theme, palette: options.palette }, options.docPath);
   }
 }
