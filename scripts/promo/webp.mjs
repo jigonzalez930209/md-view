@@ -47,7 +47,8 @@ function encodeSlice(first, last, target) {
     '-vf', `fps=${FPS},scale=${WIDTH}:-2:flags=lanczos,select='between(n\\,${first}\\,${last})'`,
     '-fps_mode', 'passthrough',
     '-an',
-    '-c:v', 'libwebp_anim', '-quality', String(QUALITY), '-compression_level', '6', '-loop', '0',
+    // Level 6 costs ~4× the CPU of level 4 for a few percent of size.
+    '-c:v', 'libwebp_anim', '-quality', String(QUALITY), '-compression_level', '4', '-loop', '0',
     target,
   ], { maxBuffer: 1 << 24 });
 }
@@ -94,17 +95,18 @@ async function main() {
 
     let header = null;
     const frameChunks = [];
-    const frameMs = Math.round(1000 / FPS);
     for (const slice of slices) {
       const parts = chunks(await readFile(slice.file));
       header ??= parts.filter((part) => part.id === 'VP8X' || part.id === 'ANIM');
-      for (const part of parts.filter((item) => item.id === 'ANMF')) {
-        const data = Buffer.from(part.data);
-        // Frame duration (24-bit, bytes 12–14): a slice's last frame has no
-        // successor to measure against, so every frame gets the nominal one.
-        data.writeUIntLE(frameMs, 12, 3);
-        frameChunks.push(chunk('ANMF', data));
-      }
+      // Identical frames are merged into one longer frame, so durations vary.
+      // Only a slice's last frame is unreliable (nothing follows it): it gets
+      // whatever is left of the slice's real length.
+      const frames = parts.filter((item) => item.id === 'ANMF').map((part) => Buffer.from(part.data));
+      const expected = Math.round(((slice.last - slice.first + 1) * 1000) / FPS);
+      // Frame duration: 24-bit little endian at bytes 12–14 of the ANMF payload.
+      const before = frames.slice(0, -1).reduce((sum, data) => sum + data.readUIntLE(12, 3), 0);
+      frames.at(-1)?.writeUIntLE(Math.max(1, expected - before), 12, 3);
+      for (const data of frames) frameChunks.push(chunk('ANMF', data));
     }
     if (!header || header.length < 2) throw new Error('The slices are not animated WebP files');
 
