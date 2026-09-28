@@ -115,6 +115,11 @@ function compactHome(path: string): string {
     .replace(/^\/root(?:\/|$)/, '~/');
 }
 
+/** Appearance choices keep the menu open so several can be tried in a row. */
+function keepOpen(event: Event) {
+  event.preventDefault();
+}
+
 function PaletteSwatch({ swatch }: { swatch: [string, string, string] }) {
   return (
     <span className="flex items-center gap-0.5">
@@ -256,7 +261,7 @@ export function HeaderBar({
                         {basename(path)}
                       </span>
                       <span className="w-full truncate text-[11.5px] text-subtle-foreground [direction:rtl]">
-                        {compactHome(dirname(path))}
+                        <bdi dir="ltr">{compactHome(dirname(path))}</bdi>
                       </span>
                     </DropdownMenuItem>
                   ))}
@@ -309,7 +314,7 @@ export function HeaderBar({
             docPath && '[direction:rtl]',
           )}
         >
-          {subtitle}
+          <bdi dir="ltr">{subtitle}</bdi>
         </div>
       </div>
 
@@ -463,15 +468,15 @@ export function HeaderBar({
                   value={themeMode}
                   onValueChange={(value) => onThemeModeChange(value as ThemeMode)}
                 >
-                  <DropdownMenuRadioItem value="light">
+                  <DropdownMenuRadioItem value="light" onSelect={keepOpen}>
                     <Sun />
                     {t('header.themeLight')}
                   </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="dark">
+                  <DropdownMenuRadioItem value="dark" onSelect={keepOpen}>
                     <Moon />
                     {t('header.themeDark')}
                   </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="system">
+                  <DropdownMenuRadioItem value="system" onSelect={keepOpen}>
                     <Monitor />
                     {t('header.themeSystem')}
                   </DropdownMenuRadioItem>
@@ -483,7 +488,7 @@ export function HeaderBar({
                   onValueChange={(value) => onPaletteChange(value as Palette)}
                 >
                   {PALETTES.map((item) => (
-                    <DropdownMenuRadioItem key={item.id} value={item.id}>
+                    <DropdownMenuRadioItem key={item.id} value={item.id} onSelect={keepOpen}>
                       <PaletteSwatch swatch={item.swatch} />
                       {item.label}
                     </DropdownMenuRadioItem>
