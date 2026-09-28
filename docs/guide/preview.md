@@ -45,6 +45,21 @@ Every document has a toggle in the preview header:
 For a `.ts` file the code view is the default, so opening source files doesn't turn them
 into a single run-on paragraph.
 
+## Zoom
+
+Pinch on the touchpad or use `Ctrl + wheel` **over the preview** to zoom it between 50% and
+300%; the point under the pointer stays in place. Only the preview zooms: the rest of the
+window never scales (on Linux the backend swallows the native page pinch and forwards it to
+the preview). While zoomed, the preview header shows the level (e.g. `125%`); click it to
+go back to 100%. Exports always come out at 100%.
+
+## Diagrams while typing
+
+Mermaid redraws as you type. The last good drawing stays on screen while the new one
+renders, so the layout does not jump; if the source becomes invalid, the previous diagram
+stays (dimmed) and a note appears after a short pause, so a half-typed arrow does not
+flash an error.
+
 ## Synchronized scroll
 
 In split view the two panes stay aligned **by source line**, not proportionally: every block

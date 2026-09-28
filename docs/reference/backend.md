@@ -16,6 +16,8 @@ is frontend.
 | `read_tree` | `path` | `FolderTree` (recursive, `truncated` flag) | Folder explorer |
 | `export_pdf` | `path` | `()` | PDF export (WebKitGTK print) |
 | `path_exists` | `path` | `bool` | Resolving links and images |
+| `git_baseline` | `path` | `GitBaseline` (`text`, `branch`) or `null` | [Change indicator](/guide/editor#change-indicator) |
+| `set_window_background` | `red`, `green`, `blue` | `()` | Native window color that matches the theme |
 | `open_external` | `url` | `()` | External links |
 | `open_path` | `path` | `()` | Local files with the system app |
 | `get_recents` / `push_recent` / `clear_recents` | `path?` | `string[]` | Recent files |
@@ -51,6 +53,27 @@ A second launch while the app is running goes through `tauri-plugin-single-insta
 the arguments (Linux/Windows) and focuses the existing window, so the file opens in a new tab
 instead of a second instance. `file://` URLs are accepted too (they are what Linux and macOS
 hand over when a path has spaces or non-ASCII characters).
+
+## Git baseline
+
+`git_baseline` shells out to the `git` CLI (no window on Windows) from the document's folder:
+
+1. `rev-parse --is-inside-work-tree` and `ls-files --error-unmatch` — outside a repository
+   or for untracked files it returns `null` and the frontend compares against the saved
+   version instead;
+2. `symbolic-ref --short -q HEAD` for the branch (the short commit hash when detached);
+3. `show HEAD:./<name>` for the committed text (empty if the file was never committed),
+   decoded like any document and normalized to LF.
+
+## Window behavior
+
+| What | How | Why |
+| --- | --- | --- |
+| Starts hidden (`visible: false`) | `setup` applies the saved theme color, then shows it | The first frame already has the theme background |
+| Theme background | `set_window_background` paints window and webview, saved to `background` in the config folder | Area uncovered while resizing is never black |
+| Fit to screen | `fit_to_monitor` shrinks the window to 92% of the monitor work area if it does not fit, and centers it | Frameless window: controls must never be off screen |
+| `WEBKIT_DISABLE_DMABUF_RENDERER=1` (Linux) | Set before GTK starts, unless the user set it | The DMA-BUF renderer lags a frame behind resizes on Wayland (black band growing, clipped content shrinking) |
+| Touchpad pinch (Linux) | The GTK `event` handler swallows `GdkEventTouchpadPinch` and emits `touchpad-pinch` (`phase`, `scale`, `x`, `y`) | WebKit would scale the whole page; the frontend zooms only the preview |
 
 ## Printing to PDF
 

@@ -29,12 +29,12 @@ flowchart LR
 | --- | --- | --- |
 | State | `src/App.tsx` | Tabs, active document, layout, exports, shortcuts, appearance |
 | Chrome | `components/HeaderBar`, `TabBar`, `FormatBar`, `StatusBar`, `Welcome`, `SettingsDialog`, `FileTree`, `WindowResizeHandles` | The interface |
-| Editor | `components/Editor.tsx`, `editor/setup.ts`, `editor/format.ts` | CodeMirror configuration and the Markdown commands |
+| Editor | `components/Editor.tsx`, `editor/setup.ts`, `editor/format.ts`, `editor/changes.ts` | CodeMirror configuration, the Markdown commands and the change indicator |
 | Preview | `components/Preview.tsx`, `lib/markdown*.ts`, `lib/mdx.ts`, `lib/enhance.ts`, `lib/mermaid.ts`, `lib/highlight.ts` | Render, sanitize and post-process |
 | Workers | `lib/text-tasks.ts`, `workers/text-tasks.ts` | Counts and Markdown rendering off the main thread |
 | Support | `lib/scroll-sync.ts`, `lib/prefs.ts`, `lib/i18n*.ts`, `lib/limits.ts`, `lib/paths.ts`, `lib/backend.ts` | Sync, preferences, translations, thresholds, paths, Tauri bridge |
-| Export | `lib/export.ts` | PDF, HTML, images, SVG, text |
-| Backend | `src-tauri/src/lib.rs` | Files, folder tree, recents, printing, opening links |
+| Export | `lib/export.ts`, `lib/print-theme.ts` | PDF, HTML, images, SVG, text; print-only light palette |
+| Backend | `src-tauri/src/lib.rs` | Files, folder tree, recents, printing, opening links, git baseline, window behavior |
 
 ## State model
 

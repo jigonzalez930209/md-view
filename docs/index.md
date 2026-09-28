@@ -5,9 +5,6 @@ hero:
   name: md-view
   text: Markdown, the way GitHub shows it
   tagline: Desktop viewer and editor with tabs, a folder explorer, a formatting bar and export to PDF, HTML and images.
-  image:
-    src: /screenshots/split-view.png
-    alt: md-view with the editor and the preview side by side
   actions:
     - theme: brand
       text: Get started

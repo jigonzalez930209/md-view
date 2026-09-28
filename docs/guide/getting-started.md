@@ -38,6 +38,22 @@ The title bar is drawn by the app itself (the window has no native decorations):
 Drag the window from anywhere in the title bar (over the document title too); double-click to
 maximize. Buttons and links keep their normal click.
 
+The window behaves like a native one:
+
+- it opens in the color of your theme (no white or black flash), and if the saved size does
+  not fit the screen it shrinks to the work area and centers itself, so the window controls
+  are never off screen;
+- the layout never gets wider than the window: when it narrows, the document title
+  truncates first and the explorer takes at most 45% of the width, so the close button
+  stays visible;
+- resizing follows the pointer without black bands (see
+  [Troubleshooting](/deployment/troubleshooting#application) for the Linux renderer
+  setting).
+
+The status bar shows the path, the save state, the cursor position, word and character
+counts and, for files in a git repository, the branch and the
+[changed lines](/guide/editor#change-indicator).
+
 ## Editing and saving
 
 - The editor is on the left, the preview on the right. `Ctrl/⌘ + 1`, `2`, `3` switch between

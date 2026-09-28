@@ -50,3 +50,5 @@ lists, images, tables and horizontal rules.
 | Drag the window from the title bar | Move the window |
 | Drag the separator next to the explorer | Resize the panel |
 | Drag a `.md` onto the window | Open it |
+| Pinch / `Ctrl + wheel` over the preview | Zoom the preview (50–300%) |
+| Click the zoom level in the preview header | Back to 100% |

@@ -27,7 +27,10 @@ the document you have open.
 
 - **PDF** is not generated in JavaScript: WebKitGTK prints the live page with the `@media
   print` rules (only the preview, full height, `break-inside: avoid` for tables, images and
-  diagrams). That keeps it vectorial and paginated by the browser engine.
+  diagrams). That keeps it vectorial and paginated by the browser engine. A **light PDF
+  from a dark window** does not repaint the window: the light palette is injected only for
+  print (`<style media="print">`) and Mermaid diagrams get a light copy that only print
+  shows (`lib/print-theme.ts`), so the screen never flashes.
 - **PNG / JPG / WebP** come from [modern-screenshot](https://github.com/qq15725/modern-screenshot).
   Images with `loading="lazy"` are forced to load first, and the scale is reduced
   automatically for very large documents so the canvas stays within memory limits.
@@ -41,6 +44,7 @@ the document you have open.
 
 - Images are inlined through the Tauri backend (`read_file_base64`), so local files work even
   when the webview cannot fetch them directly.
+- The preview [zoom](/guide/preview#zoom) is ignored: every format is exported at 100%.
 - For **huge documents** the preview only renders the first 2,000 lines: the export contains
   that window, not the whole file.
 - The **PDF** export needs the preview visible; if you are in *editor only* mode the app

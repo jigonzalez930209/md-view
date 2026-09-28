@@ -24,7 +24,10 @@ to follow the system.
 - **Settings → Appearance → Theme / Palette**, or
 - **Main menu → Appearance** for the quick version.
 
-The choice applies instantly (it is just an attribute on `<html>`) and is remembered.
+The choice applies instantly (it is just an attribute on `<html>`) and is remembered. The
+Appearance submenu stays open while you pick, so you can try every palette and mode without
+reopening it. The native window background follows the theme too, so the app opens and
+resizes in its own color.
 
 ## What follows the palette
 

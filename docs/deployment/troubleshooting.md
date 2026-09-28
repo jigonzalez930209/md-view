@@ -97,6 +97,17 @@ composed path (`window/scripts/drag.js`) and the **bare** attribute only drags w
 lands exactly on that element, while a nested bare attribute stops the walk; with `deep` the
 whole bar drags and buttons, links and menus still take their click.
 
+**A black band appears while resizing the window (Linux)**
+WebKitGTK's DMA-BUF renderer hands frames to the Wayland compositor one frame late, so a
+growing window shows a black band and a shrinking one clips the content. md-view sets
+`WEBKIT_DISABLE_DMABUF_RENDERER=1` at startup (GPU rendering stays on). If you set the
+variable yourself, your value wins: `WEBKIT_DISABLE_DMABUF_RENDERER=0 md-view` goes back to
+the DMA-BUF path.
+
+**The whole app zoomed in and scrollbars appeared**
+A touchpad pinch used to scale the entire page. Since 0.3.0 the backend swallows it and the
+pinch zooms only the preview. If you still see it, you are running an older build.
+
 **Where are the recent files stored?**
 In the app configuration folder (`recents.json`); in the browser, in `localStorage`. The
 preferences live in `localStorage` under `md-view:prefs`.

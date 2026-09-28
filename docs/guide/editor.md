@@ -22,6 +22,28 @@ with replace.
 The font size (11–20 px), the line numbers and the wrapping are [settings](/guide/settings)
 shared by every tab.
 
+## Change indicator
+
+A thin gutter next to the line numbers marks what changed, like VS Code:
+
+| Mark | Meaning |
+| --- | --- |
+| Green bar | Added lines |
+| Blue bar | Modified lines |
+| Red wedge | Lines removed at that point |
+
+The comparison baseline depends on where the file lives:
+
+- **Inside a git repository** (and tracked): the version in `HEAD`. The status bar shows
+  the branch and the counts, e.g. `main +3 ~2 −1`; hovering them explains the baseline.
+  The baseline is read again after saving and when the window regains focus, so a commit
+  made from the terminal clears the marks.
+- **Outside git** (or untracked): the last version saved to disk. Saving clears the marks.
+- **New documents** have no baseline and show no marks.
+
+The diff is incremental (`@codemirror/merge`), so it keeps up while typing. It is only
+active in rich mode; documents over 1.2 MB (plain-text mode) skip it.
+
 ## One editor per tab
 
 Like VS Code, each document has **its own editor instance**:

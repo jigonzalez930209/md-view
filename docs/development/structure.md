@@ -12,13 +12,14 @@ src/
     Preview.tsx               Preview pane: Markdown/code toggle, windowing, notes
     FileTree.tsx              Folder explorer
     SettingsDialog.tsx        All preferences in one dialog
-    StatusBar.tsx             Path, save state, cursor, word and character counts
+    StatusBar.tsx             Path, git branch and changed lines, save state, cursor, counts
     Welcome.tsx               Welcome screen with recents
     WindowResizeHandles.tsx   Invisible resize edges for the frameless window
     ui/                       shadcn components (button, dialog, dropdown, popover, …)
   editor/
     setup.ts                  CodeMirror extensions, themes and settings compartments
     format.ts                 Markdown commands (bold, lists, tables…)
+    changes.ts                Change indicator: gutter marks and counts against a baseline
   lib/
     backend.ts                Tauri bridge (with browser fallbacks)
     markdown-core.ts          markdown-it + plugins + KaTeX + highlighting (DOM-free)
@@ -29,6 +30,7 @@ src/
     highlight.ts              highlight.js wrapper
     scroll-sync.ts            Line-based scroll synchronization
     export.ts                 Export to PDF/HTML/PNG/JPG/WebP/SVG/TXT
+    print-theme.ts            Light PDF from a dark window, without repainting the screen
     limits.ts                 Performance thresholds
     text-tasks.ts             Worker dispatcher (counts, Markdown render)
     prefs.ts                  Persisted preferences
@@ -45,7 +47,7 @@ src/
     markdown.css              GitHub-style preview styles
   demo.md                     The document shown by "View demo"
 src-tauri/
-  src/lib.rs                  Commands: files, folder tree, recents, printing, links
+  src/lib.rs                  Commands: files, folder tree, recents, printing, links, git, window
   src/main.rs                 Binary entry point
   tauri.conf.json             Window, CSP, asset protocol, file associations, bundles
   capabilities/default.json   Window permissions
@@ -60,6 +62,7 @@ scripts/
   release.sh                  Version bump + changelog + tag + push
   fix-deb-depends.sh          Rewrites the .deb dependencies after Tauri builds it
   apt-repo.sh                 Builds and signs the APT repository for Pages
+  promo/                      Records the promo video from the real app (see Promo video)
 .github/
   workflows/ci.yml            Typecheck, build, fmt and tests
   workflows/release.yml       Installers per platform
