@@ -45,6 +45,7 @@ export default defineConfig({
       { text: 'Development', link: '/development/setup', activeMatch: '^/development/' },
       { text: 'Deployment', link: '/deployment/releases', activeMatch: '^/deployment/' },
       { text: 'FAQ', link: '/faq' },
+      { text: "What's new", link: '/changelog' },
     ],
 
     sidebar: [
@@ -85,6 +86,7 @@ export default defineConfig({
           { text: 'Tests', link: '/development/tests' },
           { text: 'Code style', link: '/development/code-style' },
           { text: 'Contributing', link: '/development/contributing' },
+          { text: 'Promo video', link: '/development/promo-video' },
         ],
       },
       {

@@ -1,0 +1,37 @@
+/* Home hero: the demo video replaces the default (small, square) image slot. */
+.VPHero .image-container {
+  width: auto;
+  height: auto;
+  transform: none;
+}
+
+.VPHero .image-bg {
+  display: none;
+}
+
+.hero-video {
+  display: block;
+  /* Portrait 4:5: capped by the viewport height too, so the title stays in view. */
+  width: min(80vw, 340px, 46vh);
+  aspect-ratio: 4 / 5;
+  margin: 0 auto;
+  border-radius: 18px;
+  background: #0d1117;
+  box-shadow:
+    0 24px 60px rgba(9, 105, 218, 0.22),
+    0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* Stacked layout: the default negative margins are sized for a 320px square
+   and would slide the portrait video under the title. */
+@media (max-width: 959px) {
+  .VPHero.has-image .image {
+    margin: 0 0 32px;
+  }
+}
+
+@media (min-width: 960px) {
+  .hero-video {
+    width: min(460px, 62vh);
+  }
+}
