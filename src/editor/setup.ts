@@ -35,6 +35,7 @@ import { PLAIN_LIMIT } from '../lib/limits';
 
 export { PLAIN_LIMIT };
 import { insertLink, toggleBold, toggleInlineCode, toggleItalic } from './format';
+import { changeIndicator } from './changes';
 
 /** Font and metrics shared by all palettes. */
 const metrics = {
@@ -221,6 +222,7 @@ export function createEditorState(
       ...(rich
         ? [
             foldGutter(),
+            changeIndicator(),
             bracketMatching(),
             highlightSelectionMatches(),
             markdown({ base: markdownLanguage, addKeymap: false }),
