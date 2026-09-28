@@ -121,12 +121,25 @@ const updatedCargo = cargo.replace(/^version\s*=\s*"[^"]*"/m, `version = "${vers
 if (updatedCargo === cargo) throw new Error(`Could not update the version in ${cargoPath}`);
 writeFileSync(cargoPath, updatedCargo);
 console.log(`  ${cargoPath} -> ${version}`);
+
+// AppStream metadata: app centers show this version and date.
+const metainfoPath = 'src-tauri/linux/com.mdview.desktop.metainfo.xml';
+const metainfo = readFileSync(metainfoPath, 'utf8');
+const date = new Date().toISOString().slice(0, 10);
+const updatedMetainfo = metainfo.replace(
+  /(\s*<releases>\n)/,
+  `$1    <release version="${version}" date="${date}"/>\n`,
+);
+if (updatedMetainfo === metainfo) throw new Error(`Could not add the release to ${metainfoPath}`);
+writeFileSync(metainfoPath, updatedMetainfo);
+console.log(`  ${metainfoPath} -> ${version}`);
 NODE
 
 # Refresh the package version inside Cargo.lock.
 cargo check --quiet --manifest-path src-tauri/Cargo.toml
 
 files=(package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock)
+files+=(src-tauri/linux/com.mdview.desktop.metainfo.xml)
 [[ "$changelog" == "yes" ]] && files+=(CHANGELOG.md)
 git add "${files[@]}"
 git commit -m "chore(release): $tag"

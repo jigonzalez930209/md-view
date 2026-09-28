@@ -83,6 +83,19 @@ declares, and `libgtk-3-0` does not exist on Ubuntu 24.04+. The release workflow
 on the built package (it rewrites `Depends:` with the list from `tauri.conf.json`, repacking with
 `--root-owner-group`) and replaces the uploaded asset with `gh release upload --clobber`.
 
+## AppStream metadata
+
+The `.deb`, the `.rpm` and the AppImage ship
+`src-tauri/linux/com.mdview.desktop.metainfo.xml` as `/usr/share/metainfo/com.mdview.desktop.metainfo.xml`.
+App centers (GNOME Software / App Center, KDE Discover) read that file to show the name, summary,
+description, **license (MIT)**, developer, homepage, screenshots and the **release date**; without
+it an installed `.deb` shows up as *Unknown publisher*, *License: unknown* and a gray icon.
+
+`scripts/release.sh` prepends the `<release version="…" date="…"/>` entry for each version, and
+`appstreamcli validate` accepts the file (also inside the built packages). Note that App Center
+still labels any package installed from outside a distribution repository as *third-party /
+potentially unsafe*: that warning comes from the source of the package, not from its metadata.
+
 The desktop entry both packages install (`src-tauri/linux/md-view.desktop`) is Tauri's default
 plus two fixes:
 

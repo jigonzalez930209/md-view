@@ -47,9 +47,11 @@ src/
 src-tauri/
   src/lib.rs                  Commands: files, folder tree, recents, printing, links
   src/main.rs                 Binary entry point
-  tauri.conf.json             Window, CSP, asset protocol, file associations
+  tauri.conf.json             Window, CSP, asset protocol, file associations, bundles
   capabilities/default.json   Window permissions
   icons/                      App icons (PNG, ICO, ICNS)
+  linux/md-view.desktop       Desktop entry template (Exec=md-view %U)
+  linux/com.mdview.desktop.metainfo.xml  AppStream metadata for app centers
 docs/                         This documentation site (VitePress)
 scripts/
   generate-icons.py           Draws the app icon and exports every size

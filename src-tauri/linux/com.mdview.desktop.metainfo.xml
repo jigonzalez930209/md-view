@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata: GNOME Software (App Center) and KDE Discover read this
+  file to show the name, summary, description, license, developer, screenshots
+  and release date of the app. Without it, an installed .deb appears as
+  "Unknown publisher" with no license and no icon.
+-->
+<component type="desktop-application">
+  <id>com.mdview.desktop</id>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>md-view</name>
+  <summary>Markdown viewer and editor</summary>
+
+  <developer id="github.com/jigonzalez930209">
+    <name>jigonzalez930209</name>
+  </developer>
+
+  <description>
+    <p>
+      md-view reads and edits Markdown files with a preview that renders exactly like GitHub:
+      tables, task lists, footnotes, alerts, KaTeX formulas, Mermaid diagrams and syntax
+      highlighting.
+    </p>
+    <p>
+      It keeps one editor per tab, browses folders, inserts Markdown from a formatting bar and
+      exports to PDF, self-contained HTML, images (PNG, JPG, WebP and vector SVG) and plain text.
+    </p>
+    <p>
+      Everything happens locally: no account, no telemetry and no network requests beyond the
+      links you decide to open.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">md-view.desktop</launchable>
+
+  <icon type="stock">md-view</icon>
+
+  <categories>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>Markdown</keyword>
+    <keyword>editor</keyword>
+    <keyword>viewer</keyword>
+    <keyword>preview</keyword>
+    <keyword>Mermaid</keyword>
+    <keyword>KaTeX</keyword>
+  </keywords>
+
+  <url type="homepage">https://jigonzalez930209.github.io/md-view/</url>
+  <url type="bugtracker">https://github.com/jigonzalez930209/md-view/issues</url>
+  <url type="vcs-browser">https://github.com/jigonzalez930209/md-view</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Editor and GitHub-style preview, side by side</caption>
+      <image type="source">https://jigonzalez930209.github.io/md-view/screenshots/split-view.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Folder explorer and tabs</caption>
+      <image type="source">https://jigonzalez930209.github.io/md-view/screenshots/explorer.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Export to PDF, HTML, images and vector SVG</caption>
+      <image type="source">https://jigonzalez930209.github.io/md-view/screenshots/export-menu.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>GitHub, One Dark and Dracula palettes, light and dark</caption>
+      <image type="source">https://jigonzalez930209.github.io/md-view/screenshots/theme-dracula-dark.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.2.0" date="2026-09-27"/>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+</component>

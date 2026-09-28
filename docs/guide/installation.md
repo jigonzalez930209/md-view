@@ -27,6 +27,13 @@ an Apple Event on macOS — and md-view handles all three, including `file://` U
 already open, the second launch opens a tab in the existing window instead of starting again.
 :::
 
+::: info App centers
+GNOME Software (App Center) and KDE Discover show the description, the MIT license, the
+developer, screenshots and the release date from the AppStream metadata that the Linux packages
+ship (`/usr/share/metainfo/com.mdview.desktop.metainfo.xml`). The *third-party package* warning
+is App Center's own notice for anything installed outside a distribution repository.
+:::
+
 ## From source
 
 ### Requirements
