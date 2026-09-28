@@ -85,7 +85,7 @@ export function Welcome({
                       {basename(path)}
                     </strong>
                     <span className="block truncate text-[11.5px] text-subtle-foreground [direction:rtl]">
-                      {dirname(path)}
+                      <bdi dir="ltr">{dirname(path)}</bdi>
                     </span>
                   </button>
                 ))}
