@@ -353,11 +353,11 @@ async function record(layout, env, display) {
     await clickAt(center(layout.openFolderItem), 400);
     const folderDialog = await waitForDialog(env, mainId);
     if (folderDialog) {
+      // The dialog opens in the demo folder and the location entry comes
+      // pre-filled with it. Typing the path races GTK's inline completion
+      // (`~/Documents/m` + `d-view-demo/` + the rest typed after it).
       await io.key('ctrl+l');
-      // The location entry comes pre-filled with the current folder.
-      await io.key('ctrl+a');
-      await io.type(`~/${S.DEMO_DIR}`, 14);
-      await sleep(250);
+      await sleep(400);
       await io.key('Return');
       // Some GTK versions only enter the folder on the first Return.
       if (!(await waitForDialogClosed(env, mainId, 1200))) {
