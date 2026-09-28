@@ -1,6 +1,6 @@
 [package]
 name = "md-view"
-version = "0.2.2"
+version = "0.3.0"
 description = "Minimalist Markdown viewer and editor"
 license = "MIT"
 homepage = "https://jigonzalez930209.github.io/md-view/"
