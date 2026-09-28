@@ -380,6 +380,22 @@ export async function documentSize(path: string): Promise<number> {
 }
 
 /** true if the path exists on disk. In the browser we can only look at the local cache. */
+export interface GitBaseline {
+  /** The file as committed in HEAD (LF). */
+  text: string;
+  branch: string;
+}
+
+/** Committed version of a file tracked by git; null outside a repository. */
+export async function gitBaseline(path: string): Promise<GitBaseline | null> {
+  if (!isTauri) return null;
+  try {
+    return (await invoke('git_baseline', { path })) as GitBaseline | null;
+  } catch {
+    return null;
+  }
+}
+
 export async function pathExists(path: string): Promise<boolean> {
   if (!isTauri) return browserFiles.has(path);
   return (await invoke('path_exists', { path })) as boolean;
