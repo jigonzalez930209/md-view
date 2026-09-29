@@ -143,7 +143,12 @@ files+=(src-tauri/linux/com.mdview.desktop.metainfo.xml)
 [[ "$changelog" == "yes" ]] && files+=(CHANGELOG.md)
 git add "${files[@]}"
 git commit -m "chore(release): $tag"
-git tag "$tag"
+if [[ "${SIGN_TAGS:-}" == "1" ]]; then
+  # Signed tags need a GPG key configured (user.signingkey).
+  git tag -s "$tag" -m "$tag"
+else
+  git tag "$tag"
+fi
 
 if [[ "$push" == "yes" ]]; then
   echo "Pushing the commit and the tag..."

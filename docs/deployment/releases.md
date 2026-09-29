@@ -32,6 +32,23 @@ pnpm release 0.3.0 --no-push    # bump, changelog, commit and tag, but keep it l
 pnpm release 0.3.0 --no-changelog
 ```
 
+## Verifying a release
+
+Every release publishes three extra files next to the installers:
+
+- `SHA256SUMS` with the checksum of every asset (generated and verified by the workflow).
+- `sbom.cyclonedx.json`, a CycloneDX SBOM of the source tree (`anchore/sbom-action`).
+
+```bash
+sha256sum --check SHA256SUMS
+```
+
+Workflows pin every `uses:` to a commit SHA with the tag as a comment, so a moved tag cannot
+change what a release runs; Dependabot keeps those pins updated.
+
+Tags are lightweight by default. To sign them, export a GPG key and run the release with
+`SIGN_TAGS=1`; verify a downloaded tag with `git tag -v v0.5.0`.
+
 ## The changelog
 
 `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The entry for a
