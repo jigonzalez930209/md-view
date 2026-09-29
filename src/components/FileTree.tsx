@@ -284,6 +284,9 @@ function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onC
         className="min-h-0 flex-1 overflow-auto p-1"
         onKeyDown={onTreeKeyDown}
       >
+        {nodes.length === 0 && (
+          <p className="px-3 py-2 text-[11.5px] text-muted-foreground">{t('tree.empty')}</p>
+        )}
         {nodes.map((node, index) => {
           const { entry, depth } = node;
           const isDir = entry.kind === 'dir';

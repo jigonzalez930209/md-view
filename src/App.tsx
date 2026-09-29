@@ -191,7 +191,7 @@ export default function App() {
   const showMessage = useCallback((text: string, kind: 'info' | 'error' = 'info') => {
     setMessage({ text, kind });
     if (messageTimer.current !== null) window.clearTimeout(messageTimer.current);
-    messageTimer.current = window.setTimeout(() => setMessage(null), kind === 'error' ? 8000 : 3000);
+    messageTimer.current = window.setTimeout(() => setMessage(null), kind === 'error' ? 6000 : 3000);
   }, []);
 
   /* ----------------------------------- tabs ---------------------------------- */
@@ -839,7 +839,17 @@ export default function App() {
     void (async () => {
       try {
         await restoreWindowGeometry();
-        setRecents(await backend.recentFiles());
+        // Recents whose file is gone are dropped from the list.
+        const stored = await backend.recentFiles();
+        if (backend.isTauri) {
+          const alive: string[] = [];
+          for (const path of stored) {
+            if (await backend.pathExists(path)) alive.push(path);
+          }
+          setRecents(alive);
+        } else {
+          setRecents(stored);
+        }
         setPdfSupported(await backend.supportsPdf());
         const pending = await backend.takePendingOpen();
         for (const path of pending) await actions.current.openFile(path);
