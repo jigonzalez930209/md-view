@@ -20,15 +20,18 @@ Handy flags: `--dry-run` (show the bump and the changelog entry, touch nothing),
 The tag starts [`workflows/release.yml`](workflows/release.yml):
 
 1. `create-release` validates the tag against `package.json`, builds the release body from the
-   `CHANGELOG.md` entry and creates a **draft** release.
+   `CHANGELOG.md` entry and creates a draft release.
 2. `publish` builds on `ubuntu-26.04` (`deb,rpm,appimage`), `macos-latest` (universal `dmg`) and
    `windows-latest` (`msi,nsis`) and uploads the installers to that draft.
-3. Review the draft and press **Publish release** (or `gh release edit v0.3.0 --draft=false`).
+3. `finalize` checks that every installer is attached, **publishes** the release and runs
+   `docs.yml`, which refreshes the APT repository (`apt install md-view`) and the site. If a
+   build fails, the release stays a draft until the failed job is re-run.
 
 ## Without a tag
 
 ```bash
-gh workflow run release.yml -f tag=v0.3.0
+gh workflow run release.yml -f tag=v0.3.0               # published at the end
+gh workflow run release.yml -f tag=v0.3.0 -f draft=true  # left as a draft
 ```
 
 ## Workflows
@@ -36,8 +39,8 @@ gh workflow run release.yml -f tag=v0.3.0
 | File | Trigger | Purpose |
 | --- | --- | --- |
 | [`workflows/ci.yml`](workflows/ci.yml) | push to `main`, PRs | Typecheck, build, `cargo fmt --check`, `cargo test`, docs build |
-| [`workflows/release.yml`](workflows/release.yml) | tags `v*` | Installers for Linux, macOS and Windows |
-| [`workflows/docs.yml`](workflows/docs.yml) | changes under `docs/` | Build and deploy the documentation to GitHub Pages |
+| [`workflows/release.yml`](workflows/release.yml) | tags `v*` | Installers for Linux, macOS and Windows, published automatically |
+| [`workflows/docs.yml`](workflows/docs.yml) | changes under `docs/`, published release, manual | Build and deploy the documentation and the APT repository to GitHub Pages |
 
 All runners are Ubuntu 26.04 with Node 24; the Linux build skips `libayatana-appindicator3-dev`
 (the app has no tray icon and that package doesn't exist on 26.04).

@@ -35,11 +35,12 @@ Tauri downloads those tools at build time. Re-run the job; if it persists, pin
 
 **The release exists but assets are missing**
 Each platform job uploads independently. Open the failed job under **Actions** and use
-**Re-run failed jobs**; the assets will be added to the same draft.
+**Re-run failed jobs**; the assets will be added to the same draft, and the release is
+published once every platform has succeeded.
 
 **I want to version without publishing**
-Use `gh workflow run release.yml -f tag=vX` and leave the draft unpublished (or delete it with
-`gh release delete vX`).
+Use `gh workflow run release.yml -f tag=vX -f draft=true`: the release stays a draft (delete it
+with `gh release delete vX`).
 
 ## Documentation
 

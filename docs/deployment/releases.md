@@ -19,9 +19,10 @@ pnpm release 0.3.0
 5. commits `chore(release): v0.3.0`,
 6. creates the tag `v0.3.0` and pushes the commit and the tag.
 
-Pushing the tag starts the release workflow, which creates a **draft release** (its body is the
-changelog entry) and uploads the installers. When the three builds finish, review the draft and
-press **Publish release** (or `gh release edit v0.3.0 --draft=false`).
+Pushing the tag starts the release workflow, which creates a draft release (its body is the
+changelog entry) and uploads the installers. When the three builds succeed and every installer is
+attached, the workflow **publishes the release** and refreshes the APT repository and this site.
+If a build fails the release stays a draft: re-run the failed job and it is published afterwards.
 
 Useful flags:
 
@@ -117,7 +118,8 @@ MimeType=text/markdown;  # the key needs the trailing semicolon
 gh workflow run release.yml -f tag=v0.3.0
 ```
 
-Same result, also as a draft. Useful to retry a build without creating another tag.
+Same result, published at the end. Useful to retry a build without creating another tag. Add
+`-f draft=true` to build it and leave it as a draft.
 
 ## Retrying a single platform
 

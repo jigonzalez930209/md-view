@@ -6,8 +6,8 @@ Three GitHub Actions workflows live in `.github/workflows/`. Everything runs on 
 | Workflow | Trigger | Purpose |
 | --- | --- | --- |
 | `ci.yml` | push to `main`, pull requests, manual | Typecheck, build, format and tests |
-| `release.yml` | tags `v*`, manual | Build and upload the installers |
-| `docs.yml` | push to `main` (docs changes), manual | Build and deploy this site |
+| `release.yml` | tags `v*`, manual | Build, upload and publish the installers |
+| `docs.yml` | push to `main` (docs changes), published release, manual | Build and deploy this site and the APT repository |
 
 ## CI
 
@@ -34,7 +34,7 @@ Notes:
 
 ## Release
 
-Two jobs:
+Three jobs:
 
 **`create-release`**
 
@@ -63,6 +63,14 @@ and runs [`tauri-apps/tauri-action`](https://github.com/tauri-apps/tauri-action)
 On Linux, a last step rewrites the `.deb` dependencies
 (`scripts/fix-deb-depends.sh`, see [Publishing releases](/deployment/releases#what-each-package-declares))
 and replaces the uploaded asset with `gh release upload --clobber`.
+
+**`finalize`** (only when every platform succeeded, skipped with `-f draft=true`)
+
+1. checks that the `.deb`, `.rpm`, AppImage, `.dmg`, `.msi` and setup `.exe` are attached,
+2. publishes the release and marks it as the latest (`gh release edit --draft=false --latest`),
+3. starts `docs.yml` on `main` with `gh workflow run`, which rebuilds the APT repository with the
+   new `.deb`. A release published with `GITHUB_TOKEN` does not trigger `release: published` in
+   other workflows; `workflow_dispatch` is the exception, hence the `actions: write` permission.
 
 ::: info Actions used
 `actions/checkout@v7`, `actions/setup-node@v7`, `actions/github-script@v9`,
@@ -98,6 +106,9 @@ documentation in the root and the packages in `apt/`. `scripts/apt-repo.sh` buil
 the committed file `docs/public/apt/md-view-archive-keyring.gpg`).
 
 Enable Pages once in **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+The `github-pages` environment must allow the `main` branch **and** `v*` tags
+(**Settings → Environments → github-pages → Deployment branches and tags**): a release published
+by hand runs `docs.yml` from its tag.
 
 ## Required repository settings
 

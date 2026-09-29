@@ -10,6 +10,11 @@ on:
         description: 'Tag to publish (e.g. v0.2.0). Must match the version in package.json'
         required: true
         type: string
+      draft:
+        description: 'Leave the release as a draft instead of publishing it'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -20,7 +25,7 @@ concurrency:
 
 jobs:
   create-release:
-    name: Create release (draft)
+    name: Create release
     runs-on: ubuntu-26.04
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
@@ -165,3 +170,35 @@ jobs:
           deb="$(ls src-tauri/target/release/bundle/deb/*.deb | head -1)"
           bash scripts/fix-deb-depends.sh "$deb"
           gh release upload "$TAG" "$deb" --clobber
+
+  # Runs only when every platform built: a failed build leaves the draft for review.
+  finalize:
+    name: Publish release
+    needs: [create-release, publish]
+    if: ${{ !inputs.draft }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.create-release.outputs.tag }}
+    steps:
+      - name: Check the installers
+        run: |
+          assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          echo "$assets"
+          for pattern in '\.deb$' '\.rpm$' '\.AppImage$' '\.dmg$' '\.msi$' '-setup\.exe$'; do
+            if ! grep -qE -- "$pattern" <<< "$assets"; then
+              echo "::error::Missing installer matching $pattern; the release stays a draft"
+              exit 1
+            fi
+          done
+
+      - name: Publish the release
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+      # Events caused by GITHUB_TOKEN (like this `release: published`) do not
+      # start other workflows; workflow_dispatch is the exception.
+      - name: Refresh the APT repository and the docs
+        run: gh workflow run docs.yml --repo "$GITHUB_REPOSITORY" --ref main
