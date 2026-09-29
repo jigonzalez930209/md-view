@@ -81,6 +81,7 @@ const en = {
 
   // Tabs
   'tabs.list': 'Open documents',
+  'tabs.tabDirty': '"{name}" (unsaved changes)',
   'tabs.closeTab': 'Close {name}',
 
   // Formatting toolbar
@@ -113,6 +114,7 @@ const en = {
   'status.dirty': 'Unsaved',
   'status.new': 'New',
   'status.cursor': 'Ln {line}, Col {column}',
+  'workspace.splitter': 'Resize editor and preview (arrow keys)',
   'status.words.one': '{count} word',
   'status.words.other': '{count} words',
   'status.chars.one': '{count} character',
@@ -133,6 +135,7 @@ const en = {
   // Explorer
   'tree.label': 'File explorer',
   'tree.reload': 'Reload folder',
+  'tree.resize': 'Resize the explorer (arrow keys)',
   'tree.close': 'Close explorer',
   'tree.truncated': 'Tree truncated: too many files.',
   'tree.notText': '{path} (not a text file)',
@@ -360,6 +363,7 @@ const es: Record<TranslationKey, string> = {
   'window.close': 'Cerrar',
 
   'tabs.list': 'Documentos abiertos',
+  'tabs.tabDirty': '"{name}" (cambios sin guardar)',
   'tabs.closeTab': 'Cerrar {name}',
 
   'format.toolbar': 'Formato de Markdown',
@@ -390,6 +394,7 @@ const es: Record<TranslationKey, string> = {
   'status.dirty': 'Sin guardar',
   'status.new': 'Nuevo',
   'status.cursor': 'Ln {line}, Col {column}',
+  'workspace.splitter': 'Redimensionar editor y vista previa (flechas)',
   'status.words.one': '{count} palabra',
   'status.words.other': '{count} palabras',
   'status.chars.one': '{count} carácter',
@@ -408,6 +413,7 @@ const es: Record<TranslationKey, string> = {
 
   'tree.label': 'Explorador de archivos',
   'tree.reload': 'Recargar carpeta',
+  'tree.resize': 'Redimensionar el explorador (flechas)',
   'tree.close': 'Cerrar explorador',
   'tree.truncated': 'Árbol truncado: hay demasiados archivos.',
   'tree.notText': '{path} (no es un archivo de texto)',

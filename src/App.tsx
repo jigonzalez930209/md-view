@@ -1317,10 +1317,30 @@ export default function App() {
     folder && treeOpen ? (
       <>
         <div
-          className="tree-splitter relative w-[5px] shrink-0 cursor-col-resize touch-none bg-background select-none before:absolute before:inset-0 before:bg-transparent before:transition-colors before:content-[''] hover:before:bg-primary after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border-muted after:content-['']"
+          className="tree-splitter relative w-[5px] shrink-0 cursor-col-resize touch-none bg-background select-none before:absolute before:inset-0 before:bg-transparent before:transition-colors before:content-[''] hover:before:bg-primary focus-visible:before:bg-primary focus-visible:outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border-muted after:content-['']"
           role="separator"
           aria-orientation="vertical"
+          aria-label={t('tree.resize')}
+          aria-valuenow={Math.round(treeWidth)}
+          aria-valuemin={180}
+          aria-valuemax={560}
+          aria-valuetext={`${Math.round(treeWidth)} px`}
+          tabIndex={0}
           onPointerDown={onTreeSplitterPointerDown}
+          onKeyDown={(event) => {
+            const direction = preferencesRef.current.explorerSide === 'left' ? 1 : -1;
+            const step = (event.shiftKey ? 48 : 16) * direction;
+            let next = treeWidth;
+            if (event.key === 'ArrowRight') next = treeWidth + step;
+            else if (event.key === 'ArrowLeft') next = treeWidth - step;
+            else if (event.key === 'Home') next = 180;
+            else if (event.key === 'End') next = 560;
+            else return;
+            event.preventDefault();
+            const clamped = Math.min(560, Math.max(180, next));
+            setTreeWidth(clamped);
+            updatePreferences({ treeWidth: clamped });
+          }}
         />
         <FileTree
           tree={folder}
@@ -1570,12 +1590,31 @@ export default function App() {
                     'pane-splitter relative cursor-col-resize touch-none bg-background select-none',
                     "before:absolute before:inset-0 before:bg-transparent before:transition-colors before:content-['']",
                     'hover:before:bg-primary',
+                    'focus-visible:before:bg-primary focus-visible:outline-none',
                     draggingSplitter && 'before:bg-primary',
                     mode !== 'split' && 'hidden',
                   )}
                   role="separator"
                   aria-orientation="vertical"
+                  aria-label={t('workspace.splitter')}
+                  aria-valuenow={Math.round(ratio * 100)}
+                  aria-valuemin={15}
+                  aria-valuemax={85}
+                  aria-valuetext={`${Math.round(ratio * 100)}%`}
+                  tabIndex={mode === 'split' ? 0 : -1}
                   onPointerDown={onSplitterPointerDown}
+                  onKeyDown={(event) => {
+                    const step = event.shiftKey ? 0.1 : 0.02;
+                    let next = ratio;
+                    if (event.key === 'ArrowLeft') next = Math.max(0.15, ratio - step);
+                    else if (event.key === 'ArrowRight') next = Math.min(0.85, ratio + step);
+                    else if (event.key === 'Home') next = 0.15;
+                    else if (event.key === 'End') next = 0.85;
+                    else return;
+                    event.preventDefault();
+                    setRatio(next);
+                    updatePreferences({ splitRatio: next });
+                  }}
                 />
 
                 <section

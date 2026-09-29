@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -62,67 +62,24 @@ function ancestorsOf(root: TreeEntry, path: string): string[] | null {
   return null;
 }
 
-interface NodeProps {
+interface VisibleNode {
   entry: TreeEntry;
   depth: number;
-  expanded: Set<string>;
-  activePath: string | null;
-  onToggle: (path: string) => void;
-  onOpenFile: (path: string) => void;
+  /** Folder that contains the entry (the root included). */
+  parentPath: string | null;
 }
 
-function Node({ entry, depth, expanded, activePath, onToggle, onOpenFile }: NodeProps) {
-  const { t } = useI18n();
-  const isDir = entry.kind === 'dir';
-  const isExpanded = isDir && expanded.has(entry.path);
-  const isActive = !isDir && entry.path === activePath;
-  const disabled = !isDir && !entry.isText;
-
-  return (
-    <>
-      <button
-        type="button"
-        role="treeitem"
-        aria-expanded={isDir ? isExpanded : undefined}
-        aria-selected={isActive}
-        disabled={disabled}
-        title={disabled ? t('tree.notText', { path: entry.path }) : entry.path}
-        onClick={() => (isDir ? onToggle(entry.path) : onOpenFile(entry.path))}
-        className={cn(
-          'flex w-full cursor-pointer items-center gap-1 rounded-md py-[3px] pr-2 text-left text-[12.5px] text-foreground/90 transition-colors',
-          'hover:bg-accent focus-visible:ring-ring/50 focus-visible:ring-[2px] focus-visible:outline-none',
-          isActive && 'bg-accent font-medium text-accent-foreground',
-          disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent',
-        )}
-        style={{ paddingLeft: `${6 + depth * 12}px` }}
-      >
-        {isDir ? (
-          isExpanded ? (
-            <ChevronDown className="size-3.5 shrink-0 text-subtle-foreground" />
-          ) : (
-            <ChevronRight className="size-3.5 shrink-0 text-subtle-foreground" />
-          )
-        ) : (
-          <span className="w-3.5 shrink-0" />
-        )}
-        {iconFor(entry, isExpanded)}
-        <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-      </button>
-
-      {isExpanded &&
-        entry.children?.map((child) => (
-          <Node
-            key={child.path}
-            entry={child}
-            depth={depth + 1}
-            expanded={expanded}
-            activePath={activePath}
-            onToggle={onToggle}
-            onOpenFile={onOpenFile}
-          />
-        ))}
-    </>
-  );
+/** The rows currently visible, in order: what the arrow keys move through. */
+function flattenVisible(root: TreeEntry, expanded: Set<string>): VisibleNode[] {
+  const nodes: VisibleNode[] = [];
+  const walk = (entry: TreeEntry, depth: number, parentPath: string | null) => {
+    nodes.push({ entry, depth, parentPath });
+    if (entry.kind === 'dir' && expanded.has(entry.path)) {
+      (entry.children ?? []).forEach((child) => walk(child, depth + 1, entry.path));
+    }
+  };
+  (root.children ?? []).forEach((child) => walk(child, 0, root.path));
+  return nodes;
 }
 
 function compactPath(path: string): string {
@@ -135,14 +92,20 @@ function compactPath(path: string): string {
 /**
  * VS Code-style file explorer: collapsible folders and files.
  * Only text files can be opened; the rest stay disabled.
+ *
+ * The tree is one tab stop: arrows move, Right/Left expand and collapse,
+ * Enter opens and Home/End jump to the ends (roving tabindex).
  */
 function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onClose }: FileTreeProps) {
   const { t, plural } = useI18n();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set([tree.root.path]));
+  const [focusedPath, setFocusedPath] = useState<string | null>(null);
+  const rows = useRef(new Map<string, HTMLButtonElement>());
 
   // When the folder changes, we start with the root expanded.
   useEffect(() => {
     setExpanded(new Set([tree.root.path]));
+    setFocusedPath(null);
   }, [tree.root.path]);
 
   // If the active file comes from elsewhere, we expand its folders.
@@ -163,14 +126,84 @@ function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onC
     });
   }, [activePath, tree]);
 
-  const toggle = (path: string) => {
+  const toggle = useCallback((path: string) => {
     setExpanded((current) => {
       const next = new Set(current);
       if (next.has(path)) next.delete(path);
       else next.add(path);
       return next;
     });
-  };
+  }, []);
+
+  const nodes = useMemo(() => flattenVisible(tree.root, expanded), [tree, expanded]);
+  const focusedIndex = Math.max(
+    0,
+    nodes.findIndex((node) => node.entry.path === focusedPath),
+  );
+
+  const focusRow = useCallback((path: string) => {
+    setFocusedPath(path);
+    rows.current.get(path)?.focus();
+  }, []);
+
+  const activate = useCallback(
+    (entry: TreeEntry) => {
+      if (entry.kind === 'dir') toggle(entry.path);
+      else if (entry.isText) onOpenFile(entry.path);
+    },
+    [onOpenFile, toggle],
+  );
+
+  const onTreeKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const index = nodes.findIndex((node) => node.entry.path === focusedPath);
+      if (index < 0) return;
+      const node = nodes[index];
+      const isDir = node.entry.kind === 'dir';
+      const isExpanded = isDir && expanded.has(node.entry.path);
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          if (index + 1 < nodes.length) focusRow(nodes[index + 1].entry.path);
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          if (index > 0) focusRow(nodes[index - 1].entry.path);
+          break;
+        case 'ArrowRight':
+          event.preventDefault();
+          if (isDir && !isExpanded) toggle(node.entry.path);
+          else if (isDir && nodes[index + 1] && nodes[index + 1].depth > node.depth) {
+            focusRow(nodes[index + 1].entry.path);
+          }
+          break;
+        case 'ArrowLeft':
+          event.preventDefault();
+          if (isDir && isExpanded) toggle(node.entry.path);
+          else if (node.parentPath && node.parentPath !== tree.root.path) {
+            focusRow(node.parentPath);
+          }
+          break;
+        case 'Home':
+          event.preventDefault();
+          if (nodes.length > 0) focusRow(nodes[0].entry.path);
+          break;
+        case 'End':
+          event.preventDefault();
+          if (nodes.length > 0) focusRow(nodes[nodes.length - 1].entry.path);
+          break;
+        case 'Enter':
+        case ' ':
+          event.preventDefault();
+          activate(node.entry);
+          break;
+        default:
+          break;
+      }
+    },
+    [activate, expanded, focusRow, focusedPath, nodes, toggle, tree.root.path],
+  );
 
   const fileCount = useMemo(() => {
     let total = 0;
@@ -245,18 +278,60 @@ function FileTreeComponent({ tree, activePath, width, onOpenFile, onRefresh, onC
         </p>
       )}
 
-      <div role="tree" className="min-h-0 flex-1 overflow-auto p-1">
-        {tree.root.children?.map((child) => (
-          <Node
-            key={child.path}
-            entry={child}
-            depth={0}
-            expanded={expanded}
-            activePath={activePath}
-            onToggle={toggle}
-            onOpenFile={onOpenFile}
-          />
-        ))}
+      <div
+        role="tree"
+        aria-label={t('tree.label')}
+        className="min-h-0 flex-1 overflow-auto p-1"
+        onKeyDown={onTreeKeyDown}
+      >
+        {nodes.map((node, index) => {
+          const { entry, depth } = node;
+          const isDir = entry.kind === 'dir';
+          const isExpanded = isDir && expanded.has(entry.path);
+          const isActive = !isDir && entry.path === activePath;
+          const disabled = !isDir && !entry.isText;
+          return (
+            <button
+              key={entry.path}
+              ref={(element) => {
+                if (element) rows.current.set(entry.path, element);
+                else rows.current.delete(entry.path);
+              }}
+              type="button"
+              role="treeitem"
+              aria-level={depth + 1}
+              aria-expanded={isDir ? isExpanded : undefined}
+              aria-selected={isActive}
+              aria-disabled={disabled || undefined}
+              tabIndex={index === focusedIndex ? 0 : -1}
+              title={disabled ? t('tree.notText', { path: entry.path }) : entry.path}
+              onFocus={() => setFocusedPath(entry.path)}
+              onClick={() => {
+                setFocusedPath(entry.path);
+                activate(entry);
+              }}
+              className={cn(
+                'flex w-full cursor-pointer items-center gap-1 rounded-md py-[3px] pr-2 text-left text-[12.5px] text-foreground/90 transition-colors',
+                'hover:bg-accent focus-visible:ring-ring/50 focus-visible:ring-[2px] focus-visible:outline-none',
+                isActive && 'bg-accent font-medium text-accent-foreground',
+                disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent',
+              )}
+              style={{ paddingLeft: `${6 + depth * 12}px` }}
+            >
+              {isDir ? (
+                isExpanded ? (
+                  <ChevronDown className="size-3.5 shrink-0 text-subtle-foreground" />
+                ) : (
+                  <ChevronRight className="size-3.5 shrink-0 text-subtle-foreground" />
+                )
+              ) : (
+                <span className="w-3.5 shrink-0" />
+              )}
+              {iconFor(entry, isExpanded)}
+              <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+            </button>
+          );
+        })}
       </div>
     </aside>
   );

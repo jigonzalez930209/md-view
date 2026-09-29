@@ -56,6 +56,16 @@ function TabBarComponent({ tabs, activeId, onSelect, onClose }: TabBarProps) {
             value={tab.id}
             title={tab.path ?? tab.name}
             data-dirty={tab.dirty}
+            aria-label={
+              tab.dirty ? t('tabs.tabDirty', { name: tab.name }) : tab.name
+            }
+            onKeyDown={(event) => {
+              // Delete closes the tab, like in an editor's tab strip.
+              if (event.key === 'Delete' || event.key === 'Backspace') {
+                event.preventDefault();
+                onClose(tab.id);
+              }
+            }}
             className={cn(
               'group/tab relative flex h-[26px] max-w-50 shrink-0 items-center gap-1.5 rounded-t-lg rounded-b-none border border-transparent px-2.5 text-muted-foreground transition-colors',
               'hover:bg-accent/60 hover:text-foreground',
@@ -84,9 +94,7 @@ function TabBarComponent({ tabs, activeId, onSelect, onClose }: TabBarProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span
-                  role="button"
-                  tabIndex={-1}
-                  aria-label={t('tabs.closeTab', { name: tab.name })}
+                  aria-hidden="true"
                   className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity group-hover/tab:opacity-100 group-data-[state=active]/tab:opacity-100 hover:bg-accent-foreground/10 hover:text-foreground"
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => {

@@ -39,6 +39,8 @@ export function StatusBar({
     <footer className="statusbar row-start-3 flex min-h-[26px] items-center gap-3.5 border-t bg-card px-3 py-1 text-[11.5px] text-muted-foreground select-none">
       {message ? (
         <span
+          role={message.kind === 'error' ? 'alert' : 'status'}
+          aria-live={message.kind === 'error' ? 'assertive' : 'polite'}
           className={cn(
             'min-w-0 flex-1 truncate text-left [direction:rtl]',
             message.kind === 'error' && 'text-destructive',
