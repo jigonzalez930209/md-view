@@ -9,6 +9,7 @@ import { StatusBar } from './components/StatusBar';
 import { TabBar } from './components/TabBar';
 import { SettingsDialog } from './components/SettingsDialog';
 import { UnsavedDialog } from './components/UnsavedDialog';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { TooltipProvider } from './components/ui/tooltip';
 import { WindowResizeHandles } from './components/WindowResizeHandles';
 import { Welcome } from './components/Welcome';
@@ -29,7 +30,7 @@ import { I18nProvider } from './lib/i18n-react';
 import { usePreferences } from './lib/prefs';
 import { basename, dirname, joinPath } from './lib/paths';
 import { EXPORT_FORMATS, exportDocument, type ExportFormat } from './lib/export';
-import { hasDiagrams, isSimplified } from './lib/markdown';
+import { hasDiagrams, isSimplified, previewNeedsWindow } from './lib/markdown';
 import { HUGE_DOC_LIMIT, LARGE_DOC_LIMIT, PREVIEW_WINDOW_LINES, STATS_WORKER_LIMIT } from './lib/limits';
 import { disposeTextWorker, headWindow, splitForWorker, textStats, type TextStats } from './lib/text-tasks';
 import { isMarkdownRenderable, languageOfPath } from './lib/paths';
@@ -80,6 +81,15 @@ const UNTITLED = 'untitled';
 /** Close action waiting for the user's decision about dirty documents. */
 type PendingClose = { kind: 'tab'; id: string } | { kind: 'window' };
 
+/** Export waiting for the user to accept that only the preview window is exported. */
+interface PendingExport {
+  format: ExportFormat;
+  target: string;
+  tabId: string;
+  /** Size of the document in MB, for the message. */
+  mb: number;
+}
+
 /** Counts files in the tree (for the message shown when opening the folder). */
 function countTreeFiles(entry: backend.TreeEntry): number {
   if (entry.kind === 'file') return 1;
@@ -122,6 +132,7 @@ export default function App() {
   const [message, setMessage] = useState<Message | null>(null);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
+  const [pendingExport, setPendingExport] = useState<PendingExport | null>(null);
   const [dropping, setDropping] = useState(false);
   const [draggingSplitter, setDraggingSplitter] = useState(false);
 
@@ -1032,19 +1043,92 @@ export default function App() {
 
   /* --------------------------------- export --------------------------------- */
 
+  /**
+   * Waits until the preview has rendered and enhanced exactly the flushed text
+   * (replaces a fixed delay that could capture stale HTML in large documents).
+   */
+  const previewReady = useCallback(async (text: string, windowed: boolean): Promise<boolean> => {
+    const expected = windowed ? headWindow(text, PREVIEW_WINDOW_LINES).length : text.length;
+    const deadline = performance.now() + 5000;
+    for (;;) {
+      const article = previewArticleRef.current;
+      if (
+        article &&
+        article.dataset.enhanced === 'true' &&
+        Number(article.dataset.rendered) === expected
+      ) {
+        return true;
+      }
+      if (performance.now() > deadline) return false;
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+    }
+  }, []);
+
+  const runExport = useCallback(
+    async (
+      format: ExportFormat,
+      target: string,
+      tabId: string,
+      text: string,
+      partial: boolean,
+    ) => {
+      const info = EXPORT_FORMATS.find((item) => item.id === format);
+      const tab = tabsRef.current.find((item) => item.id === tabId);
+      const article = previewArticleRef.current;
+      if (!info || !tab || !article) {
+        showMessage(t('app.previewNotReady'), 'error');
+        return;
+      }
+
+      showMessage(t('app.exporting', { label: t(info.labelKey) }));
+      if (!(await previewReady(text, previewNeedsWindow(text)))) {
+        showMessage(t('app.previewNotReady'), 'error');
+        return;
+      }
+
+      // Captures and printing need the preview pane visible.
+      const needsPreview = format !== 'html' && format !== 'txt';
+      const restoreMode = needsPreview && tab.mode === 'edit' ? tab.mode : null;
+      if (restoreMode) setMode('preview');
+
+      // The PDF is exported light unless the user turns that off; only print
+      // gets the light palette, the window keeps its theme.
+      const palette = preferencesRef.current.palette;
+      const lightPdf =
+        format === 'pdf' && preferencesRef.current.pdfLight && themeRef.current !== 'light';
+      const run = () =>
+        exportDocument(format, article, target, {
+          title: tab.doc.name,
+          theme: lightPdf ? 'light' : themeRef.current,
+          palette,
+        });
+
+      try {
+        const result = lightPdf ? await withLightPrint(palette, article, run) : await run();
+        showMessage(partial ? `${result} — ${t('export.partialNote')}` : result);
+      } catch (error) {
+        showMessage(error instanceof Error ? error.message : String(error), 'error');
+      } finally {
+        if (restoreMode) setMode(restoreMode);
+      }
+    },
+    [previewReady, setMode, showMessage],
+  );
 
   const handleExport = useCallback(
     async (format: ExportFormat) => {
       const tab = currentTab();
-      const article = previewArticleRef.current;
       const info = EXPORT_FORMATS.find((item) => item.id === format);
       if (!tab || !info) return;
+      // Flush pending changes so the preview matches what we are going to export.
+      const text = flushContent();
+      const article = previewArticleRef.current;
       if (!article || article.childElementCount === 0) {
         showMessage(t('app.previewNotReady'), 'error');
         return;
       }
 
-      const base = tab.doc.name.replace(/\.[^.]+$/, '') || 'documento';
+      const base = tab.doc.name.replace(/\.[^.]+$/, '') || 'document';
       // If the document lives on disk, we export next to it.
       const suggested = tab.doc.path
         ? joinPath(dirname(tab.doc.path), `${base}.${info.extension}`)
@@ -1055,38 +1139,24 @@ export default function App() {
       ]);
       if (!target) return;
 
-      showMessage(t('app.exporting', { label: t(info.labelKey) }));
-      // Flush pending changes and let the preview rebuild.
-      flushContent();
-      await new Promise((resolve) => window.setTimeout(resolve, 260));
-
-      // Captures and printing need the preview pane visible.
-      const needsPreview = format !== 'html' && format !== 'txt';
-      const restoreMode = needsPreview && tab.mode === 'edit' ? tab.mode : null;
-      if (restoreMode) setMode('preview');
-
-      // The PDF is exported light unless the user turns that off; only print
-      // gets the light palette, the window keeps its theme.
-      const palette = preferencesRef.current.palette;
-      const lightPdf = format === 'pdf' && preferencesRef.current.pdfLight && themeRef.current !== 'light';
-      const run = () =>
-        exportDocument(format, article, target, {
-          title: tab.doc.name,
-          theme: lightPdf ? 'light' : themeRef.current,
-          palette,
-        });
-
-      try {
-        const result = lightPdf ? await withLightPrint(palette, article, run) : await run();
-        showMessage(result);
-      } catch (error) {
-        showMessage(error instanceof Error ? error.message : String(error), 'error');
-      } finally {
-        if (restoreMode) setMode(restoreMode);
+      // The preview — and therefore the export — only holds the first lines of
+      // a windowed document: the partial export has to be confirmed.
+      if (previewNeedsWindow(text)) {
+        setPendingExport({ format, target, tabId: tab.id, mb: Math.round(text.length / 1_000_000) });
+        return;
       }
+      await runExport(format, target, tab.id, text, false);
     },
-    [currentTab, flushContent, setMode, showMessage],
+    [currentTab, flushContent, runExport, showMessage],
   );
+
+  const confirmExport = useCallback(() => {
+    const pending = pendingExport;
+    setPendingExport(null);
+    if (!pending) return;
+    const tab = tabsRef.current.find((item) => item.id === pending.tabId);
+    if (tab) void runExport(pending.format, pending.target, tab.id, tabText(tab.id), true);
+  }, [pendingExport, runExport, tabText]);
 
   return (
     <I18nProvider language={preferences.language}>
@@ -1287,6 +1357,18 @@ export default function App() {
             onSave={() => void closeSaving()}
             onDiscard={closeDiscarding}
             onCancel={closeCancelled}
+          />
+
+          <ConfirmDialog
+            open={pendingExport !== null}
+            title={t('export.partialTitle')}
+            description={t('export.partialBody', {
+              mb: pendingExport?.mb ?? 0,
+              lines: new Intl.NumberFormat().format(PREVIEW_WINDOW_LINES),
+            })}
+            confirmLabel={t('export.partialConfirm')}
+            onConfirm={confirmExport}
+            onCancel={() => setPendingExport(null)}
           />
 
           <WindowResizeHandles />

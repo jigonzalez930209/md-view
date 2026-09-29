@@ -65,13 +65,18 @@ function PreviewComponent({
 }: PreviewProps) {
   const { t } = useI18n();
   const articleRef = useRef<HTMLElement | null>(null);
+  const enhanceToken = useRef(0);
   const mdx = isMdxPath(docPath);
   const markdownDefault = isMarkdownRenderable(docPath);
   // Huge documents are shown windowed (the first lines).
   const windowed = windowedProp || previewNeedsWindow(content);
   const simplified = isSimplified(content) && !windowed;
   /** The HTML travels with its document: right after a tab switch they differ for a moment. */
-  const [rendered, setRendered] = useState<{ html: string; docPath: string | null }>({ html: '', docPath });
+  const [rendered, setRendered] = useState<{ html: string; docPath: string | null; source: string }>({
+    html: '',
+    docPath,
+    source: '',
+  });
   const [viewOverride, setViewOverride] = useState<PreviewView | null>(null);
 
   const [zoom, setZoom] = useState(1);
@@ -156,18 +161,18 @@ function PreviewComponent({
    */
   useEffect(() => {
     let cancelled = false;
-    const setHtml = (html: string) => setRendered({ html, docPath });
+    const setHtml = (html: string, source: string) => setRendered({ html, docPath, source });
 
     const compose = () => {
       // Huge documents: we render only the initial window.
       const source = windowed ? headWindow(content, PREVIEW_WINDOW_LINES) : content;
       if (view === 'code') {
-        setHtml(renderCodeView(source, docPath));
+        setHtml(renderCodeView(source, docPath), source);
         return;
       }
       // For large documents the core is rendered in the worker.
       void renderMarkdownAsync(source, { mdx }).then((next) => {
-        if (!cancelled) setHtml(next);
+        if (!cancelled) setHtml(next, source);
       });
     };
 
@@ -178,7 +183,7 @@ function PreviewComponent({
       };
     }
 
-    setHtml('');
+    setHtml('', '');
     const timer = window.setTimeout(compose, 60);
     return () => {
       cancelled = true;
@@ -188,10 +193,20 @@ function PreviewComponent({
 
   useEffect(() => {
     const article = articleRef.current;
-    if (!article || !rendered.html) return;
+    if (!article) return;
+
+    // Export waits for these two attributes (see App's `previewReady`).
+    article.dataset.rendered = String(rendered.source.length);
+    article.dataset.enhanced = 'false';
 
     // `html` is already sanitized by DOMPurify inside renderMarkdown.
     article.innerHTML = rendered.html;
+    const token = enhanceToken.current + 1;
+    enhanceToken.current = token;
+    if (!rendered.html) {
+      article.dataset.enhanced = 'true';
+      return;
+    }
     void enhance(article, {
       docPath: rendered.docPath,
       theme,
@@ -199,6 +214,8 @@ function PreviewComponent({
       diagrams: view === 'markdown' && !simplified && !windowed,
       onOpenFile,
       onMessage,
+    }).then(() => {
+      if (enhanceToken.current === token) article.dataset.enhanced = 'true';
     });
   }, [rendered, theme, palette, simplified, view, onOpenFile, onMessage]);
 

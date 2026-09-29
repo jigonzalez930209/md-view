@@ -222,6 +222,11 @@ const en = {
   'export.textSaved': 'Text exported to {dir}',
   'export.canvasError': 'Could not prepare the page canvas',
   'export.imageError': 'Could not generate the page image',
+  'export.partialTitle': 'Large document',
+  'export.partialBody':
+    'The preview only shows the first {lines} lines of this {mb} MB document. The export will contain just that part.',
+  'export.partialConfirm': 'Export what is visible',
+  'export.partialNote': 'Only the visible part of the document was exported.',
 
   // Native dialog filters
   'filter.markdown': 'Markdown',
@@ -451,6 +456,11 @@ const es: Record<TranslationKey, string> = {
   'export.textSaved': 'Texto exportado en {dir}',
   'export.canvasError': 'No se pudo preparar el lienzo de la página',
   'export.imageError': 'No se pudo generar la imagen de la página',
+  'export.partialTitle': 'Documento grande',
+  'export.partialBody':
+    'La vista previa solo muestra las primeras {lines} líneas de este documento de {mb} MB. La exportación contendrá solo esa parte.',
+  'export.partialConfirm': 'Exportar lo visible',
+  'export.partialNote': 'Solo se exportó la parte visible del documento.',
 
   'filter.markdown': 'Markdown',
   'filter.text': 'Texto',
