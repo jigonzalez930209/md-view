@@ -4,6 +4,50 @@ All notable changes to md-view are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-29
+
+### Added
+
+- recover from render errors and finish the empty states (da344a6)
+- disable PDF with an explanation where printing is unavailable (3cd7d0f)
+- keyboard tree, live status, accessible tabs and splitters (a6c3460)
+- find in preview and headings outline (d5c5e5b)
+- persist window and layout, restore session, autosave drafts (48cf37e)
+- translate backend errors with stable codes (25b32e3)
+- detect outside changes and reload from disk (997c0c4)
+- offer Save and Save all before closing dirty documents (5c54f49)
+- add new command for generating WebP and update README image size (ff454ab)
+- add script for animated WebP generation from video input (7f5ff4b)
+
+### Fixed
+
+- grant the asset protocol only the folders you open (97f17f0)
+- cap document and embed reads before loading them (0b5a0e0)
+- never export a large document silently truncated (97ab98b)
+- keep the file encoding when saving (fb696d9)
+- update folder dialog handling to improve user experience (191ca76)
+- optimize frame duration handling and adjust compression level (16f8d05)
+
+### Documentation
+
+- known limitations, published roadmap and truth pass (251edb6)
+- third-party notices, security and privacy policies, templates (d8e47e6)
+- add the roadmap to 1.0 (eaed5dc)
+- update release process documentation and workflow details (4533572)
+- add instructions for generating animated WebP and update README media references (b7ce0b4)
+
+### Tests
+
+- move the smoke suites into the repository and CI (be7caf4)
+
+### Maintenance
+
+- checksums, SBOM, pinned actions and optional signed tags (de34c24)
+- lint, clippy, advisories, dependabot and version check (9bba4c3)
+- arm64 Linux and a lower glibc floor (ab0a1c8)
+
+**Full changelog**: https://github.com/jigonzalez930209/md-view/compare/v0.3.1...v0.7.0
+
 ## [0.3.1] - 2026-09-28
 
 ### Added
