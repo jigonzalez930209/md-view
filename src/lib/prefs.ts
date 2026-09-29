@@ -28,6 +28,17 @@ export interface Preferences {
   previewFontSize: number;
   /** Show recents on the start screen. */
   showRecents: boolean;
+  /** Editor/preview split position (0-1) and explorer width in pixels. */
+  splitRatio: number;
+  treeWidth: number;
+  /** Explorer shown or hidden. */
+  treeOpen: boolean;
+  /** Preview zoom (1 = 100%). */
+  previewZoom: number;
+  /** Reopen the documents from the last session on launch. */
+  restoreSession: boolean;
+  /** Paths of the documents to reopen (maintained by the app). */
+  session: string[];
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -42,6 +53,12 @@ export const DEFAULT_PREFERENCES: Preferences = {
   previewSyncScroll: true,
   previewFontSize: 16,
   showRecents: true,
+  splitRatio: 0.5,
+  treeWidth: 300,
+  treeOpen: true,
+  previewZoom: 1,
+  restoreSession: true,
+  session: [],
 };
 
 const PREFS_KEY = 'md-view:prefs';
@@ -108,6 +125,14 @@ export function sanitizePreferences(input: Partial<Preferences>): Preferences {
     previewSyncScroll: merged.previewSyncScroll !== false,
     previewFontSize: clamp(merged.previewFontSize, 13, 22, DEFAULT_PREFERENCES.previewFontSize),
     showRecents: merged.showRecents !== false,
+    splitRatio: clamp(merged.splitRatio, 0.15, 0.85, DEFAULT_PREFERENCES.splitRatio),
+    treeWidth: clamp(merged.treeWidth, 180, 560, DEFAULT_PREFERENCES.treeWidth),
+    treeOpen: merged.treeOpen !== false,
+    previewZoom: clamp(merged.previewZoom, 0.5, 3, DEFAULT_PREFERENCES.previewZoom),
+    restoreSession: merged.restoreSession !== false,
+    session: Array.isArray(merged.session)
+      ? merged.session.filter((path): path is string => typeof path === 'string').slice(0, 20)
+      : [],
   };
 }
 

@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
@@ -898,6 +898,62 @@ fn open_path(app: AppHandle, path: String) -> Result<(), String> {
 /* Recent files                                                        */
 /* ------------------------------------------------------------------ */
 
+/// Unsaved text kept on disk so a crash does not lose the user's work.
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct Draft {
+    /// Stable id: the absolute path, or `untitled:<name>`.
+    key: String,
+    name: String,
+    path: Option<String>,
+    content: String,
+    eol: String,
+    bom: bool,
+    encoding: String,
+}
+
+fn drafts_file(app: &AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_config_dir().ok()?;
+    fs::create_dir_all(&dir).ok()?;
+    Some(dir.join("drafts.json"))
+}
+
+fn save_drafts_impl(path: &Path, drafts: &[Draft]) -> Result<(), String> {
+    let data = serde_json::to_vec(drafts).map_err(|err| command_error("invalid_data", err))?;
+    write_atomically(path, &data)
+}
+
+fn load_drafts_impl(path: &Path) -> Vec<Draft> {
+    let Ok(data) = fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    serde_json::from_str(&data).unwrap_or_default()
+}
+
+/// Replaces the draft file; the empty list removes every draft.
+#[tauri::command]
+fn save_drafts(app: AppHandle, drafts: Vec<Draft>) -> Result<(), String> {
+    let Some(file) = drafts_file(&app) else {
+        return Err(command_error("io_error", "no config folder"));
+    };
+    save_drafts_impl(&file, &drafts)
+}
+
+#[tauri::command]
+fn load_drafts(app: AppHandle) -> Vec<Draft> {
+    drafts_file(&app)
+        .map(|file| load_drafts_impl(&file))
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+fn clear_drafts(app: AppHandle) -> Result<(), String> {
+    let Some(file) = drafts_file(&app) else {
+        return Ok(());
+    };
+    save_drafts_impl(&file, &[])
+}
+
 fn recents_file(app: &AppHandle) -> Option<PathBuf> {
     let dir = app.path().app_config_dir().ok()?;
     fs::create_dir_all(&dir).ok()?;
@@ -1192,7 +1248,10 @@ pub fn run() {
             take_pending_open,
             get_recents,
             push_recent,
-            clear_recents
+            clear_recents,
+            save_drafts,
+            load_drafts,
+            clear_drafts
         ])
         .build(tauri::generate_context!())
         .expect("failed to start md-view");
@@ -1555,6 +1614,49 @@ mod tests {
     fn read_document_fails_with_missing_path() {
         let error = read_document_impl(String::from("/no/such/file.md")).expect_err("missing");
         assert!(error.starts_with("not_found:"), "{error}");
+    }
+
+    #[test]
+    fn drafts_round_trip_and_survive_corruption() {
+        let dir = temp_dir().join("drafts");
+        let _ = fs::remove_dir_all(&dir);
+        let file = dir.join("drafts.json");
+
+        assert!(
+            load_drafts_impl(&file).is_empty(),
+            "no file means no drafts"
+        );
+
+        let drafts = vec![
+            Draft {
+                key: String::from("/tmp/a.md"),
+                name: String::from("a.md"),
+                path: Some(String::from("/tmp/a.md")),
+                content: String::from("edited"),
+                eol: String::from("\n"),
+                bom: false,
+                encoding: String::from("utf-8"),
+            },
+            Draft {
+                key: String::from("untitled:untitled.md"),
+                name: String::from("untitled.md"),
+                path: None,
+                content: String::from("new"),
+                eol: String::from("\n"),
+                bom: false,
+                encoding: String::from("utf-8"),
+            },
+        ];
+        save_drafts_impl(&file, &drafts).expect("save");
+        assert_eq!(load_drafts_impl(&file), drafts);
+
+        // An empty list removes everything (clean exit).
+        save_drafts_impl(&file, &[]).expect("clear");
+        assert!(load_drafts_impl(&file).is_empty());
+
+        // A corrupt file reads as "no drafts" instead of failing.
+        fs::write(&file, "{not json").expect("corrupt");
+        assert!(load_drafts_impl(&file).is_empty());
     }
 
     #[test]

@@ -207,6 +207,63 @@ export async function documentUnchanged(
   return (await invoke('check_document', { path, mtimeMs, size })) as boolean;
 }
 
+/* ------------------------------------------------------------------ */
+/* Drafts (unsaved work kept across crashes)                           */
+/* ------------------------------------------------------------------ */
+
+export interface Draft {
+  /** Stable id: the absolute path, or `untitled:<name>`. */
+  key: string;
+  name: string;
+  path: string | null;
+  content: string;
+  eol: '\n' | '\r\n';
+  bom: boolean;
+  encoding: DocEncoding;
+}
+
+const BROWSER_DRAFTS_KEY = 'md-view:drafts';
+
+/** Reads the drafts left by an unexpected exit (empty when there are none). */
+export async function loadDrafts(): Promise<Draft[]> {
+  if (!isTauri) {
+    try {
+      const raw = localStorage.getItem(BROWSER_DRAFTS_KEY);
+      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+      return Array.isArray(parsed) ? (parsed as Draft[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return (await invoke('load_drafts')) as Draft[];
+}
+
+/** Replaces the draft file with the current dirty documents (empty clears it). */
+export async function saveDrafts(drafts: Draft[]): Promise<void> {
+  if (!isTauri) {
+    try {
+      if (drafts.length === 0) localStorage.removeItem(BROWSER_DRAFTS_KEY);
+      else localStorage.setItem(BROWSER_DRAFTS_KEY, JSON.stringify(drafts));
+    } catch {
+      /* private mode: drafts are simply not kept */
+    }
+    return;
+  }
+  await invoke('save_drafts', { drafts });
+}
+
+export async function clearDrafts(): Promise<void> {
+  if (!isTauri) {
+    try {
+      localStorage.removeItem(BROWSER_DRAFTS_KEY);
+    } catch {
+      /* nothing to clear */
+    }
+    return;
+  }
+  await invoke('clear_drafts');
+}
+
 /** Asks for a new path for "Save as". Returns null if cancelled. */
 export async function pickSavePath(
   suggestedPath: string,

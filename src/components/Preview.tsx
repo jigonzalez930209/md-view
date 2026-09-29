@@ -30,6 +30,10 @@ interface PreviewProps extends PreviewHandlers {
   theme: Theme;
   palette: Palette;
   fontSize: number;
+  /** Zoom saved in the preferences, applied on mount. */
+  initialZoom?: number;
+  /** Called when the user changes the zoom (to persist it). */
+  onZoomChange?: (zoom: number) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   contentRef?: React.RefObject<HTMLElement | null>;
   onScroll?: () => void;
@@ -56,6 +60,8 @@ function PreviewComponent({
   theme,
   palette,
   fontSize,
+  initialZoom = 1,
+  onZoomChange,
   docPath,
   onOpenFile,
   onMessage,
@@ -79,8 +85,8 @@ function PreviewComponent({
   });
   const [viewOverride, setViewOverride] = useState<PreviewView | null>(null);
 
-  const [zoom, setZoom] = useState(1);
-  const zoomRef = useRef(1);
+  const [zoom, setZoom] = useState(initialZoom);
+  const zoomRef = useRef(initialZoom);
 
   /** Zooms the preview only, keeping the point under the pointer in place. */
   const applyZoom = useCallback(
@@ -102,8 +108,9 @@ function PreviewComponent({
       scroller.scrollTop = top;
       scroller.scrollLeft = left;
       setZoom(next);
+      onZoomChange?.(next);
     },
-    [scrollRef],
+    [onZoomChange, scrollRef],
   );
 
   // Touchpad pinch (forwarded by the backend) over the preview.

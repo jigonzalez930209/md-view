@@ -11,6 +11,8 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { UnsavedDialog } from './components/UnsavedDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ConflictDialog } from './components/ConflictDialog';
+import { RecoveryDialog } from './components/RecoveryDialog';
+import { restoreWindowGeometry, trackWindowGeometry } from './lib/window-state';
 import { TooltipProvider } from './components/ui/tooltip';
 import { WindowResizeHandles } from './components/WindowResizeHandles';
 import { Welcome } from './components/Welcome';
@@ -132,14 +134,18 @@ export default function App() {
   setActiveLanguage(preferences.language);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [folder, setFolder] = useState<backend.FolderTree | null>(null);
-  const [treeOpen, setTreeOpen] = useState(true);
-  const [treeWidth, setTreeWidth] = useState(300);
-  const [ratio, setRatio] = useState(0.5);
+  const [treeWidth, setTreeWidth] = useState(preferences.treeWidth);
+  const [ratio, setRatio] = useState(preferences.splitRatio);
+  const treeOpen = preferences.treeOpen;
   const [recents, setRecents] = useState<string[]>([]);
   const [message, setMessage] = useState<Message | null>(null);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
   const [pendingExport, setPendingExport] = useState<PendingExport | null>(null);
+  const [recoveredDrafts, setRecoveredDrafts] = useState<backend.Draft[] | null>(null);
+  const recoveredDraftsRef = useRef<backend.Draft[] | null>(null);
+  recoveredDraftsRef.current = recoveredDrafts;
+  const zoomPersistTimer = useRef<number | null>(null);
   const [dropping, setDropping] = useState(false);
   const [draggingSplitter, setDraggingSplitter] = useState(false);
 
@@ -367,7 +373,8 @@ export default function App() {
   /** Removes a tab (or closes the window) once the user has decided. */
   const finishClose = useCallback((pending: PendingClose) => {
     if (pending.kind === 'window') {
-      void backend.destroyWindow();
+      // Clean exit: no drafts should be offered next time.
+      void backend.clearDrafts().finally(() => backend.destroyWindow());
       return;
     }
     const list = tabsRef.current;
@@ -682,6 +689,52 @@ export default function App() {
     if (!closeBusy) setPendingClose(null);
   };
 
+  /* ------------------------- drafts from a crash --------------------------- */
+
+  const recoverDrafts = useCallback(() => {
+    const list = recoveredDraftsRef.current ?? [];
+    setRecoveredDrafts(null);
+    if (list.length === 0) return;
+    const restored = list.map((draft) => {
+      const tab = makeTab(
+        {
+          path: draft.path,
+          name: draft.name,
+          eol: draft.eol === '\r\n' ? '\r\n' : '\n',
+          bom: draft.bom,
+          encoding: draft.encoding,
+          mtimeMs: 0,
+          size: 0,
+        },
+        draft.content,
+        inheritedMode(),
+      );
+      return { ...tab, dirty: true };
+    });
+    setTabs((current) => [...current, ...restored]);
+    const last = restored[restored.length - 1];
+    activeIdRef.current = last.id;
+    setActiveId(last.id);
+    showMessage(plural('app.draftsRecovered', restored.length));
+  }, [inheritedMode, makeTab, showMessage]);
+
+  const discardDrafts = useCallback(() => {
+    setRecoveredDrafts(null);
+    void backend.clearDrafts();
+  }, []);
+
+  /** Zoom is persisted a moment after the last change (wheel fires in bursts). */
+  const handleZoomChange = useCallback(
+    (zoom: number) => {
+      if (zoomPersistTimer.current !== null) window.clearTimeout(zoomPersistTimer.current);
+      zoomPersistTimer.current = window.setTimeout(() => {
+        zoomPersistTimer.current = null;
+        updatePreferences({ previewZoom: zoom });
+      }, 400);
+    },
+    [updatePreferences],
+  );
+
   // A commit, a checkout or another program touching the file: check on focus.
   useEffect(() => {
     const onFocus = () => {
@@ -721,7 +774,10 @@ export default function App() {
   }, [refreshBaseline, reloadTab, showMessage]);
 
   // Actions reachable from global listeners without re-subscribing.
-  const toggleTree = useCallback(() => setTreeOpen((current) => !current), []);
+  const toggleTree = useCallback(
+    () => updatePreferences({ treeOpen: !preferencesRef.current.treeOpen }),
+    [updatePreferences],
+  );
   const openSettings = useCallback(() => setSettingsOpen(true), []);
   const actions = useRef({
     openFile,
@@ -762,17 +818,65 @@ export default function App() {
     void backend.setWindowTitle(title);
   }, [doc, dirty]);
 
-  // Startup: recent files list + files passed on the command line.
+  // Startup: geometry, recent files, files from the command line, session and drafts.
   useEffect(() => {
     void (async () => {
       try {
+        await restoreWindowGeometry();
         setRecents(await backend.recentFiles());
         const pending = await backend.takePendingOpen();
         for (const path of pending) await actions.current.openFile(path);
+        // Session: only when the command line did not bring its own documents.
+        if (pending.length === 0 && preferencesRef.current.restoreSession) {
+          for (const path of preferencesRef.current.session) {
+            if (await backend.pathExists(path)) await actions.current.openFile(path);
+          }
+        }
+        // Drafts left by an unexpected exit are offered, never opened silently.
+        const drafts = await backend.loadDrafts();
+        if (drafts.length > 0) setRecoveredDrafts(drafts);
       } catch {
         /* no backend available: carry on with the welcome screen */
       }
     })();
+  }, []);
+
+  // Remembers the open paths so the next launch can restore the session.
+  useEffect(() => {
+    const paths = tabs
+      .filter((tab) => tab.doc.path !== null)
+      .map((tab) => tab.doc.path as string);
+    const timer = window.setTimeout(() => updatePreferences({ session: paths }), 500);
+    return () => window.clearTimeout(timer);
+  }, [tabs, updatePreferences]);
+
+  // Drafts: dirty documents are written after a pause, so a crash loses nothing.
+  useEffect(() => {
+    if (recoveredDrafts !== null) return; // waiting for the user's decision
+    const timer = window.setTimeout(() => {
+      const drafts = tabsRef.current
+        .filter((tab) => tab.dirty && tab.window === undefined)
+        .map((tab) => ({
+          key: tab.doc.path ?? `untitled:${tab.doc.name}`,
+          name: tab.doc.name,
+          path: tab.doc.path,
+          content: tab.content,
+          eol: tab.doc.eol,
+          bom: tab.doc.bom,
+          encoding: tab.doc.encoding,
+        }));
+      void backend.saveDrafts(drafts);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [tabs, recoveredDrafts]);
+
+  // Window geometry is saved when it moves or resizes.
+  useEffect(() => {
+    let dispose = () => {};
+    void trackWindowGeometry().then((fn) => {
+      dispose = fn;
+    });
+    return () => dispose();
   }, []);
 
   // Another instance of the app asks to open a file.
@@ -814,12 +918,20 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
-  // Window close with unsaved changes (in any tab): the in-app dialog decides.
+  // Window close: drafts are cleared on a clean exit.
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     void backend
       .onCloseRequested(() => {
-        if (tabsRef.current.every((tab) => !tab.dirty)) return false;
+        const dirty = tabsRef.current.some((tab) => tab.dirty);
+        if (!dirty) {
+          if (!backend.isTauri) return false;
+          // Recovered drafts are not the app's to discard: leave them for the next run.
+          const clear =
+            recoveredDraftsRef.current === null ? backend.clearDrafts() : Promise.resolve();
+          void clear.finally(() => backend.destroyWindow());
+          return true;
+        }
         setPendingClose({ kind: 'window' });
         return true;
       })
@@ -1029,27 +1141,34 @@ export default function App() {
 
   /* -------------------------------- splitter -------------------------------- */
 
-  const onSplitterPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const container = panesRef.current;
-    if (!container) return;
+  const onSplitterPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const container = panesRef.current;
+      if (!container) return;
 
-    const rect = container.getBoundingClientRect();
-    setDraggingSplitter(true);
+      const rect = container.getBoundingClientRect();
+      setDraggingSplitter(true);
+      let latest = ratio;
 
-    const onMove = (moveEvent: PointerEvent) => {
-      const next = (moveEvent.clientX - rect.left) / rect.width;
-      setRatio(Math.min(0.85, Math.max(0.15, next)));
-    };
-    const onUp = () => {
-      setDraggingSplitter(false);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
+      const onMove = (moveEvent: PointerEvent) => {
+        const next = (moveEvent.clientX - rect.left) / rect.width;
+        latest = Math.min(0.85, Math.max(0.15, next));
+        setRatio(latest);
+      };
+      const onUp = () => {
+        setDraggingSplitter(false);
+        // Persisted when the drag ends, not on every pointer event.
+        updatePreferences({ splitRatio: latest });
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  }, []);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [ratio, updatePreferences],
+  );
 
   const onTreeSplitterPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -1058,12 +1177,15 @@ export default function App() {
       const startWidth = treeWidth;
       // On the left the width grows to the right; on the right, the other way around.
       const direction = preferencesRef.current.explorerSide === 'left' ? 1 : -1;
+      let latest = treeWidth;
 
       const onMove = (moveEvent: PointerEvent) => {
         const next = startWidth + direction * (moveEvent.clientX - startX);
-        setTreeWidth(Math.min(560, Math.max(180, next)));
+        latest = Math.min(560, Math.max(180, next));
+        setTreeWidth(latest);
       };
       const onUp = () => {
+        updatePreferences({ treeWidth: latest });
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
       };
@@ -1071,7 +1193,7 @@ export default function App() {
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
     },
-    [treeWidth],
+    [treeWidth, updatePreferences],
   );
 
   /* --------------------------------- render --------------------------------- */
@@ -1139,7 +1261,7 @@ export default function App() {
       const tree = await backend.pickFolder();
       if (!tree) return;
       setFolder(tree);
-      setTreeOpen(true);
+      updatePreferences({ treeOpen: true });
       const files = countTreeFiles(tree.root);
       showMessage(
         plural('app.folderOpened', files, { name: tree.root.name }) +
@@ -1148,7 +1270,7 @@ export default function App() {
     } catch (error) {
       showMessage(backend.friendlyError(error), 'error');
     }
-  }, [showMessage]);
+  }, [showMessage, updatePreferences]);
 
   const refreshFolder = useCallback(async () => {
     if (!folder) return;
@@ -1162,7 +1284,7 @@ export default function App() {
 
   const handleTreeOpenFile = useCallback((path: string) => void openFile(path), [openFile]);
   const handleTreeRefresh = useCallback(() => void refreshFolder(), [refreshFolder]);
-  const handleTreeClose = useCallback(() => setTreeOpen(false), []);
+  const handleTreeClose = useCallback(() => updatePreferences({ treeOpen: false }), [updatePreferences]);
 
   /* --------------------------------- explorer -------------------------------- */
 
@@ -1340,7 +1462,7 @@ export default function App() {
             onOpenFolder={() => void openFolder()}
             treeOpen={treeOpen}
             canToggleTree={folder !== null}
-            onToggleTree={() => setTreeOpen((current) => !current)}
+            onToggleTree={toggleTree}
             explorerSide={preferences.explorerSide}
             onExplorerSideChange={(value) => updatePreferences({ explorerSide: value })}
             onExport={(format) => void handleExport(format)}
@@ -1444,6 +1566,8 @@ export default function App() {
                     theme={theme}
                     palette={preferences.palette}
                     fontSize={preferences.previewFontSize}
+                    initialZoom={preferences.previewZoom}
+                    onZoomChange={handleZoomChange}
                     docPath={doc?.path ?? null}
                     onOpenFile={handleOpenFile}
                     onMessage={showMessage}
@@ -1524,6 +1648,13 @@ export default function App() {
             onOverwrite={() => resolveConflict('overwrite')}
             onReload={() => resolveConflict('reload')}
             onCancel={() => resolveConflict('cancel')}
+          />
+
+          <RecoveryDialog
+            open={recoveredDrafts !== null}
+            count={recoveredDrafts?.length ?? 0}
+            onRecover={recoverDrafts}
+            onDiscard={discardDrafts}
           />
 
           <WindowResizeHandles />

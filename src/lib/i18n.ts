@@ -169,6 +169,8 @@ const en = {
   'settings.pdfLightHint': 'Turn it off to export with the current theme',
   'settings.start': 'Start',
   'settings.showRecents': 'Show recents',
+  'settings.restoreSession': 'Reopen the last session',
+  'settings.restoreSessionHint': 'Open the documents that were open when you quit',
   'settings.recentsList': 'Recents list',
   'settings.recentsCount.one': '{count} file',
   'settings.recentsCount.other': '{count} files',
@@ -215,6 +217,12 @@ const en = {
   'app.conflictBody':
     '"{name}" was modified by another program. Keep your version, take the one on disk or cancel.',
   'app.conflictOverwrite': 'Overwrite',
+  'app.draftsTitle': 'Unsaved drafts',
+  'app.draftsFound.one': 'One document has unsaved changes from the last session.',
+  'app.draftsFound.other': '{count} documents have unsaved changes from the last session.',
+  'app.recover': 'Recover',
+  'app.draftsRecovered.one': 'Recovered one draft',
+  'app.draftsRecovered.other': '{count} drafts recovered',
   'app.browserReopenOnly': 'In the browser you can only reopen files picked in this session.',
   'app.browserFolderOnly': 'In the browser you can only open the folder picked in this session.',
   'app.editorPlainNote':
@@ -428,6 +436,8 @@ const es: Record<TranslationKey, string> = {
   'settings.pdfLightHint': 'Desactivalo para exportar con el tema actual',
   'settings.start': 'Inicio',
   'settings.showRecents': 'Mostrar recientes',
+  'settings.restoreSession': 'Reabrir la última sesión',
+  'settings.restoreSessionHint': 'Abre los documentos que estaban abiertos al salir',
   'settings.recentsList': 'Lista de recientes',
   'settings.recentsCount.one': '{count} archivo',
   'settings.recentsCount.other': '{count} archivos',
@@ -474,6 +484,12 @@ const es: Record<TranslationKey, string> = {
   'app.conflictBody':
     '"{name}" fue modificado por otro programa. Conservá tu versión, tomá la del disco o cancelá.',
   'app.conflictOverwrite': 'Sobrescribir',
+  'app.draftsTitle': 'Borradores sin guardar',
+  'app.draftsFound.one': 'Un documento tiene cambios sin guardar de la sesión anterior.',
+  'app.draftsFound.other': '{count} documentos tienen cambios sin guardar de la sesión anterior.',
+  'app.recover': 'Recuperar',
+  'app.draftsRecovered.one': 'Se recuperó un borrador',
+  'app.draftsRecovered.other': 'Se recuperaron {count} borradores',
   'app.browserReopenOnly':
     'En el navegador solo se pueden reabrir los archivos elegidos en esta sesión.',
   'app.browserFolderOnly':

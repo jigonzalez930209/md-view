@@ -288,6 +288,16 @@ export function SettingsDialog({
               />
             </Row>
             <Row
+              label={t('settings.restoreSession')}
+              hint={t('settings.restoreSessionHint')}
+            >
+              <Switch
+                checked={preferences.restoreSession}
+                onCheckedChange={(checked) => onChange({ restoreSession: checked })}
+                aria-label={t('settings.restoreSession')}
+              />
+            </Row>
+            <Row
               label={t('settings.recentsList')}
               hint={plural('settings.recentsCount', recentsCount)}
             >
