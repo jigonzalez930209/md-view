@@ -390,8 +390,10 @@ struct Document {
     content: String,
     /// Original end of line: "\n" or "\r\n".
     eol: String,
-    /// Whether the file started with a UTF-8 BOM.
+    /// Whether the file started with a BOM (UTF-8; UTF-16 always has one).
     bom: bool,
+    /// Original encoding of the file: "utf-8", "utf-16le" or "utf-16be".
+    encoding: String,
 }
 
 /* ------------------------------------------------------------------ */
@@ -411,8 +413,9 @@ async fn write_document(
     content: String,
     eol: Option<String>,
     bom: Option<bool>,
+    encoding: Option<String>,
 ) -> Result<(), String> {
-    write_document_impl(path, content, eol, bom)
+    write_document_impl(path, content, eol, bom, encoding)
 }
 
 #[tauri::command]
@@ -428,7 +431,8 @@ fn read_document_impl(path: String) -> Result<Document, String> {
     }
 
     let bytes = fs::read(&file).map_err(|err| format!("Could not read {path}: {err}"))?;
-    let (text, bom) = decode(&bytes);
+    let (text, bom, encoding) =
+        decode(&bytes).map_err(|err| format!("Could not read {path}: {err}"))?;
 
     let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
     let name = file
@@ -442,6 +446,7 @@ fn read_document_impl(path: String) -> Result<Document, String> {
         content: text.replace("\r\n", "\n").replace('\r', "\n"),
         eol: eol.to_string(),
         bom,
+        encoding: encoding.as_str().to_string(),
     })
 }
 
@@ -450,6 +455,7 @@ fn write_document_impl(
     content: String,
     eol: Option<String>,
     bom: Option<bool>,
+    encoding: Option<String>,
 ) -> Result<(), String> {
     let target = PathBuf::from(&path);
 
@@ -459,11 +465,29 @@ fn write_document_impl(
         content
     };
 
+    let encoding = Encoding::parse(encoding.as_deref())?;
     let mut bytes = Vec::with_capacity(text.len() + 3);
-    if bom.unwrap_or(false) {
-        bytes.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
+    match encoding {
+        Encoding::Utf8 => {
+            if bom.unwrap_or(false) {
+                bytes.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
+            }
+            bytes.extend_from_slice(text.as_bytes());
+        }
+        Encoding::Utf16Le => {
+            // UTF-16 always keeps its BOM: without it the file would be unreadable.
+            bytes.extend_from_slice(&[0xFF, 0xFE]);
+            for unit in text.encode_utf16() {
+                bytes.extend_from_slice(&unit.to_le_bytes());
+            }
+        }
+        Encoding::Utf16Be => {
+            bytes.extend_from_slice(&[0xFE, 0xFF]);
+            for unit in text.encode_utf16() {
+                bytes.extend_from_slice(&unit.to_be_bytes());
+            }
+        }
     }
-    bytes.extend_from_slice(text.as_bytes());
 
     write_atomically(&target, &bytes)
 }
@@ -573,21 +597,65 @@ async fn export_pdf(_window: tauri::WebviewWindow, _path: String) -> Result<(), 
     ))
 }
 
-/// Detects UTF-8 / UTF-16 BOMs and returns the text as UTF-8.
-fn decode(bytes: &[u8]) -> (String, bool) {
-    if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-        return (String::from_utf8_lossy(&bytes[3..]).into_owned(), true);
-    }
-    if bytes.starts_with(&[0xFF, 0xFE]) {
-        return (decode_utf16(&bytes[2..], true), false);
-    }
-    if bytes.starts_with(&[0xFE, 0xFF]) {
-        return (decode_utf16(&bytes[2..], false), false);
-    }
-    (String::from_utf8_lossy(bytes).into_owned(), false)
+/// Encoding a document was read with; it is kept so saving never re-encodes it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Encoding {
+    Utf8,
+    Utf16Le,
+    Utf16Be,
 }
 
-fn decode_utf16(bytes: &[u8], little_endian: bool) -> String {
+impl Encoding {
+    fn as_str(self) -> &'static str {
+        match self {
+            Encoding::Utf8 => "utf-8",
+            Encoding::Utf16Le => "utf-16le",
+            Encoding::Utf16Be => "utf-16be",
+        }
+    }
+
+    fn parse(value: Option<&str>) -> Result<Self, String> {
+        match value {
+            None | Some("utf-8") | Some("utf8") => Ok(Encoding::Utf8),
+            Some("utf-16le") | Some("utf16le") => Ok(Encoding::Utf16Le),
+            Some("utf-16be") | Some("utf16be") => Ok(Encoding::Utf16Be),
+            Some(other) => Err(format!("Unsupported encoding: {other}")),
+        }
+    }
+}
+
+/// Detects the encoding (BOM, or UTF-8 by default) and returns the text as UTF-8.
+///
+/// Anything that is neither valid UTF-8 nor UTF-16 with a BOM is rejected:
+/// reading it as lossy UTF-8 and saving it back would corrupt the file.
+fn decode(bytes: &[u8]) -> Result<(String, bool, Encoding), String> {
+    if let Some(rest) = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]) {
+        return Ok((utf8(rest)?.to_string(), true, Encoding::Utf8));
+    }
+    if let Some(rest) = bytes.strip_prefix(&[0xFF, 0xFE]) {
+        return Ok((decode_utf16(rest, true)?, true, Encoding::Utf16Le));
+    }
+    if let Some(rest) = bytes.strip_prefix(&[0xFE, 0xFF]) {
+        return Ok((decode_utf16(rest, false)?, true, Encoding::Utf16Be));
+    }
+    Ok((utf8(bytes)?.to_string(), false, Encoding::Utf8))
+}
+
+fn utf8(bytes: &[u8]) -> Result<&str, String> {
+    std::str::from_utf8(bytes).map_err(|_| {
+        String::from(
+            "the file is not valid UTF-8 text (the encoding is not supported yet). \
+             Open it with a text editor and save it as UTF-8",
+        )
+    })
+}
+
+fn decode_utf16(bytes: &[u8], little_endian: bool) -> Result<String, String> {
+    if bytes.len() % 2 != 0 {
+        return Err(String::from(
+            "the file is UTF-16 with an odd number of bytes",
+        ));
+    }
     let units: Vec<u16> = bytes
         .chunks_exact(2)
         .map(|pair| {
@@ -598,7 +666,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> String {
             }
         })
         .collect();
-    String::from_utf16_lossy(&units)
+    String::from_utf16(&units).map_err(|_| String::from("the file is not valid UTF-16 text"))
 }
 
 /* ------------------------------------------------------------------ */
@@ -661,7 +729,8 @@ fn git_baseline_impl(path: &Path) -> Option<GitBaseline> {
         .or_else(|| git_line(dir, &["rev-parse", "--short", "HEAD"]))?;
     // Staged but never committed: everything is new.
     let committed = git(dir, &["show", &format!("HEAD:./{name}")]).unwrap_or_default();
-    let (text, _) = decode(&committed);
+    // If HEAD holds something that is not text, show no change marks.
+    let (text, _, _) = decode(&committed).ok()?;
     Some(GitBaseline {
         text: text.replace("\r\n", "\n"),
         branch,
@@ -1064,16 +1133,84 @@ mod tests {
 
     #[test]
     fn decode_detects_bom_and_utf16() {
-        let (text, bom) = decode(&[0xEF, 0xBB, 0xBF, b'h', b'e', b'l', b'l', b'o']);
-        assert_eq!((text.as_str(), bom), ("hello", true));
+        let (text, bom, encoding) =
+            decode(&[0xEF, 0xBB, 0xBF, b'h', b'e', b'l', b'l', b'o']).expect("utf-8 bom");
+        assert_eq!(
+            (text.as_str(), bom, encoding),
+            ("hello", true, Encoding::Utf8)
+        );
 
         // "é" in UTF-16 little endian, with BOM.
         let utf16 = [0xFF, 0xFE, 0xE9, 0x00];
-        let (text, bom) = decode(&utf16);
-        assert_eq!((text.as_str(), bom), ("é", false));
+        let (text, bom, encoding) = decode(&utf16).expect("utf-16le");
+        assert_eq!(
+            (text.as_str(), bom, encoding),
+            ("é", true, Encoding::Utf16Le)
+        );
 
-        let (text, bom) = decode(b"plain");
-        assert_eq!((text.as_str(), bom), ("plain", false));
+        // Same text in UTF-16 big endian.
+        let utf16 = [0xFE, 0xFF, 0x00, 0xE9];
+        let (text, bom, encoding) = decode(&utf16).expect("utf-16be");
+        assert_eq!(
+            (text.as_str(), bom, encoding),
+            ("é", true, Encoding::Utf16Be)
+        );
+
+        let (text, bom, encoding) = decode(b"plain").expect("plain");
+        assert_eq!(
+            (text.as_str(), bom, encoding),
+            ("plain", false, Encoding::Utf8)
+        );
+    }
+
+    #[test]
+    fn decode_rejects_text_that_is_not_utf8() {
+        // 0xE9 alone is "é" in Latin-1 and invalid in UTF-8.
+        let error = decode(&[b'c', b'a', b'f', 0xE9]).expect_err("latin-1 is rejected");
+        assert!(error.contains("not valid UTF-8"), "{error}");
+
+        // A truncated UTF-8 sequence must fail too, not degrade to U+FFFD.
+        assert!(decode(&[0xE2, 0x82]).is_err());
+    }
+
+    #[test]
+    fn write_document_round_trips_utf16() {
+        for (encoding, prefix) in [("utf-16le", [0xFF, 0xFE]), ("utf-16be", [0xFE, 0xFF])] {
+            let dir = temp_dir();
+            let path = dir.join(format!("{encoding}.md"));
+            let text = String::from("línea uno\nlínea dos\n");
+
+            write_document_impl(
+                path.to_string_lossy().into_owned(),
+                text.clone(),
+                None,
+                Some(false),
+                Some(String::from(encoding)),
+            )
+            .expect("save");
+
+            let bytes = fs::read(&path).expect("read");
+            assert!(bytes.starts_with(&prefix), "{encoding} keeps its BOM");
+
+            let document = read_document_impl(path.to_string_lossy().into_owned()).expect("open");
+            assert_eq!(document.content, text);
+            assert_eq!(document.encoding, encoding);
+            assert!(document.bom);
+        }
+    }
+
+    #[test]
+    fn write_document_rejects_unknown_encodings() {
+        let dir = temp_dir();
+        let error = write_document_impl(
+            dir.join("x.md").to_string_lossy().into_owned(),
+            String::from("x"),
+            None,
+            None,
+            Some(String::from("latin-1")),
+        )
+        .expect_err("latin-1 is not supported");
+        assert!(error.contains("Unsupported encoding"), "{error}");
     }
 
     #[test]
@@ -1119,6 +1256,7 @@ mod tests {
             String::from("one\ntwo\n"),
             Some(String::from("\r\n")),
             Some(true),
+            None,
         )
         .expect("save");
 

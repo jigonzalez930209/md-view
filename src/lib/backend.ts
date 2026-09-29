@@ -16,6 +16,8 @@ import { basename, extname, MARKDOWN_EXTENSIONS } from './paths';
 import { t } from './i18n';
 import type { Theme } from './theme';
 
+export type DocEncoding = 'utf-8' | 'utf-16le' | 'utf-16be';
+
 export interface Doc {
   /** Absolute path in Tauri; just the name in the browser. */
   path: string;
@@ -23,8 +25,10 @@ export interface Doc {
   content: string;
   /** Original line ending of the file, so it is not rewritten whole. */
   eol: '\n' | '\r\n';
-  /** true if the file had a UTF-8 BOM. */
+  /** true if the file had a BOM (UTF-16 files always have one). */
   bom: boolean;
+  /** Encoding the file was read with, preserved when saving. */
+  encoding: DocEncoding;
 }
 
 export const isTauri =
@@ -94,12 +98,27 @@ function toDoc(path: string, name: string, content: string): Doc {
     content: body.replace(/\r\n?/g, '\n'),
     eol: /\r\n/.test(content) ? '\r\n' : '\n',
     bom,
+    // The browser decodes picked files as UTF-8; it cannot tell us the real encoding.
+    encoding: 'utf-8',
   };
 }
 
-function download(name: string, content: string): void {
-  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-  downloadBlob(name, blob);
+/** Encodes the text the way the file was read: BOM and UTF-16 included. */
+function encodeDocument(doc: Doc, content: string): BlobPart {
+  const text = doc.eol === '\r\n' ? content.replace(/\n/g, '\r\n') : content;
+  if (doc.encoding === 'utf-8') return doc.bom ? `\uFEFF${text}` : text;
+
+  const littleEndian = doc.encoding === 'utf-16le';
+  const bytes = new Uint8Array(2 + text.length * 2);
+  bytes[0] = littleEndian ? 0xff : 0xfe;
+  bytes[1] = littleEndian ? 0xfe : 0xff;
+  for (let index = 0; index < text.length; index += 1) {
+    const unit = text.charCodeAt(index);
+    const offset = 2 + index * 2;
+    bytes[offset] = littleEndian ? unit & 0xff : unit >> 8;
+    bytes[offset + 1] = littleEndian ? unit >> 8 : unit & 0xff;
+  }
+  return bytes;
 }
 
 function downloadBlob(name: string, blob: Blob): void {
@@ -144,10 +163,17 @@ export async function readFile(path: string): Promise<Doc> {
 
 export async function saveFile(doc: Doc, content: string): Promise<void> {
   if (!isTauri) {
-    download(doc.name, doc.eol === '\r\n' ? content.replace(/\n/g, '\r\n') : content);
+    const type = doc.encoding === 'utf-8' ? 'text/markdown;charset=utf-8' : 'text/markdown';
+    downloadBlob(doc.name, new Blob([encodeDocument(doc, content)], { type }));
     return;
   }
-  await invoke('write_document', { path: doc.path, content, eol: doc.eol, bom: doc.bom });
+  await invoke('write_document', {
+    path: doc.path,
+    content,
+    eol: doc.eol,
+    bom: doc.bom,
+    encoding: doc.encoding,
+  });
 }
 
 /** Asks for a new path for "Save as". Returns null if cancelled. */
@@ -318,7 +344,10 @@ export async function readTree(path: string): Promise<FolderTree> {
 /** Writes a text file (self-contained HTML, SVG, TXT...). */
 export async function writeTextFile(path: string, content: string): Promise<void> {
   if (!isTauri) {
-    download(basename(path), content);
+    downloadBlob(
+      basename(path),
+      new Blob([content], { type: 'text/plain;charset=utf-8' }),
+    );
     return;
   }
   await invoke('write_text_file', { path, content });

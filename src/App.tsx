@@ -47,6 +47,8 @@ interface OpenDoc {
   name: string;
   eol: '\n' | '\r\n';
   bom: boolean;
+  /** Encoding of the file on disk; saving keeps it. */
+  encoding: backend.DocEncoding;
 }
 
 interface Tab {
@@ -249,7 +251,7 @@ export default function App() {
         return;
       }
       const tab = makeTab(
-        { path: file.path, name: file.name, eol: file.eol, bom: file.bom },
+        { path: file.path, name: file.name, eol: file.eol, bom: file.bom, encoding: file.encoding },
         file.content,
         inheritedMode(),
       );
@@ -295,7 +297,7 @@ export default function App() {
   const newDocument = useCallback(() => {
     const count = tabsRef.current.filter((tab) => tab.doc.path === null && tab.doc.name.startsWith(UNTITLED)).length;
     const name = count === 0 ? `${UNTITLED}.md` : `${UNTITLED}-${count + 1}.md`;
-    const tab = makeTab({ path: null, name, eol: '\n', bom: false }, '', 'split');
+    const tab = makeTab({ path: null, name, eol: '\n', bom: false, encoding: 'utf-8' }, '', 'split');
     setTabs((current) => [...current, tab]);
     activeIdRef.current = tab.id;
     setActiveId(tab.id);
@@ -308,7 +310,11 @@ export default function App() {
       setActiveId(existing.id);
       return;
     }
-    const tab = makeTab({ path: null, name: 'demo.md', eol: '\n', bom: false }, demoMarkdown, inheritedMode());
+    const tab = makeTab(
+      { path: null, name: 'demo.md', eol: '\n', bom: false, encoding: 'utf-8' },
+      demoMarkdown,
+      inheritedMode(),
+    );
     setTabs((current) => [...current, tab]);
     activeIdRef.current = tab.id;
     setActiveId(tab.id);
@@ -470,9 +476,10 @@ export default function App() {
           name: basename(target),
           eol: tab.doc.eol,
           bom: tab.doc.bom,
+          encoding: tab.doc.encoding,
         };
         await backend.saveFile(
-          { path: target, name: nextDoc.name, eol: nextDoc.eol, bom: nextDoc.bom, content: text },
+          { path: target, name: nextDoc.name, eol: nextDoc.eol, bom: nextDoc.bom, encoding: nextDoc.encoding, content: text },
           text,
         );
         updateTab(id, { doc: nextDoc, dirty: false, content: text });
