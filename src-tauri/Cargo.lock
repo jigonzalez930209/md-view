@@ -2026,7 +2026,7 @@ dependencies = [
 name = "md-view"
 version = "0.7.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "gtk",
  "serde",
  "serde_json",
