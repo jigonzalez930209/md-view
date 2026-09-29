@@ -147,6 +147,14 @@ const en = {
   'preview.resetZoom': 'Reset zoom to 100%',
   'preview.windowed': 'Large document ({mb} MB): showing the first {lines} lines.',
   'preview.simplified': 'Large document: preview without syntax highlighting or diagrams.',
+  'preview.find': 'Find in preview',
+  'preview.findPlaceholder': 'Search in the preview…',
+  'preview.findNext': 'Next match',
+  'preview.findPrevious': 'Previous match',
+  'preview.findNoResults': 'No matches',
+  'preview.outline': 'Outline',
+  'preview.outlineEmpty': 'No headings',
+  'preview.outlineUnavailable': 'Not available for very large documents',
 
   // Settings
   'settings.title': 'Settings',
@@ -414,6 +422,14 @@ const es: Record<TranslationKey, string> = {
   'preview.windowed': 'Documento grande ({mb} MB): se muestran las primeras {lines} líneas.',
   'preview.simplified':
     'Documento grande: la vista previa va sin resaltado de código ni diagramas.',
+  'preview.find': 'Buscar en la vista previa',
+  'preview.findPlaceholder': 'Buscar en la vista previa…',
+  'preview.findNext': 'Siguiente coincidencia',
+  'preview.findPrevious': 'Coincidencia anterior',
+  'preview.findNoResults': 'Sin coincidencias',
+  'preview.outline': 'Índice',
+  'preview.outlineEmpty': 'Sin encabezados',
+  'preview.outlineUnavailable': 'No disponible en documentos muy grandes',
 
   'settings.title': 'Configuraciones',
   'settings.description':

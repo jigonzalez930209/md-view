@@ -1,9 +1,10 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import * as backend from '@/lib/backend';
-import { Code2, FileText } from 'lucide-react';
+import { ChevronDown, ChevronUp, Code2, FileText, ListTree, Search, X } from 'lucide-react';
 import { HIGHLIGHT_LIMIT, isSimplified, previewNeedsWindow, renderMarkdownAsync } from '@/lib/markdown';
 import { PREVIEW_WINDOW_LINES } from '@/lib/limits';
 import { headWindow } from '@/lib/text-tasks';
+import { clearPreviewMatches, focusPreviewMatch, highlightPreview } from '@/lib/preview-find';
 import { useI18n } from '@/lib/i18n-react';
 import { enhance, handlePreviewClick, type PreviewHandlers } from '@/lib/enhance';
 import { highlightCode } from '@/lib/highlight';
@@ -34,6 +35,9 @@ interface PreviewProps extends PreviewHandlers {
   initialZoom?: number;
   /** Called when the user changes the zoom (to persist it). */
   onZoomChange?: (zoom: number) => void;
+  /** Find bar visibility (driven from the app shortcuts). */
+  findOpen?: boolean;
+  onFindChange?: (open: boolean) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   contentRef?: React.RefObject<HTMLElement | null>;
   onScroll?: () => void;
@@ -62,6 +66,8 @@ function PreviewComponent({
   fontSize,
   initialZoom = 1,
   onZoomChange,
+  findOpen = false,
+  onFindChange,
   docPath,
   onOpenFile,
   onMessage,
@@ -87,6 +93,16 @@ function PreviewComponent({
 
   const [zoom, setZoom] = useState(initialZoom);
   const zoomRef = useRef(initialZoom);
+
+  /* ------------------------------ find & outline ------------------------------ */
+
+  const findInputRef = useRef<HTMLInputElement | null>(null);
+  const [query, setQuery] = useState('');
+  const [matchCount, setMatchCount] = useState(0);
+  const [matchIndex, setMatchIndex] = useState(0);
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const [headings, setHeadings] = useState<Array<{ id: string; level: number; text: string }>>([]);
+  const [activeHeading, setActiveHeading] = useState<string | null>(null);
 
   /** Zooms the preview only, keeping the point under the pointer in place. */
   const applyZoom = useCallback(
@@ -222,9 +238,97 @@ function PreviewComponent({
       onOpenFile,
       onMessage,
     }).then(() => {
-      if (enhanceToken.current === token) article.dataset.enhanced = 'true';
+      if (enhanceToken.current !== token) return;
+      article.dataset.enhanced = 'true';
+      // Headings are only navigable when the whole document is rendered.
+      if (view !== 'markdown' || simplified || windowed) {
+        setHeadings([]);
+        return;
+      }
+      const seen = new Set<string>();
+      setHeadings(
+        Array.from(article.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+          .map((element) => ({
+            id: element.id,
+            level: Number(element.tagName[1]),
+            text: element.textContent?.trim() ?? '',
+          }))
+          .filter((heading) => heading.id !== '' && !seen.has(heading.id) && seen.add(heading.id)),
+      );
     });
   }, [rendered, theme, palette, simplified, view, onOpenFile, onMessage]);
+
+  // Highlights the matches whenever the query or the rendered HTML changes.
+  useEffect(() => {
+    const article = articleRef.current;
+    if (!article) return;
+    if (!findOpen || query.trim() === '') {
+      clearPreviewMatches(article);
+      setMatchCount(0);
+      setMatchIndex(0);
+      return;
+    }
+    const total = highlightPreview(article, query);
+    setMatchCount(total);
+    setMatchIndex(0);
+    if (total > 0) focusPreviewMatch(article, 0);
+  }, [findOpen, query, rendered]);
+
+  // The input takes the focus as soon as the bar opens.
+  useEffect(() => {
+    if (!findOpen) return;
+    const input = findInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, [findOpen]);
+
+  const goToMatch = useCallback(
+    (delta: number) => {
+      const article = articleRef.current;
+      if (!article || matchCount === 0) return;
+      const next = (matchIndex + delta + matchCount) % matchCount;
+      setMatchIndex(next);
+      focusPreviewMatch(article, next);
+    },
+    [matchCount, matchIndex],
+  );
+
+  const requestCloseFind = useCallback(() => {
+    onFindChange?.(false);
+  }, [onFindChange]);
+
+  // Outline: the current heading follows the scroll position.
+  useEffect(() => {
+    if (!outlineOpen) return;
+    const scroller = scrollRef.current;
+    const article = articleRef.current;
+    if (!scroller || !article) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      let currentId: string | null = null;
+      for (const heading of article.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+        if (heading.getBoundingClientRect().top <= scroller.getBoundingClientRect().top + 64) {
+          currentId = heading.id;
+        } else {
+          break;
+        }
+      }
+      setActiveHeading(currentId);
+    };
+    const onScrollSpy = () => {
+      if (raf === 0) raf = requestAnimationFrame(update);
+    };
+    update();
+    scroller.addEventListener('scroll', onScrollSpy, { passive: true });
+    return () => {
+      scroller.removeEventListener('scroll', onScrollSpy);
+      if (raf !== 0) cancelAnimationFrame(raf);
+    };
+  }, [outlineOpen, headings, scrollRef]);
+
+  const outlineAvailable = view === 'markdown' && !simplified && !windowed;
 
   const language = languageOfPath(docPath);
 
@@ -235,6 +339,43 @@ function PreviewComponent({
           {view === 'code' ? `${t('preview.code')}${language ? ` · ${language}` : ''}` : t('preview.label')}
         </span>
         <div className="flex shrink-0 items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('preview.find')}
+                aria-pressed={findOpen}
+                onClick={() => onFindChange?.(!findOpen)}
+                className={cn(
+                  'inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
+                  findOpen && 'bg-accent text-accent-foreground',
+                )}
+              >
+                <Search className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t('preview.find')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('preview.outline')}
+                aria-pressed={outlineOpen}
+                disabled={!outlineAvailable}
+                onClick={() => setOutlineOpen((current) => !current)}
+                className={cn(
+                  'inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent',
+                  outlineOpen && outlineAvailable && 'bg-accent text-accent-foreground',
+                )}
+              >
+                <ListTree className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {outlineAvailable ? t('preview.outline') : t('preview.outlineUnavailable')}
+            </TooltipContent>
+          </Tooltip>
           {zoom !== 1 && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -287,32 +428,136 @@ function PreviewComponent({
         </div>
       </div>
 
-      <div
-        className="preview-scroll min-h-0 flex-1 overflow-auto overscroll-contain"
-        ref={scrollRef}
-        onScroll={onScroll}
-      >
-        {(windowed || simplified) && (
-          <div className="preview-note sticky top-0 z-10 border-b bg-card/95 px-8 py-1.5 text-[11.5px] text-muted-foreground backdrop-blur">
-            {windowed
-              ? t('preview.windowed', {
-                  mb: Math.round((totalLength ?? content.length) / 1_000_000),
-                  lines: new Intl.NumberFormat().format(PREVIEW_WINDOW_LINES),
-                })
-              : t('preview.simplified')}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {findOpen && (
+            <div
+              className="preview-find flex shrink-0 items-center gap-1 border-b bg-card px-3 py-1.5"
+              role="search"
+            >
+              <Search className="size-3.5 shrink-0 text-subtle-foreground" />
+              <input
+                ref={findInputRef}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    goToMatch(event.shiftKey ? -1 : 1);
+                  } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    requestCloseFind();
+                  }
+                }}
+                placeholder={t('preview.findPlaceholder')}
+                aria-label={t('preview.find')}
+                className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-subtle-foreground"
+              />
+              <span
+                className="shrink-0 px-1 text-[11px] tabular-nums text-muted-foreground"
+                aria-live="polite"
+              >
+                {query.trim() === ''
+                  ? ''
+                  : matchCount === 0
+                    ? t('preview.findNoResults')
+                    : `${matchIndex + 1}/${matchCount}`}
+              </span>
+              <button
+                type="button"
+                aria-label={t('preview.findPrevious')}
+                onClick={() => goToMatch(-1)}
+                className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <ChevronUp className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label={t('preview.findNext')}
+                onClick={() => goToMatch(1)}
+                className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <ChevronDown className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label={t('common.close')}
+                onClick={requestCloseFind}
+                className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          )}
+
+          <div
+            className="preview-scroll min-h-0 flex-1 overflow-auto overscroll-contain"
+            ref={scrollRef}
+            onScroll={onScroll}
+          >
+            {(windowed || simplified) && (
+              <div className="preview-note sticky top-0 z-10 border-b bg-card/95 px-8 py-1.5 text-[11.5px] text-muted-foreground backdrop-blur">
+                {windowed
+                  ? t('preview.windowed', {
+                      mb: Math.round((totalLength ?? content.length) / 1_000_000),
+                      lines: new Intl.NumberFormat().format(PREVIEW_WINDOW_LINES),
+                    })
+                  : t('preview.simplified')}
+              </div>
+            )}
+            <article
+              className="markdown-body mx-auto max-w-[980px] px-8 pt-7 pb-30"
+              style={{ fontSize: `${fontSize}px`, zoom }}
+              ref={(node) => {
+                articleRef.current = node;
+                if (contentRef) contentRef.current = node;
+              }}
+              onClick={(event) =>
+                handlePreviewClick(event.nativeEvent, { docPath, onOpenFile, onMessage })
+              }
+            />
           </div>
+        </div>
+
+        {outlineOpen && outlineAvailable && (
+          <aside
+            aria-label={t('preview.outline')}
+            className="preview-outline flex shrink-0 flex-col overflow-hidden border-l bg-card"
+          >
+            <p className="shrink-0 border-b px-3 py-2 text-[11px] font-semibold tracking-wide text-subtle-foreground uppercase">
+              {t('preview.outline')}
+            </p>
+            {headings.length === 0 ? (
+              <p className="px-3 py-2 text-[11.5px] text-muted-foreground">
+                {t('preview.outlineEmpty')}
+              </p>
+            ) : (
+              <nav className="min-h-0 flex-1 overflow-auto p-2">
+                <ul className="flex flex-col gap-0.5">
+                  {headings.map((heading) => (
+                    <li
+                      key={heading.id}
+                      style={{ paddingInlineStart: `${(heading.level - 1) * 10}px` }}
+                    >
+                      <button
+                        type="button"
+                        className="preview-outline-item truncate"
+                        aria-current={activeHeading === heading.id ? 'true' : undefined}
+                        onClick={() =>
+                          articleRef.current
+                            ?.querySelector(`#${CSS.escape(heading.id)}`)
+                            ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }
+                      >
+                        {heading.text}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+          </aside>
         )}
-        <article
-          className="markdown-body mx-auto max-w-[980px] px-8 pt-7 pb-30"
-          style={{ fontSize: `${fontSize}px`, zoom }}
-          ref={(node) => {
-            articleRef.current = node;
-            if (contentRef) contentRef.current = node;
-          }}
-          onClick={(event) =>
-            handlePreviewClick(event.nativeEvent, { docPath, onOpenFile, onMessage })
-          }
-        />
       </div>
     </div>
   );

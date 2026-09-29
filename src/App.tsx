@@ -142,6 +142,7 @@ export default function App() {
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
   const [pendingExport, setPendingExport] = useState<PendingExport | null>(null);
+  const [previewFindOpen, setPreviewFindOpen] = useState(false);
   const [recoveredDrafts, setRecoveredDrafts] = useState<backend.Draft[] | null>(null);
   const recoveredDraftsRef = useRef<backend.Draft[] | null>(null);
   recoveredDraftsRef.current = recoveredDrafts;
@@ -735,6 +736,18 @@ export default function App() {
     [updatePreferences],
   );
 
+  /** Closes the preview find bar and hands the focus back to the editor. */
+  const closePreviewFind = useCallback(() => {
+    setPreviewFindOpen(false);
+    const id = activeIdRef.current;
+    if (id) editorViews.current.get(id)?.focus();
+  }, []);
+
+  // The bar belongs to one document: switching tabs closes it.
+  useEffect(() => {
+    setPreviewFindOpen(false);
+  }, [activeId]);
+
   // A commit, a checkout or another program touching the file: check on focus.
   useEffect(() => {
     const onFocus = () => {
@@ -948,6 +961,18 @@ export default function App() {
       if (!mod) return;
       const key = event.key.toLowerCase();
 
+      if (key === 'f' && !event.defaultPrevented) {
+        const target = event.target as HTMLElement | null;
+        // Inside the editor CodeMirror's own search wins.
+        if (!target?.closest?.('.cm-editor')) {
+          const active = tabsRef.current.find((tab) => tab.id === activeIdRef.current);
+          if (active && active.mode !== 'edit') {
+            event.preventDefault();
+            setPreviewFindOpen(true);
+          }
+        }
+        return;
+      }
       if (key === 's') {
         event.preventDefault();
         void (event.shiftKey ? actions.current.saveAs() : actions.current.save());
@@ -1568,6 +1593,11 @@ export default function App() {
                     fontSize={preferences.previewFontSize}
                     initialZoom={preferences.previewZoom}
                     onZoomChange={handleZoomChange}
+                    findOpen={previewFindOpen}
+                    onFindChange={(open) => {
+                      if (open) setPreviewFindOpen(true);
+                      else closePreviewFind();
+                    }}
                     docPath={doc?.path ?? null}
                     onOpenFile={handleOpenFile}
                     onMessage={showMessage}
