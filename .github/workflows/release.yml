@@ -45,6 +45,8 @@ jobs:
         id: version
         shell: bash
         run: |
+          # The three files carry the same version or the release stops here.
+          node scripts/check-versions.mjs
           tag="${{ inputs.tag || github.ref_name }}"
           pkg="v$(node -p "require('./package.json').version")"
           if [ "$tag" != "$pkg" ]; then

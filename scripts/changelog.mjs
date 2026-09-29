@@ -71,7 +71,7 @@ function parseCommits(since) {
         text: match ? match[3] : subject,
       };
     })
-    .filter((commit) => !/^chore\(release\)/.test(commit.subject));
+    .filter((commit) => !commit.subject.startsWith('chore(release)'));
 }
 
 function section(version, since, commits) {

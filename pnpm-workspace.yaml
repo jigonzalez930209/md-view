@@ -4,3 +4,7 @@ allowBuilds:
   esbuild: true
   # Downloads the ffmpeg binary used by the promo video pipeline (scripts/promo).
   ffmpeg-static: true
+
+# Security: force the patched lodash-es used by mermaid's chevrotain.
+overrides:
+  lodash-es: '>=4.18.1'

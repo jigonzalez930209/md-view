@@ -1722,10 +1722,8 @@ mod tests {
         assert!(error.starts_with("read_only:"), "{error}");
         assert_eq!(fs::read(&target).expect("read"), b"original");
 
-        // Leave the file writable so the folder can be cleaned up.
-        let mut permissions = fs::metadata(&target).expect("metadata").permissions();
-        permissions.set_readonly(false);
-        let _ = fs::set_permissions(&target, permissions);
+        // The file is no longer needed: removing it also drops the read-only bit.
+        let _ = fs::remove_file(&target);
     }
 
     #[cfg(unix)]

@@ -424,10 +424,10 @@ export default function App() {
     const view = editorViewRef.current;
     const id = activeIdRef.current;
     if (!view || !id) return;
-    const doc = view.state.doc;
-    const lines = Math.min(PREVIEW_WINDOW_LINES, doc.lines);
-    const end = doc.line(lines).to;
-    updateTab(id, { window: doc.sliceString(0, end), length: doc.length });
+    const cmDoc = view.state.doc;
+    const lines = Math.min(PREVIEW_WINDOW_LINES, cmDoc.lines);
+    const end = cmDoc.line(lines).to;
+    updateTab(id, { window: cmDoc.sliceString(0, end), length: cmDoc.length });
   }, [updateTab]);
 
   /** Huge documents: we only flag changes and, after a pause, the window. */
@@ -950,8 +950,8 @@ export default function App() {
     let unlisten: (() => void) | null = null;
     void backend
       .onCloseRequested(() => {
-        const dirty = tabsRef.current.some((tab) => tab.dirty);
-        if (!dirty) {
+        const hasDirtyTabs = tabsRef.current.some((tab) => tab.dirty);
+        if (!hasDirtyTabs) {
           if (!backend.isTauri) return false;
           // Recovered drafts are not the app's to discard: leave them for the next run.
           const clear =
@@ -1039,14 +1039,15 @@ export default function App() {
   }, [deferredContent]);
 
   // Images loading or Mermaid finishing its render change heights.
+  const hasTabs = tabs.length > 0;
   useEffect(() => {
-    if (tabs.length === 0) return;
+    if (!hasTabs) return;
     const article = previewRef.current?.firstElementChild;
     if (!article) return;
     const observer = new ResizeObserver(() => invalidatePreviewAnchors(previewAnchors.current));
     observer.observe(article);
     return () => observer.disconnect();
-  }, [tabs.length > 0]);
+  }, [hasTabs]);
 
   // Remembers each tab's preview scroll without triggering sync.
   useEffect(() => {

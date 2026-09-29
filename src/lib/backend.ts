@@ -614,8 +614,8 @@ export async function takePendingOpen(): Promise<string[]> {
 /** Notifies when another instance asks to open a file (single instance). */
 export async function onExternalOpen(callback: () => void): Promise<UnlistenFn> {
   if (!isTauri) return () => {};
-  const { listen } = await import('@tauri-apps/api/event');
-  return listen('md-view://open', () => callback());
+  const { listen: listenEvent } = await import('@tauri-apps/api/event');
+  return listenEvent('md-view://open', () => callback());
 }
 
 /** Drag and drop files onto the window. */

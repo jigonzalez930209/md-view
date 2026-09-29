@@ -256,7 +256,7 @@ function PreviewComponent({
           .filter((heading) => heading.id !== '' && !seen.has(heading.id) && seen.add(heading.id)),
       );
     });
-  }, [rendered, theme, palette, simplified, view, onOpenFile, onMessage]);
+  }, [rendered, theme, palette, simplified, view, windowed, onOpenFile, onMessage]);
 
   // Highlights the matches whenever the query or the rendered HTML changes.
   useEffect(() => {
