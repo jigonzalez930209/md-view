@@ -18,6 +18,12 @@ import type { Theme } from './theme';
 
 export type DocEncoding = 'utf-8' | 'utf-16le' | 'utf-16be';
 
+/** Modification stamp of a file on disk: it changes when anybody else writes it. */
+export interface FileStamp {
+  mtimeMs: number;
+  size: number;
+}
+
 export interface Doc {
   /** Absolute path in Tauri; just the name in the browser. */
   path: string;
@@ -29,6 +35,9 @@ export interface Doc {
   bom: boolean;
   /** Encoding the file was read with, preserved when saving. */
   encoding: DocEncoding;
+  /** Stamp taken when it was read (zero in the browser). */
+  mtimeMs: number;
+  size: number;
 }
 
 export const isTauri =
@@ -100,6 +109,9 @@ function toDoc(path: string, name: string, content: string): Doc {
     bom,
     // The browser decodes picked files as UTF-8; it cannot tell us the real encoding.
     encoding: 'utf-8',
+    // Stamps are only meaningful in Tauri; here saving always downloads a copy.
+    mtimeMs: 0,
+    size: content.length,
   };
 }
 
@@ -161,19 +173,29 @@ export async function readFile(path: string): Promise<Doc> {
   return (await invoke('read_document', { path })) as Doc;
 }
 
-export async function saveFile(doc: Doc, content: string): Promise<void> {
+export async function saveFile(doc: Doc, content: string): Promise<FileStamp> {
   if (!isTauri) {
     const type = doc.encoding === 'utf-8' ? 'text/markdown;charset=utf-8' : 'text/markdown';
     downloadBlob(doc.name, new Blob([encodeDocument(doc, content)], { type }));
-    return;
+    return { mtimeMs: 0, size: content.length };
   }
-  await invoke('write_document', {
+  return (await invoke('write_document', {
     path: doc.path,
     content,
     eol: doc.eol,
     bom: doc.bom,
     encoding: doc.encoding,
-  });
+  })) as FileStamp;
+}
+
+/** true when the file still has the stamp it was read with (browser: always). */
+export async function documentUnchanged(
+  path: string,
+  mtimeMs: number,
+  size: number,
+): Promise<boolean> {
+  if (!isTauri) return true;
+  return (await invoke('check_document', { path, mtimeMs, size })) as boolean;
 }
 
 /** Asks for a new path for "Save as". Returns null if cancelled. */

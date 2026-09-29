@@ -22,6 +22,7 @@ import {
   PanelLeft,
   PanelRight,
   Pencil,
+  RotateCcw,
   Save,
   SaveAll,
   Shapes,
@@ -79,6 +80,8 @@ interface HeaderBarProps {
   onNewTab: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  canReload: boolean;
+  onReload: () => void;
   onCloseTab: () => void;
   onModeChange: (mode: ViewMode) => void;
   onThemeModeChange: (mode: ThemeMode) => void;
@@ -153,6 +156,8 @@ export function HeaderBar({
   onNewTab,
   onSave,
   onSaveAs,
+  canReload,
+  onReload,
   onCloseTab,
   onModeChange,
   onThemeModeChange,
@@ -406,6 +411,10 @@ export function HeaderBar({
               <SaveAll />
               {t('header.saveAs')}
               <DropdownMenuShortcut>{mod}+Shift+S</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!canReload} onSelect={onReload}>
+              <RotateCcw />
+              {t('header.reload')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>{t('header.view')}</DropdownMenuLabel>

@@ -10,6 +10,7 @@ import { TabBar } from './components/TabBar';
 import { SettingsDialog } from './components/SettingsDialog';
 import { UnsavedDialog } from './components/UnsavedDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { ConflictDialog } from './components/ConflictDialog';
 import { TooltipProvider } from './components/ui/tooltip';
 import { WindowResizeHandles } from './components/WindowResizeHandles';
 import { Welcome } from './components/Welcome';
@@ -50,7 +51,13 @@ interface OpenDoc {
   bom: boolean;
   /** Encoding of the file on disk; saving keeps it. */
   encoding: backend.DocEncoding;
+  /** Stamp of the file when it was read: changing it means somebody else wrote it. */
+  mtimeMs: number;
+  size: number;
 }
+
+/** What to do when the file changed on disk since it was read. */
+type ConflictChoice = 'overwrite' | 'reload' | 'cancel';
 
 interface Tab {
   id: string;
@@ -262,7 +269,15 @@ export default function App() {
         return;
       }
       const tab = makeTab(
-        { path: file.path, name: file.name, eol: file.eol, bom: file.bom, encoding: file.encoding },
+        {
+          path: file.path,
+          name: file.name,
+          eol: file.eol,
+          bom: file.bom,
+          encoding: file.encoding,
+          mtimeMs: file.mtimeMs,
+          size: file.size,
+        },
         file.content,
         inheritedMode(),
       );
@@ -308,7 +323,11 @@ export default function App() {
   const newDocument = useCallback(() => {
     const count = tabsRef.current.filter((tab) => tab.doc.path === null && tab.doc.name.startsWith(UNTITLED)).length;
     const name = count === 0 ? `${UNTITLED}.md` : `${UNTITLED}-${count + 1}.md`;
-    const tab = makeTab({ path: null, name, eol: '\n', bom: false, encoding: 'utf-8' }, '', 'split');
+    const tab = makeTab(
+      { path: null, name, eol: '\n', bom: false, encoding: 'utf-8', mtimeMs: 0, size: 0 },
+      '',
+      'split',
+    );
     setTabs((current) => [...current, tab]);
     activeIdRef.current = tab.id;
     setActiveId(tab.id);
@@ -322,7 +341,7 @@ export default function App() {
       return;
     }
     const tab = makeTab(
-      { path: null, name: 'demo.md', eol: '\n', bom: false, encoding: 'utf-8' },
+      { path: null, name: 'demo.md', eol: '\n', bom: false, encoding: 'utf-8', mtimeMs: 0, size: 0 },
       demoMarkdown,
       inheritedMode(),
     );
@@ -454,6 +473,71 @@ export default function App() {
 
   /* ---------------------------------- save ---------------------------------- */
 
+  /** Tabs already warned about an outside change (so the message is not repeated). */
+  const changedOnDisk = useRef(new Set<string>());
+  const conflictResolver = useRef<((choice: ConflictChoice) => void) | null>(null);
+  const [conflict, setConflict] = useState<{ name: string } | null>(null);
+
+  /** Asks what to do when the file changed on disk; resolves with the choice. */
+  const askConflict = useCallback(
+    (name: string) =>
+      new Promise<ConflictChoice>((resolve) => {
+        conflictResolver.current = resolve;
+        setConflict({ name });
+      }),
+    [],
+  );
+
+  const resolveConflict = useCallback((choice: ConflictChoice) => {
+    setConflict(null);
+    const resolve = conflictResolver.current;
+    conflictResolver.current = null;
+    resolve?.(choice);
+  }, []);
+
+  /** Replaces a tab with the file as it is on disk (revert). */
+  const reloadTab = useCallback(
+    async (id: string): Promise<boolean> => {
+      const tab = tabsRef.current.find((item) => item.id === id);
+      const path = tab?.doc.path;
+      if (!tab || !path) return false;
+      try {
+        const file = await backend.readFile(path);
+        // The editor gets the text before the state does, so both end up equal.
+        const view = editorViews.current.get(id);
+        if (view) {
+          view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: file.content } });
+        }
+        const huge = file.content.length > HUGE_DOC_LIMIT;
+        updateTab(id, {
+          doc: {
+            path: file.path,
+            name: file.name,
+            eol: file.eol,
+            bom: file.bom,
+            encoding: file.encoding,
+            mtimeMs: file.mtimeMs,
+            size: file.size,
+          },
+          content: file.content,
+          dirty: false,
+          window: huge ? headWindow(file.content, PREVIEW_WINDOW_LINES) : undefined,
+          length: huge ? file.content.length : undefined,
+          baseline: { text: file.content, branch: null },
+          changes: null,
+        });
+        void refreshBaseline(id, path, file.content);
+        changedOnDisk.current.delete(id);
+        showMessage(t('app.reloaded', { name: file.name }));
+        return true;
+      } catch (error) {
+        showMessage(error instanceof Error ? error.message : String(error), 'error');
+        return false;
+      }
+    },
+    [refreshBaseline, showMessage, updateTab],
+  );
+
   /** Current text of a tab: the active one is flushed from the editor, the rest come from their own view. */
   const tabText = useCallback(
     (id: string): string => {
@@ -482,18 +566,46 @@ export default function App() {
           target = await backend.pickSavePath(target ?? joinPath('', tab.doc.name));
         }
         if (!target) return false;
+        // Somebody else may have written the file since it was read.
+        if (!forcePath && previousPath === target && tab.doc.mtimeMs > 0) {
+          const unchanged = await backend.documentUnchanged(
+            target,
+            tab.doc.mtimeMs,
+            tab.doc.size,
+          );
+          if (!unchanged) {
+            const choice = await askConflict(tab.doc.name);
+            if (choice === 'cancel') return false;
+            if (choice === 'reload') return reloadTab(id);
+            // 'overwrite': we keep our text and write over the outside change.
+          }
+        }
         const nextDoc: OpenDoc = {
           path: target,
           name: basename(target),
           eol: tab.doc.eol,
           bom: tab.doc.bom,
           encoding: tab.doc.encoding,
+          mtimeMs: tab.doc.mtimeMs,
+          size: tab.doc.size,
         };
-        await backend.saveFile(
-          { path: target, name: nextDoc.name, eol: nextDoc.eol, bom: nextDoc.bom, encoding: nextDoc.encoding, content: text },
+        const stamp = await backend.saveFile(
+          {
+            path: target,
+            name: nextDoc.name,
+            eol: nextDoc.eol,
+            bom: nextDoc.bom,
+            encoding: nextDoc.encoding,
+            mtimeMs: nextDoc.mtimeMs,
+            size: nextDoc.size,
+            content: text,
+          },
           text,
         );
+        nextDoc.mtimeMs = stamp.mtimeMs;
+        nextDoc.size = stamp.size;
         updateTab(id, { doc: nextDoc, dirty: false, content: text });
+        changedOnDisk.current.delete(id);
         void refreshBaseline(id, target, text);
         if (previousPath !== target) {
           setRecents(await backend.addRecent(target));
@@ -507,7 +619,7 @@ export default function App() {
         return false;
       }
     },
-    [refreshBaseline, showMessage, tabText, updateTab],
+    [askConflict, refreshBaseline, reloadTab, showMessage, tabText, updateTab],
   );
 
   const save = useCallback(async () => {
@@ -519,6 +631,11 @@ export default function App() {
     const tab = currentTab();
     if (tab) await saveTab(tab.id, true);
   }, [currentTab, saveTab]);
+
+  const reloadActiveTab = useCallback(() => {
+    const id = activeIdRef.current;
+    if (id) void reloadTab(id);
+  }, [reloadTab]);
 
   /* ---------------------- closing with unsaved changes ---------------------- */
 
@@ -565,15 +682,43 @@ export default function App() {
     if (!closeBusy) setPendingClose(null);
   };
 
-  // A commit or checkout made elsewhere moves HEAD: re-read it on focus.
+  // A commit, a checkout or another program touching the file: check on focus.
   useEffect(() => {
     const onFocus = () => {
-      const tab = currentTab();
-      if (tab?.doc.path && tab.baseline?.branch) void refreshBaseline(tab.id, tab.doc.path, tab.baseline.text);
+      const list = tabsRef.current;
+      const active = list.find((tab) => tab.id === activeIdRef.current);
+      if (active?.doc.path && active.baseline?.branch) {
+        void refreshBaseline(active.id, active.doc.path, active.baseline.text);
+      }
+      for (const tab of list) {
+        const path = tab.doc.path;
+        if (!path || tab.doc.mtimeMs === 0) continue;
+        void backend
+          .documentUnchanged(path, tab.doc.mtimeMs, tab.doc.size)
+          .then((unchanged) => {
+            if (unchanged) {
+              changedOnDisk.current.delete(tab.id);
+              return;
+            }
+            if (tab.dirty) {
+              // Warn once; saving will ask what to do.
+              if (!changedOnDisk.current.has(tab.id)) {
+                changedOnDisk.current.add(tab.id);
+                showMessage(t('app.changedOnDisk', { name: tab.doc.name }));
+              }
+              return;
+            }
+            // Nothing to lose: take the version on disk.
+            void reloadTab(tab.id);
+          })
+          .catch(() => {
+            /* no backend: nothing to check */
+          });
+      }
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [currentTab, refreshBaseline]);
+  }, [refreshBaseline, reloadTab, showMessage]);
 
   // Actions reachable from global listeners without re-subscribing.
   const toggleTree = useCallback(() => setTreeOpen((current) => !current), []);
@@ -1183,6 +1328,8 @@ export default function App() {
             onNewTab={newDocument}
             onSave={() => void save()}
             onSaveAs={() => void saveAs()}
+            canReload={doc?.path != null}
+            onReload={reloadActiveTab}
             onCloseTab={closeActiveTab}
             onModeChange={setMode}
             onThemeModeChange={(value) => updatePreferences({ themeMode: value })}
@@ -1369,6 +1516,14 @@ export default function App() {
             confirmLabel={t('export.partialConfirm')}
             onConfirm={confirmExport}
             onCancel={() => setPendingExport(null)}
+          />
+
+          <ConflictDialog
+            open={conflict !== null}
+            name={conflict?.name ?? ''}
+            onOverwrite={() => resolveConflict('overwrite')}
+            onReload={() => resolveConflict('reload')}
+            onCancel={() => resolveConflict('cancel')}
           />
 
           <WindowResizeHandles />

@@ -24,6 +24,7 @@ const en = {
   'common.cancel': 'Cancel',
   'common.save': 'Save',
   'common.saveAll': 'Save all',
+  'common.reload': 'Reload',
   'common.discard': 'Discard',
   'common.close': 'Close',
   'common.reset': 'Reset',
@@ -49,6 +50,7 @@ const en = {
   'header.noDocument': 'No document',
   'header.save': 'Save',
   'header.saveAs': 'Save as…',
+  'header.reload': 'Reload from disk',
   'header.explorer': 'Explorer',
   'header.view': 'View',
   'header.viewEdit': 'Editor only',
@@ -190,6 +192,13 @@ const en = {
   'app.unsavedTitle': 'Unsaved changes',
   'app.unsavedPrompt': 'Save before closing?',
   'app.saving': 'Saving…',
+  'app.reloaded': 'Reloaded "{name}" from disk',
+  'app.changedOnDisk':
+    '"{name}" changed on disk. Saving will ask before overwriting the other change.',
+  'app.conflictTitle': 'File changed on disk',
+  'app.conflictBody':
+    '"{name}" was modified by another program. Keep your version, take the one on disk or cancel.',
+  'app.conflictOverwrite': 'Overwrite',
   'app.browserReopenOnly': 'In the browser you can only reopen files picked in this session.',
   'app.browserFolderOnly': 'In the browser you can only open the folder picked in this session.',
   'app.editorPlainNote':
@@ -265,6 +274,7 @@ const es: Record<TranslationKey, string> = {
   'common.cancel': 'Cancelar',
   'common.save': 'Guardar',
   'common.saveAll': 'Guardar todo',
+  'common.reload': 'Recargar',
   'common.discard': 'Descartar',
   'common.close': 'Cerrar',
   'common.reset': 'Restablecer',
@@ -289,6 +299,7 @@ const es: Record<TranslationKey, string> = {
   'header.noDocument': 'Sin documento',
   'header.save': 'Guardar',
   'header.saveAs': 'Guardar como…',
+  'header.reload': 'Recargar desde el disco',
   'header.explorer': 'Explorador',
   'header.view': 'Vista',
   'header.viewEdit': 'Solo editor',
@@ -423,6 +434,13 @@ const es: Record<TranslationKey, string> = {
   'app.unsavedTitle': 'Cambios sin guardar',
   'app.unsavedPrompt': '¿Querés guardar antes de cerrar?',
   'app.saving': 'Guardando…',
+  'app.reloaded': 'Se recargó "{name}" desde el disco',
+  'app.changedOnDisk':
+    '"{name}" cambió en el disco. Al guardar se preguntará antes de sobrescribir el otro cambio.',
+  'app.conflictTitle': 'El archivo cambió en el disco',
+  'app.conflictBody':
+    '"{name}" fue modificado por otro programa. Conservá tu versión, tomá la del disco o cancelá.',
+  'app.conflictOverwrite': 'Sobrescribir',
   'app.browserReopenOnly':
     'En el navegador solo se pueden reabrir los archivos elegidos en esta sesión.',
   'app.browserFolderOnly':

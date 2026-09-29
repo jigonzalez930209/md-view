@@ -381,6 +381,7 @@ async fn read_tree(path: String) -> Result<FolderTree, String> {
 struct PendingOpen(Mutex<Vec<String>>);
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Document {
     /// Absolute path of the file.
     path: String,
@@ -394,6 +395,10 @@ struct Document {
     bom: bool,
     /// Original encoding of the file: "utf-8", "utf-16le" or "utf-16be".
     encoding: String,
+    /// Last modification time in milliseconds, to detect outside changes.
+    mtime_ms: u64,
+    /// Size in bytes when it was read, as a second signal for the same check.
+    size: u64,
 }
 
 /* ------------------------------------------------------------------ */
@@ -414,7 +419,7 @@ async fn write_document(
     eol: Option<String>,
     bom: Option<bool>,
     encoding: Option<String>,
-) -> Result<(), String> {
+) -> Result<FileStamp, String> {
     write_document_impl(path, content, eol, bom, encoding)
 }
 
@@ -439,6 +444,7 @@ fn read_document_impl(path: String) -> Result<Document, String> {
         .file_name()
         .map(|value| value.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.clone());
+    let (mtime_ms, size) = file_stamp(&file);
 
     Ok(Document {
         path: file.to_string_lossy().into_owned(),
@@ -447,7 +453,43 @@ fn read_document_impl(path: String) -> Result<Document, String> {
         eol: eol.to_string(),
         bom,
         encoding: encoding.as_str().to_string(),
+        mtime_ms,
+        size,
     })
+}
+
+/// Last modification time (milliseconds since the epoch) and size of a file.
+/// A missing file reads as `(0, 0)`, which never matches a real stamp.
+fn file_stamp(path: &Path) -> (u64, u64) {
+    let Ok(metadata) = fs::metadata(path) else {
+        return (0, 0);
+    };
+    let mtime_ms = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
+    (mtime_ms, metadata.len())
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FileStamp {
+    mtime_ms: u64,
+    size: u64,
+}
+
+impl From<(u64, u64)> for FileStamp {
+    fn from((mtime_ms, size): (u64, u64)) -> Self {
+        FileStamp { mtime_ms, size }
+    }
+}
+
+/// true when the file still has the stamp the document was read with.
+#[tauri::command]
+fn check_document(path: String, mtime_ms: u64, size: u64) -> bool {
+    file_stamp(Path::new(&path)) == (mtime_ms, size)
 }
 
 fn write_document_impl(
@@ -456,7 +498,7 @@ fn write_document_impl(
     eol: Option<String>,
     bom: Option<bool>,
     encoding: Option<String>,
-) -> Result<(), String> {
+) -> Result<FileStamp, String> {
     let target = PathBuf::from(&path);
 
     let text = if eol.as_deref() == Some("\r\n") {
@@ -489,7 +531,8 @@ fn write_document_impl(
         }
     }
 
-    write_atomically(&target, &bytes)
+    write_atomically(&target, &bytes)?;
+    Ok(file_stamp(&target).into())
 }
 
 /// Writes to a temp file and renames: if anything fails, the original file stays intact.
@@ -1039,6 +1082,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_document,
             document_size,
+            check_document,
             read_tree,
             write_document,
             write_text_file,
@@ -1211,6 +1255,25 @@ mod tests {
         )
         .expect_err("latin-1 is not supported");
         assert!(error.contains("Unsupported encoding"), "{error}");
+    }
+
+    #[test]
+    fn check_document_detects_outside_changes() {
+        let dir = temp_dir();
+        let path = dir.join("watched.md");
+        let path_string = path.to_string_lossy().into_owned();
+        fs::write(&path, "first").expect("write");
+
+        let (mtime_ms, size) = file_stamp(&path);
+        assert!(check_document(path_string.clone(), mtime_ms, size));
+
+        // Somebody else appends to the file: both size and stamp change.
+        fs::write(&path, "first and more").expect("rewrite");
+        assert!(!check_document(path_string.clone(), mtime_ms, size));
+
+        // A missing file never matches a real stamp.
+        fs::remove_file(&path).expect("remove");
+        assert!(!check_document(path_string.clone(), mtime_ms, size));
     }
 
     #[test]
