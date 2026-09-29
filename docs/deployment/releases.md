@@ -57,14 +57,15 @@ any time with `pnpm changelog`.
 
 | Runner | Files | Notes |
 | --- | --- | --- |
-| `ubuntu-26.04` | `.deb`, `.rpm`, `.AppImage` | Needs `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `librsvg2-dev`, `libxdo-dev`, `patchelf` |
+| `ubuntu-22.04` | `.deb`, `.rpm`, `.AppImage` (x64) | Needs `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `librsvg2-dev`, `libxdo-dev`, `patchelf` |
+| `ubuntu-22.04-arm` | `.deb`, `.rpm`, `.AppImage` (arm64) | Same dependencies; GitHub's arm64 runner |
 | `macos-latest` | `.dmg` | Universal binary: `aarch64-apple-darwin` + `x86_64-apple-darwin` |
-| `windows-latest` | `.msi` (WiX), `.exe` (NSIS) | Tauri downloads WiX and NSIS during the build |
+| `windows-latest` | `.msi` (WiX), `.exe` (NSIS) | Tauri downloads WiX and NSIS during the build; x64 only for now (see the limitations page) |
 
 ::: warning Linux compatibility
-The Linux installers are built against Ubuntu 26.04's glibc, so they run on equally new or
-newer distributions. If you ever need to support older systems, switch **only the release
-job** to `ubuntu-22.04` (the CI can stay on 26.04).
+The Linux installers are built on Ubuntu 22.04 (glibc 2.35), so they run on 22.04 LTS and
+newer in both x64 and arm64. The CI keeps running on a newer image; only the release jobs use
+the older base on purpose.
 :::
 
 ## What each package declares

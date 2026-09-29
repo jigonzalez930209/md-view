@@ -67,7 +67,7 @@ jobs:
             printf '%s\n\n' "$body"
             printf -- '---\n\n'
             printf '**Installers**\n\n'
-            printf -- '- **Linux**: `.deb`, `.rpm` and AppImage\n'
+            printf -- '- **Linux**: `.deb`, `.rpm` and AppImage (x64 and arm64)\n'
             printf -- '- **macOS**: universal `.dmg` (Intel + Apple Silicon)\n'
             printf -- '- **Windows**: `.msi` and `.exe` (NSIS)\n\n'
             printf 'This build is unsigned: macOS and Windows will ask you to confirm the first launch.\n\n'
@@ -104,7 +104,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-26.04
+          # Built on 22.04 (glibc 2.35) so the packages run on 22.04 LTS and newer.
+          - platform: ubuntu-22.04
+            args: '--bundles deb,rpm,appimage'
+          - platform: ubuntu-22.04-arm
             args: '--bundles deb,rpm,appimage'
           - platform: macos-latest
             args: '--target universal-apple-darwin --bundles app,dmg'
@@ -118,7 +121,7 @@ jobs:
       # exist on Ubuntu 26.04. The RPM bundler is pure Rust, so `rpm`/`rpmbuild`
       # are not needed either.
       - name: Linux dependencies
-        if: matrix.platform == 'ubuntu-26.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -162,7 +165,7 @@ jobs:
       # package refuse to install there. Rewrite the field and replace the asset
       # uploaded by the previous step.
       - name: Fix the .deb dependencies
-        if: matrix.platform == 'ubuntu-26.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.create-release.outputs.tag }}

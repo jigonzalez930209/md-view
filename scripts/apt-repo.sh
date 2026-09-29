@@ -7,7 +7,7 @@
 # Layout produced under <output-dir> (served from GitHub Pages at /md-view/apt):
 #
 #   pool/main/m/md-view/*.deb
-#   dists/stable/main/binary-amd64/Packages(.gz)
+#   dists/stable/main/binary-<arch>/Packages(.gz)   (one per architecture found)
 #   dists/stable/Release  (+ Release.gpg and InRelease when signing is possible)
 #
 # The signature uses the armored private key in $APT_SIGNING_KEY (imported into
@@ -29,34 +29,43 @@ out="$(cd "$1" && pwd)"
 shift
 suite="stable"
 component="main"
-arch="amd64"
 
 pool="$out/pool/$component/m/md-view"
 mkdir -p "$pool"
+
+# One binary-<arch> index per architecture found in the packages (amd64, arm64...).
+# `dpkg-scanpackages --arch` filters by the Debian file name (`..._amd64.deb`),
+# which is how Tauri names the bundles.
+declare -A arches=()
 for deb in "$@"; do
   cp -f "$deb" "$pool/"
+  arch_of="$(dpkg-deb -f "$deb" Architecture)"
+  arches["$arch_of"]=1
 done
+arch_list="$(printf '%s\n' "${!arches[@]}" | sort | tr '\n' ' ' | sed 's/ $//')"
+echo "Architectures in this run: $arch_list"
 
-binary="$out/dists/$suite/$component/binary-$arch"
-mkdir -p "$binary"
-
-# `Filename:` inside Packages is relative to the repository root, so the scan
-# runs from there.
-(cd "$out" && dpkg-scanpackages --arch "$arch" pool >"$binary/Packages")
-gzip -9fk "$binary/Packages"
+for one_arch in "${!arches[@]}"; do
+  binary="$out/dists/$suite/$component/binary-$one_arch"
+  mkdir -p "$binary"
+  # `Filename:` inside Packages is relative to the repository root, so the scan
+  # runs from there.
+  (cd "$out" && dpkg-scanpackages --arch "$one_arch" pool >"$binary/Packages")
+  gzip -9fk "$binary/Packages"
+done
 
 dist_dir="$out/dists/$suite"
 
 # The Release file (with the checksums of everything under dists/<suite>) is
 # generated here instead of with apt-ftparchive, so the only tools needed are
 # dpkg-dev and gpg.
-python3 - "$dist_dir" "$suite" "$arch" "$component" <<'PY'
+python3 - "$dist_dir" "$suite" "$arch_list" "$component" <<'PY'
 import email.utils
 import hashlib
 import os
 import sys
 
-dist_dir, suite, arch, component = sys.argv[1:5]
+dist_dir, suite, arch_list, component = sys.argv[1:5]
 
 files = []
 for root, _dirs, names in os.walk(dist_dir):
@@ -76,7 +85,7 @@ lines = [
     'Label: md-view',
     f'Suite: {suite}',
     f'Codename: {suite}',
-    f'Architectures: {arch}',
+    f'Architectures: {arch_list}',
     f'Components: {component}',
     'Description: md-view APT repository',
     f'Date: {email.utils.formatdate(usegmt=True)}',

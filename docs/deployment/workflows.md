@@ -49,7 +49,8 @@ Three jobs:
 
 | Runner | `args` | Result |
 | --- | --- | --- |
-| `ubuntu-26.04` | `--bundles deb,rpm,appimage` | `.deb`, `.rpm`, AppImage |
+| `ubuntu-22.04` | `--bundles deb,rpm,appimage` | `.deb`, `.rpm`, AppImage (x64) |
+| `ubuntu-22.04-arm` | `--bundles deb,rpm,appimage` | Same, arm64 |
 | `macos-latest` | `--target universal-apple-darwin --bundles app,dmg` | Universal `.dmg` |
 | `windows-latest` | `--bundles msi,nsis` | `.msi`, `.exe` |
 
