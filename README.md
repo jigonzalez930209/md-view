@@ -103,14 +103,17 @@ in the documentation.
 ## Development
 
 ```bash
-pnpm typecheck                     # tsc --noEmit
-pnpm build                         # frontend
-(cd src-tauri && cargo fmt --check && cargo test)
+pnpm lint                          # oxlint
+pnpm typecheck && pnpm build       # tsc --noEmit + frontend
+pnpm e2e                           # Playwright smoke suites (browser mode)
+(cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test)
 pnpm docs:build                    # documentation (fails on dead links)
 ```
 
 - `pnpm dev` runs the frontend in a browser with fallbacks for the file system, which is the
   fastest way to work on the UI.
+- The [roadmap](ROADMAP.md) and the [known limitations](https://jigonzalez930209.github.io/md-view/reference/limitations)
+  describe where the project is going and what it deliberately does not do.
 - `pnpm app` is the real Tauri app (file system, dialogs, exports, printing).
 
 Architecture, thresholds and measurements are documented in the

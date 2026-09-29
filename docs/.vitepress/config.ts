@@ -76,6 +76,7 @@ export default defineConfig({
           { text: 'Backend (Tauri)', link: '/reference/backend' },
           { text: 'Performance', link: '/reference/performance' },
           { text: 'Security', link: '/reference/security' },
+          { text: 'Known limitations', link: '/reference/limitations' },
         ],
       },
       {
@@ -84,6 +85,7 @@ export default defineConfig({
           { text: 'Setup', link: '/development/setup' },
           { text: 'Project structure', link: '/development/structure' },
           { text: 'Tests', link: '/development/tests' },
+          { text: 'Roadmap', link: '/development/roadmap' },
           { text: 'Code style', link: '/development/code-style' },
           { text: 'Contributing', link: '/development/contributing' },
           { text: 'Promo video', link: '/development/promo-video' },
