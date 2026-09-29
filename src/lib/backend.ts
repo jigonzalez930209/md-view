@@ -13,6 +13,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { basename, extname, MARKDOWN_EXTENSIONS } from './paths';
+import { MAX_DOCUMENT_BYTES } from './limits';
 import { t } from './i18n';
 import type { Theme } from './theme';
 
@@ -168,6 +169,14 @@ export async function readFile(path: string): Promise<Doc> {
   if (!isTauri) {
     const file = browserFiles.get(path);
     if (!file) throw new Error(t('app.browserReopenOnly'));
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      throw new Error(
+        t('app.fileTooLarge', {
+          mb: Math.round(file.size / 1_000_000),
+          limit: Math.round(MAX_DOCUMENT_BYTES / 1_000_000),
+        }),
+      );
+    }
     return toDoc(path, path, await file.text());
   }
   return (await invoke('read_document', { path })) as Doc;

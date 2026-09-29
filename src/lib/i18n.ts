@@ -180,6 +180,7 @@ const en = {
   // App messages
   'app.previewNotReady': 'The preview is not ready yet',
   'app.openingLarge': 'Opening {mb} MB… (large document, this may take a few seconds)',
+  'app.fileTooLarge': 'This file is too large to open ({mb} MB; the limit is {limit} MB).',
   'app.saved': 'Saved',
   'app.savedIn': 'Saved in {dir}',
   'app.exporting': 'Exporting {label}…',
@@ -422,6 +423,7 @@ const es: Record<TranslationKey, string> = {
 
   'app.previewNotReady': 'La vista previa todavía no está lista',
   'app.openingLarge': 'Abriendo {mb} MB… (documento grande, puede tardar unos segundos)',
+  'app.fileTooLarge': 'Este archivo es demasiado grande para abrirlo ({mb} MB; el límite es {limit} MB).',
   'app.saved': 'Guardado',
   'app.savedIn': 'Guardado en {dir}',
   'app.exporting': 'Exportando {label}…',

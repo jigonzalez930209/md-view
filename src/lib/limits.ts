@@ -22,3 +22,5 @@ export const STATS_WORKER_LIMIT = 256_000;
 export const STATS_CHUNK = 2_000_000;
 /** From here on the document is "huge": the text is not copied to the state. */
 export const HUGE_DOC_LIMIT = 8_000_000;
+/** Hard cap for reading a document; above it the backend refuses (256 MB). */
+export const MAX_DOCUMENT_BYTES = 256 * 1024 * 1024;

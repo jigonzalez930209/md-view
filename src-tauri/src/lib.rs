@@ -428,12 +428,36 @@ async fn read_file_base64(path: String) -> Result<String, String> {
     read_file_base64_impl(path)
 }
 
+/// Biggest text document we are willing to read (the app advertises 100 MB).
+const MAX_DOCUMENT_BYTES: u64 = 256 * 1024 * 1024;
+/// Biggest image we inline as base64 during an export.
+const MAX_EMBED_BYTES: u64 = 32 * 1024 * 1024;
+
+/// Errors out when a file is bigger than `limit`, so huge files never reach memory.
+fn check_size(path: &Path, limit: u64) -> Result<u64, String> {
+    let size = fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
+    if size > limit {
+        return Err(format!(
+            "The file is too large to open ({} MB, the limit is {} MB)",
+            size / 1_000_000,
+            limit / 1_000_000
+        ));
+    }
+    Ok(size)
+}
+
 /// Disk read (blocking); the command runs it off the main thread.
 fn read_document_impl(path: String) -> Result<Document, String> {
     let file = PathBuf::from(&path);
+    if file.is_dir() {
+        return Err(format!("{path} is a folder, not a document"));
+    }
     if !file.is_file() {
         return Err(format!("File not found: {path}"));
     }
+    check_size(&file, MAX_DOCUMENT_BYTES)?;
 
     let bytes = fs::read(&file).map_err(|err| format!("Could not read {path}: {err}"))?;
     let (text, bom, encoding) =
@@ -587,7 +611,9 @@ fn write_base64_file(path: String, data: String) -> Result<(), String> {
 
 /// Reads a file and returns it as base64 (to embed images when exporting).
 fn read_file_base64_impl(path: String) -> Result<String, String> {
-    let bytes = fs::read(&path).map_err(|err| format!("Could not read {path}: {err}"))?;
+    let file = Path::new(&path);
+    check_size(file, MAX_EMBED_BYTES)?;
+    let bytes = fs::read(file).map_err(|err| format!("Could not read {path}: {err}"))?;
     Ok(BASE64.encode(bytes))
 }
 
@@ -1255,6 +1281,29 @@ mod tests {
         )
         .expect_err("latin-1 is not supported");
         assert!(error.contains("Unsupported encoding"), "{error}");
+    }
+
+    #[test]
+    fn reads_are_capped_before_touching_memory() {
+        let dir = temp_dir();
+        let big = dir.join("huge.md");
+        // Sparse file: no disk usage, but a size far above the cap.
+        let file = fs::File::create(&big).expect("create");
+        file.set_len(MAX_DOCUMENT_BYTES + 1).expect("resize");
+        drop(file);
+
+        let error = read_document_impl(big.to_string_lossy().into_owned())
+            .expect_err("oversized document is rejected");
+        assert!(error.contains("too large"), "{error}");
+
+        let error = read_file_base64_impl(big.to_string_lossy().into_owned())
+            .expect_err("oversized embed is rejected");
+        assert!(error.contains("too large"), "{error}");
+
+        // A folder is reported as such, not as a missing file.
+        let error = read_document_impl(dir.to_string_lossy().into_owned())
+            .expect_err("folders are rejected");
+        assert!(error.contains("folder"), "{error}");
     }
 
     #[test]
