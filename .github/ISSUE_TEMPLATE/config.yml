@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/jigonzalez930209/md-view/security/advisories/new
+    about: Report it privately, never in a public issue (see SECURITY.md)
+  - name: Question
+    url: https://github.com/jigonzalez930209/md-view/discussions
+    about: How do I…? Ask here instead of opening an issue
+  - name: Documentation
+    url: https://jigonzalez930209.github.io/md-view/
+    about: Guides, shortcuts and the reference

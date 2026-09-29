@@ -33,6 +33,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm versions
+      # The notices must match the dependency tree (pnpm notices regenerates them).
+      - run: pnpm notices -- --check
       # Only runtime dependencies: docs tooling advisories are not shipped.
       - run: pnpm audit --prod --audit-level high
       - run: pnpm typecheck

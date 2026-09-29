@@ -1,0 +1,47 @@
+name: Bug report
+description: Something is not working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A small document that triggers the problem is the most useful
+        thing you can attach.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From the About window or the installer name (for example 0.5.0)
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux (deb/rpm/AppImage)
+        - macOS
+        - Windows
+        - Browser mode (pnpm dev)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What did you do?
+      placeholder: Steps, and the Markdown that triggers it if there is one
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened?
+      description: Include the exact message if there is one
+    validations:
+      required: true

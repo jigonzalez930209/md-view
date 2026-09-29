@@ -27,5 +27,6 @@ Comment:
  The application embeds third-party libraries, all of them compatible with the
  MIT license above: markdown-it, KaTeX, Mermaid, CodeMirror, React, Tailwind
  CSS and Radix UI (MIT); highlight.js (BSD-3-Clause); DOMPurify (Apache-2.0 or
- MPL-2.0); lucide (ISC); Tauri (Apache-2.0 or MIT). Their complete license
- texts are distributed with the sources in the project repository.
+ MPL-2.0); lucide (ISC); Tauri (Apache-2.0 or MIT). The complete license texts
+ ship with the package in /usr/share/doc/md-view/THIRD-PARTY.md and with the
+ sources in the project repository.
