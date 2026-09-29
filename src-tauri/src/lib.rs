@@ -688,6 +688,23 @@ fn read_file_base64_impl(path: String) -> Result<String, String> {
     Ok(BASE64.encode(bytes))
 }
 
+/// Lets the asset protocol serve this path (the preview loads images through
+/// `asset://`, and the scope starts empty on purpose).
+#[tauri::command]
+fn allow_asset(app: AppHandle, path: String, recursive: bool) -> Result<(), String> {
+    let target = PathBuf::from(&path);
+    let scope = app.asset_protocol_scope();
+    if target.is_dir() {
+        scope
+            .allow_directory(&target, recursive)
+            .map_err(|err| command_error("io_error", err))
+    } else {
+        scope
+            .allow_file(&target)
+            .map_err(|err| command_error("io_error", err))
+    }
+}
+
 /// true when the app can write a PDF directly (WebKitGTK printing on Linux).
 #[tauri::command]
 fn supports_pdf() -> bool {
@@ -1247,6 +1264,7 @@ pub fn run() {
             read_file_base64,
             export_pdf,
             supports_pdf,
+            allow_asset,
             path_exists,
             git_baseline,
             set_window_background,

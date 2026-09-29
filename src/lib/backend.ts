@@ -197,8 +197,17 @@ export async function saveFile(doc: Doc, content: string): Promise<FileStamp> {
   })) as FileStamp;
 }
 
-/** true when the file still has the stamp it was read with (browser: always). */
-export async function documentUnchanged(
+/** Lets the asset protocol serve this path (previews load images through it). */
+export async function allowAsset(path: string, recursive: boolean): Promise<void> {
+  if (!isTauri) return;
+  try {
+    await invoke('allow_asset', { path, recursive });
+  } catch {
+    /* without the grant the preview loses some images, nothing else */
+  }
+}
+
+/** true when the file still has the stamp it was read with (browser: always). */export async function documentUnchanged(
   path: string,
   mtimeMs: number,
   size: number,

@@ -308,6 +308,8 @@ export default function App() {
           showMessage(t('app.openingLarge', { mb: Math.round(size / 1_000_000) }));
         }
         const file = await backend.readFile(path);
+        // The preview loads images through the asset protocol: grant the folder.
+        void backend.allowAsset(dirname(file.path), true);
         openDoc(file);
         setRecents(await backend.addRecent(file.path));
       } catch (error) {
@@ -1287,6 +1289,7 @@ export default function App() {
     try {
       const tree = await backend.pickFolder();
       if (!tree) return;
+      void backend.allowAsset(tree.root.path, true);
       setFolder(tree);
       updatePreferences({ treeOpen: true });
       const files = countTreeFiles(tree.root);
@@ -1303,8 +1306,8 @@ export default function App() {
     if (!folder) return;
     try {
       setFolder(await backend.readTree(folder.root.path));
-      showMessage(t('app.folderReloaded'));
-    } catch (error) {
+      void backend.allowAsset(folder.root.path, true);
+      showMessage(t('app.folderReloaded'));    } catch (error) {
       showMessage(backend.friendlyError(error), 'error');
     }
   }, [folder, showMessage]);

@@ -54,17 +54,25 @@ script and clicks on nodes don't run code.
 
 ## Local file access
 
-Images are served through Tauri's `asset:` protocol, which requires the CSP to allow `asset:`
-and the scope `**` (any path, because a document can reference images anywhere). This is a
-deliberate trade-off: md-view is a viewer, and any path the document references is expected to
-work. The app never *writes* outside the paths you choose in a dialog.
+Images are served through Tauri's `asset:` protocol. The configured scope starts **empty**: the
+app grants it at runtime for the folders you open (a document grants its folder, the explorer
+grants the tree root), so the webview can only read paths you have chosen. Documents that
+reference images outside those folders fall back to a normal load and may show a broken image.
+
+Markdown links to local files open with the system handler (`open_path`) — the same thing as
+double-clicking the file — but only when you click them. The app never *writes* outside the
+paths you choose in a dialog.
 
 ## Backend
 
 - All file operations go through explicit commands; the frontend cannot execute arbitrary
   shell commands.
-- Writes are atomic (temporary file + rename) and preserve permissions.
-- Errors are plain messages; no command returns filesystem metadata beyond what the UI shows.
+- Documents above 256 MB and embeds above 32 MB are rejected before they reach memory.
+- Text that is not valid UTF-8 (or UTF-16 with a BOM) is rejected instead of being rewritten.
+- Writes are atomic (unique temporary file, fsync, rename) and preserve permissions; read-only
+  files are never replaced silently.
+- Errors are translated from stable codes; no command returns filesystem metadata beyond what
+  the UI shows.
 
 ## Reporting a vulnerability
 
