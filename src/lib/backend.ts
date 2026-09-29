@@ -14,7 +14,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { basename, extname, MARKDOWN_EXTENSIONS } from './paths';
 import { MAX_DOCUMENT_BYTES } from './limits';
-import { t } from './i18n';
+import { t, type TranslationKey } from './i18n';
 import type { Theme } from './theme';
 
 export type DocEncoding = 'utf-8' | 'utf-16le' | 'utf-16be';
@@ -501,6 +501,32 @@ export async function setWindowTitle(title: string): Promise<void> {
 export function dirtyMessage(names: string[]): string {
   if (names.length === 1) return t('app.dirtyOne', { name: names[0] });
   return t('app.dirtyMany', { count: names.length });
+}
+
+/** Backend error codes → translation keys (the backend sends "code: detail"). */
+const ERROR_KEYS: Record<string, TranslationKey> = {
+  not_found: 'error.notFound',
+  not_a_file: 'error.notAFile',
+  not_a_directory: 'error.notADirectory',
+  permission_denied: 'error.permission',
+  too_large: 'error.tooLarge',
+  invalid_encoding: 'error.encoding',
+  unsupported_encoding: 'error.unsupportedEncoding',
+  read_only: 'error.readOnly',
+  io_error: 'error.io',
+  invalid_data: 'error.invalidData',
+  invalid_path: 'error.invalidPath',
+  print_failed: 'error.printFailed',
+  timeout: 'error.timeout',
+  unsupported: 'error.unsupported',
+};
+
+/** Translates a backend error, keeping the technical detail the OS returned. */
+export function friendlyError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const match = /^([a-z_]+):\s*([\s\S]*)$/.exec(raw);
+  const key = match ? ERROR_KEYS[match[1]] : undefined;
+  return key && match ? t(key, { detail: match[2] }) : raw;
 }
 
 /** Paths received from the command line (or when reusing the already open window). */

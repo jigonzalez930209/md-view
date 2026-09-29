@@ -5,7 +5,7 @@
 //! opening links with the browser and receiving files from the command line.
 
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -19,6 +19,30 @@ const RECENT_LIMIT: usize = 12;
 /// Folder tree limits, so the app does not freeze on huge repos.
 const TREE_MAX_ENTRIES: usize = 20_000;
 const TREE_MAX_DEPTH: u32 = 16;
+
+/* ------------------------------------------------------------------ */
+/* Errors                                                              */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Errors travel to the frontend as `code: detail` (for example
+ * `not_found: /home/me/notes.md`). The interface translates the code
+ * (`src/lib/backend.ts`) and shows the detail, so the user never reads a
+ * raw English `os error` and permission problems are distinguishable.
+ */
+
+fn command_error(code: &str, detail: impl std::fmt::Display) -> String {
+    format!("{code}: {detail}")
+}
+
+/// Maps an io error to one of the codes the frontend knows.
+fn io_code(err: &std::io::Error) -> &'static str {
+    match err.kind() {
+        std::io::ErrorKind::NotFound => "not_found",
+        std::io::ErrorKind::PermissionDenied => "permission_denied",
+        _ => "io_error",
+    }
+}
 
 /// Folders that add nothing and are usually huge.
 const TREE_IGNORED_DIRS: &[&str] = &[
@@ -347,7 +371,7 @@ fn read_tree_dir(path: &Path, depth: u32, budget: &mut usize) -> (Vec<TreeEntry>
 fn build_folder_tree(path: String) -> Result<FolderTree, String> {
     let root = PathBuf::from(&path);
     if !root.is_dir() {
-        return Err(format!("Not a directory: {path}"));
+        return Err(command_error("not_a_directory", &path));
     }
 
     let mut budget = TREE_MAX_ENTRIES;
@@ -439,10 +463,13 @@ fn check_size(path: &Path, limit: u64) -> Result<u64, String> {
         .map(|metadata| metadata.len())
         .unwrap_or(0);
     if size > limit {
-        return Err(format!(
-            "The file is too large to open ({} MB, the limit is {} MB)",
-            size / 1_000_000,
-            limit / 1_000_000
+        return Err(command_error(
+            "too_large",
+            format!(
+                "{} MB; the limit is {} MB",
+                size / 1_000_000,
+                limit / 1_000_000
+            ),
         ));
     }
     Ok(size)
@@ -452,16 +479,17 @@ fn check_size(path: &Path, limit: u64) -> Result<u64, String> {
 fn read_document_impl(path: String) -> Result<Document, String> {
     let file = PathBuf::from(&path);
     if file.is_dir() {
-        return Err(format!("{path} is a folder, not a document"));
+        return Err(command_error("not_a_file", &path));
     }
     if !file.is_file() {
-        return Err(format!("File not found: {path}"));
+        return Err(command_error("not_found", &path));
     }
     check_size(&file, MAX_DOCUMENT_BYTES)?;
 
-    let bytes = fs::read(&file).map_err(|err| format!("Could not read {path}: {err}"))?;
-    let (text, bom, encoding) =
-        decode(&bytes).map_err(|err| format!("Could not read {path}: {err}"))?;
+    let bytes =
+        fs::read(&file).map_err(|err| command_error(io_code(&err), format!("{path}: {err}")))?;
+    let (text, bom, encoding) = decode(&bytes)
+        .map_err(|reason| command_error("invalid_encoding", format!("{path}: {reason}")))?;
 
     let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
     let name = file
@@ -560,7 +588,29 @@ fn write_document_impl(
 }
 
 /// Writes to a temp file and renames: if anything fails, the original file stays intact.
+///
+/// Known limitation: the rename replaces the inode, so ownership, xattrs, ACLs
+/// and hard links of the original file are not preserved (permissions are).
 fn write_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
+    // Writing through a symlink must not replace the link with a regular file.
+    let resolved;
+    let target = match fs::symlink_metadata(target) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            resolved = fs::canonicalize(target).unwrap_or_else(|_| target.to_path_buf());
+            resolved.as_path()
+        }
+        _ => target,
+    };
+
+    let existing = fs::metadata(target).ok();
+    // A read-only file is not silently replaced: the user gets "Save as" instead.
+    if existing
+        .as_ref()
+        .is_some_and(|metadata| metadata.permissions().readonly())
+    {
+        return Err(command_error("read_only", target.display()));
+    }
+
     let dir = match target.parent() {
         Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
         _ => PathBuf::from("."),
@@ -568,25 +618,45 @@ fn write_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
 
     if !dir.exists() {
         fs::create_dir_all(&dir)
-            .map_err(|err| format!("Could not create the folder {}: {err}", dir.display()))?;
+            .map_err(|err| command_error(io_code(&err), format!("{}: {err}", dir.display())))?;
     }
 
     let name = target
         .file_name()
         .map(|value| value.to_string_lossy().into_owned())
         .unwrap_or_else(|| String::from("document.md"));
-    let temp = dir.join(format!(".{name}.md-view.tmp"));
+    // Unique name: two instances (or an autosave) must not collide on the temp file.
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let temp = dir.join(format!(
+        ".{name}.{}.{unique}.md-view.tmp",
+        std::process::id()
+    ));
 
-    fs::write(&temp, bytes).map_err(|err| format!("Could not write {}: {err}", temp.display()))?;
+    // Write and flush to disk before the rename: a crash must not leave an empty file.
+    let written = (|| -> std::io::Result<()> {
+        let mut file = fs::File::create(&temp)?;
+        file.write_all(bytes)?;
+        file.sync_all()
+    })();
+    if let Err(err) = written {
+        let _ = fs::remove_file(&temp);
+        return Err(command_error(
+            io_code(&err),
+            format!("{}: {err}", temp.display()),
+        ));
+    }
 
     // We keep the original file's permissions when it already existed.
-    if let Ok(metadata) = fs::metadata(target) {
+    if let Some(metadata) = existing {
         let _ = fs::set_permissions(&temp, metadata.permissions());
     }
 
     fs::rename(&temp, target).map_err(|err| {
         let _ = fs::remove_file(&temp);
-        format!("Could not save {}: {err}", target.display())
+        command_error(io_code(&err), format!("{}: {err}", target.display()))
     })
 }
 
@@ -605,7 +675,7 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
 fn write_base64_file(path: String, data: String) -> Result<(), String> {
     let bytes = BASE64
         .decode(data.as_bytes())
-        .map_err(|err| format!("Invalid binary data: {err}"))?;
+        .map_err(|err| command_error("invalid_data", err))?;
     write_atomically(Path::new(&path), &bytes)
 }
 
@@ -613,7 +683,8 @@ fn write_base64_file(path: String, data: String) -> Result<(), String> {
 fn read_file_base64_impl(path: String) -> Result<String, String> {
     let file = Path::new(&path);
     check_size(file, MAX_EMBED_BYTES)?;
-    let bytes = fs::read(file).map_err(|err| format!("Could not read {path}: {err}"))?;
+    let bytes =
+        fs::read(file).map_err(|err| command_error(io_code(&err), format!("{path}: {err}")))?;
     Ok(BASE64.encode(bytes))
 }
 
@@ -627,7 +698,7 @@ async fn export_pdf(window: tauri::WebviewWindow, path: String) -> Result<(), St
     use webkit2gtk::PrintOperationExt;
 
     let uri = gtk::glib::filename_to_uri(&path, None::<&str>)
-        .map_err(|err| format!("Invalid path: {err}"))?
+        .map_err(|err| command_error("invalid_path", err))?
         .to_string();
 
     let (sender, receiver) = std::sync::mpsc::channel::<Result<(), String>>();
@@ -646,24 +717,22 @@ async fn export_pdf(window: tauri::WebviewWindow, path: String) -> Result<(), St
                 let _ = finished.send(Ok(()));
             });
             operation.connect_failed(move |_, error| {
-                let _ = sender.send(Err(format!("Could not print: {error}")));
+                let _ = sender.send(Err(command_error("print_failed", error)));
             });
 
             operation.print();
         })
-        .map_err(|err| format!("Could not start printing: {err}"))?;
+        .map_err(|err| command_error("print_failed", err))?;
 
     receiver
         .recv_timeout(std::time::Duration::from_secs(180))
-        .map_err(|_| String::from("PDF export timed out"))?
+        .map_err(|_| command_error("timeout", "PDF"))?
 }
 
 #[cfg(not(target_os = "linux"))]
 #[tauri::command]
 async fn export_pdf(_window: tauri::WebviewWindow, _path: String) -> Result<(), String> {
-    Err(String::from(
-        "Direct PDF export is not available on this system",
-    ))
+    Err(command_error("unsupported", "PDF"))
 }
 
 /// Encoding a document was read with; it is kept so saving never re-encodes it.
@@ -688,7 +757,7 @@ impl Encoding {
             None | Some("utf-8") | Some("utf8") => Ok(Encoding::Utf8),
             Some("utf-16le") | Some("utf16le") => Ok(Encoding::Utf16Le),
             Some("utf-16be") | Some("utf16be") => Ok(Encoding::Utf16Be),
-            Some(other) => Err(format!("Unsupported encoding: {other}")),
+            Some(other) => Err(command_error("unsupported_encoding", other)),
         }
     }
 }
@@ -735,7 +804,7 @@ fn decode_utf16(bytes: &[u8], little_endian: bool) -> Result<String, String> {
             }
         })
         .collect();
-    String::from_utf16(&units).map_err(|_| String::from("the file is not valid UTF-16 text"))
+    String::from_utf16(&units).map_err(|_| String::from("not valid UTF-16 text"))
 }
 
 /* ------------------------------------------------------------------ */
@@ -815,14 +884,14 @@ async fn git_baseline(path: String) -> Option<GitBaseline> {
 fn open_external(app: AppHandle, url: String) -> Result<(), String> {
     app.opener()
         .open_url(url, None::<&str>)
-        .map_err(|err| format!("Could not open the link: {err}"))
+        .map_err(|err| command_error("io_error", err))
 }
 
 #[tauri::command]
 fn open_path(app: AppHandle, path: String) -> Result<(), String> {
     app.opener()
         .open_path(path, None::<&str>)
-        .map_err(|err| format!("Could not open the file: {err}"))
+        .map_err(|err| command_error("io_error", err))
 }
 
 /* ------------------------------------------------------------------ */
@@ -1280,7 +1349,7 @@ mod tests {
             Some(String::from("latin-1")),
         )
         .expect_err("latin-1 is not supported");
-        assert!(error.contains("Unsupported encoding"), "{error}");
+        assert!(error.starts_with("unsupported_encoding:"), "{error}");
     }
 
     #[test]
@@ -1294,16 +1363,16 @@ mod tests {
 
         let error = read_document_impl(big.to_string_lossy().into_owned())
             .expect_err("oversized document is rejected");
-        assert!(error.contains("too large"), "{error}");
+        assert!(error.starts_with("too_large:"), "{error}");
 
         let error = read_file_base64_impl(big.to_string_lossy().into_owned())
             .expect_err("oversized embed is rejected");
-        assert!(error.contains("too large"), "{error}");
+        assert!(error.starts_with("too_large:"), "{error}");
 
         // A folder is reported as such, not as a missing file.
         let error = read_document_impl(dir.to_string_lossy().into_owned())
             .expect_err("folders are rejected");
-        assert!(error.contains("folder"), "{error}");
+        assert!(error.starts_with("not_a_file:"), "{error}");
     }
 
     #[test]
@@ -1484,7 +1553,8 @@ mod tests {
 
     #[test]
     fn read_document_fails_with_missing_path() {
-        assert!(read_document_impl(String::from("/no/such/file.md")).is_err());
+        let error = read_document_impl(String::from("/no/such/file.md")).expect_err("missing");
+        assert!(error.starts_with("not_found:"), "{error}");
     }
 
     #[test]
@@ -1501,5 +1571,46 @@ mod tests {
             .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp"))
             .collect();
         assert!(leftovers.is_empty(), "leftover temp files: {leftovers:?}");
+    }
+
+    #[test]
+    fn write_atomically_refuses_read_only_files() {
+        let dir = temp_dir().join("readonly");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("folder");
+        let target = dir.join("locked.md");
+        fs::write(&target, "original").expect("write");
+        let mut permissions = fs::metadata(&target).expect("metadata").permissions();
+        permissions.set_readonly(true);
+        fs::set_permissions(&target, permissions).expect("chmod");
+
+        let error = write_atomically(&target, b"new").expect_err("read-only is refused");
+        assert!(error.starts_with("read_only:"), "{error}");
+        assert_eq!(fs::read(&target).expect("read"), b"original");
+
+        // Leave the file writable so the folder can be cleaned up.
+        let mut permissions = fs::metadata(&target).expect("metadata").permissions();
+        permissions.set_readonly(false);
+        let _ = fs::set_permissions(&target, permissions);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_atomically_keeps_symlinks() {
+        let dir = temp_dir().join("symlink");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("folder");
+        let real = dir.join("real.md");
+        let link = dir.join("link.md");
+        fs::write(&real, "original").expect("write");
+        std::os::unix::fs::symlink(&real, &link).expect("symlink");
+
+        write_atomically(&link, b"updated").expect("write through the link");
+
+        assert!(fs::symlink_metadata(&link)
+            .expect("metadata")
+            .file_type()
+            .is_symlink());
+        assert_eq!(fs::read(&real).expect("read"), b"updated");
     }
 }

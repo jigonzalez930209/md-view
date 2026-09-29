@@ -303,7 +303,7 @@ export default function App() {
         openDoc(file);
         setRecents(await backend.addRecent(file.path));
       } catch (error) {
-        showMessage(error instanceof Error ? error.message : String(error), 'error');
+        showMessage(backend.friendlyError(error), 'error');
       }
     },
     [openDoc, showMessage],
@@ -316,7 +316,7 @@ export default function App() {
       openDoc(file);
       setRecents(await backend.addRecent(file.path));
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : String(error), 'error');
+      showMessage(backend.friendlyError(error), 'error');
     }
   }, [openDoc, showMessage]);
 
@@ -531,7 +531,7 @@ export default function App() {
         showMessage(t('app.reloaded', { name: file.name }));
         return true;
       } catch (error) {
-        showMessage(error instanceof Error ? error.message : String(error), 'error');
+        showMessage(backend.friendlyError(error), 'error');
         return false;
       }
     },
@@ -615,7 +615,7 @@ export default function App() {
         }
         return true;
       } catch (error) {
-        showMessage(error instanceof Error ? error.message : String(error), 'error');
+        showMessage(backend.friendlyError(error), 'error');
         return false;
       }
     },
@@ -1146,7 +1146,7 @@ export default function App() {
           (tree.truncated ? t('app.folderTruncated') : ''),
       );
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : String(error), 'error');
+      showMessage(backend.friendlyError(error), 'error');
     }
   }, [showMessage]);
 
@@ -1156,7 +1156,7 @@ export default function App() {
       setFolder(await backend.readTree(folder.root.path));
       showMessage(t('app.folderReloaded'));
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : String(error), 'error');
+      showMessage(backend.friendlyError(error), 'error');
     }
   }, [folder, showMessage]);
 
@@ -1252,7 +1252,7 @@ export default function App() {
         const result = lightPdf ? await withLightPrint(palette, article, run) : await run();
         showMessage(partial ? `${result} — ${t('export.partialNote')}` : result);
       } catch (error) {
-        showMessage(error instanceof Error ? error.message : String(error), 'error');
+        showMessage(backend.friendlyError(error), 'error');
       } finally {
         if (restoreMode) setMode(restoreMode);
       }
