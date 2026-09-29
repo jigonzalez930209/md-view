@@ -243,6 +243,7 @@ const en = {
   // Export
   'export.pdf.label': 'PDF (paged)',
   'export.pdf.hint': 'Vector, with page breaks',
+  'export.pdfUnsupported': 'Not available on this system',
   'export.html.label': 'Self-contained HTML',
   'export.html.hint': 'Single file, no dependencies',
   'export.zip.label': 'PNG pages (ZIP)',
@@ -522,6 +523,7 @@ const es: Record<TranslationKey, string> = {
 
   'export.pdf.label': 'PDF (paginado)',
   'export.pdf.hint': 'Vectorial, con saltos de página',
+  'export.pdfUnsupported': 'No disponible en este sistema',
   'export.html.label': 'HTML autocontenido',
   'export.html.hint': 'Un solo archivo, sin dependencias',
   'export.zip.label': 'PNG por páginas (ZIP)',

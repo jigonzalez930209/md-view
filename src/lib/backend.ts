@@ -467,6 +467,16 @@ export async function exportPdf(path: string): Promise<void> {
   await invoke('export_pdf', { path });
 }
 
+/**
+ * true when PDF export can run: native printing on Linux, the print dialog in
+ * the browser. On macOS/Windows the platform cannot print the webview, so the
+ * menu disables the entry instead of failing at the end of the flow.
+ */
+export async function supportsPdf(): Promise<boolean> {
+  if (!isTauri) return true;
+  return (await invoke('supports_pdf')) as boolean;
+}
+
 export async function recentFiles(): Promise<string[]> {
   if (!isTauri) return browserReadRecents();
   return (await invoke('get_recents')) as string[];

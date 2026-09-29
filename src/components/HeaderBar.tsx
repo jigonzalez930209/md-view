@@ -96,6 +96,8 @@ interface HeaderBarProps {
   explorerSide: ExplorerSide;
   onExplorerSideChange: (side: ExplorerSide) => void;
   onExport: (format: ExportFormat) => void;
+  /** false on platforms without native printing: the PDF entry is disabled. */
+  pdfSupported: boolean;
   onClearRecents: () => void;
 }
 
@@ -172,6 +174,7 @@ export function HeaderBar({
   explorerSide,
   onExplorerSideChange,
   onExport,
+  pdfSupported,
   onClearRecents,
 }: HeaderBarProps) {
   const { t } = useI18n();
@@ -442,22 +445,25 @@ export function HeaderBar({
                 {t('header.export')}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-64">
-                {EXPORT_FORMATS.map((format) => (
-                  <DropdownMenuItem
-                    key={format.id}
-                    disabled={!docName}
-                    onSelect={() => onExport(format.id)}
-                    className="items-start"
-                  >
-                    <span className="mt-0.5">{EXPORT_ICONS[format.id]}</span>
-                    <span className="flex flex-col">
-                      <span>{t(format.labelKey)}</span>
-                      <span className="text-[11px] text-subtle-foreground">
-                        {t(format.hintKey)}
+                {EXPORT_FORMATS.map((format) => {
+                  const unsupported = format.id === 'pdf' && !pdfSupported;
+                  return (
+                    <DropdownMenuItem
+                      key={format.id}
+                      disabled={!docName || unsupported}
+                      onSelect={() => onExport(format.id)}
+                      className="items-start"
+                    >
+                      <span className="mt-0.5">{EXPORT_ICONS[format.id]}</span>
+                      <span className="flex flex-col">
+                        <span>{t(format.labelKey)}</span>
+                        <span className="text-[11px] text-subtle-foreground">
+                          {unsupported ? t('export.pdfUnsupported') : t(format.hintKey)}
+                        </span>
                       </span>
-                    </span>
-                  </DropdownMenuItem>
-                ))}
+                    </DropdownMenuItem>
+                  );
+                })}
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
                   checked={pdfLight}

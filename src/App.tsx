@@ -144,6 +144,7 @@ export default function App() {
   const [pendingExport, setPendingExport] = useState<PendingExport | null>(null);
   const [previewFindOpen, setPreviewFindOpen] = useState(false);
   const [recoveredDrafts, setRecoveredDrafts] = useState<backend.Draft[] | null>(null);
+  const [pdfSupported, setPdfSupported] = useState(true);
   const recoveredDraftsRef = useRef<backend.Draft[] | null>(null);
   recoveredDraftsRef.current = recoveredDrafts;
   const zoomPersistTimer = useRef<number | null>(null);
@@ -837,6 +838,7 @@ export default function App() {
       try {
         await restoreWindowGeometry();
         setRecents(await backend.recentFiles());
+        setPdfSupported(await backend.supportsPdf());
         const pending = await backend.takePendingOpen();
         for (const path of pending) await actions.current.openFile(path);
         // Session: only when the command line did not bring its own documents.
@@ -1432,6 +1434,11 @@ export default function App() {
       const tab = currentTab();
       const info = EXPORT_FORMATS.find((item) => item.id === format);
       if (!tab || !info) return;
+      // The PDF needs the platform printer, which the menu already reflects.
+      if (format === 'pdf' && !pdfSupported) {
+        showMessage(t('error.unsupported', { detail: t('export.pdf.label') }), 'error');
+        return;
+      }
       // Flush pending changes so the preview matches what we are going to export.
       const text = flushContent();
       const article = previewArticleRef.current;
@@ -1459,7 +1466,7 @@ export default function App() {
       }
       await runExport(format, target, tab.id, text, false);
     },
-    [currentTab, flushContent, runExport, showMessage],
+    [currentTab, flushContent, pdfSupported, runExport, showMessage],
   );
 
   const confirmExport = useCallback(() => {
@@ -1511,6 +1518,7 @@ export default function App() {
             explorerSide={preferences.explorerSide}
             onExplorerSideChange={(value) => updatePreferences({ explorerSide: value })}
             onExport={(format) => void handleExport(format)}
+            pdfSupported={pdfSupported}
             onClearRecents={() => void clearRecents()}
           />
 

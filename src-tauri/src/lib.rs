@@ -688,6 +688,12 @@ fn read_file_base64_impl(path: String) -> Result<String, String> {
     Ok(BASE64.encode(bytes))
 }
 
+/// true when the app can write a PDF directly (WebKitGTK printing on Linux).
+#[tauri::command]
+fn supports_pdf() -> bool {
+    cfg!(target_os = "linux")
+}
+
 /// Exports the current page to PDF with the WebKitGTK printing engine.
 ///
 /// Uses GTK's "Print to File" backend and waits for the operation to finish
@@ -1240,6 +1246,7 @@ pub fn run() {
             write_base64_file,
             read_file_base64,
             export_pdf,
+            supports_pdf,
             path_exists,
             git_baseline,
             set_window_background,
@@ -1614,6 +1621,13 @@ mod tests {
     fn read_document_fails_with_missing_path() {
         let error = read_document_impl(String::from("/no/such/file.md")).expect_err("missing");
         assert!(error.starts_with("not_found:"), "{error}");
+    }
+
+    #[test]
+    fn pdf_support_matches_the_platform() {
+        // WebKitGTK printing exists on Linux only; the frontend disables the
+        // entry (with an explanation) everywhere else.
+        assert_eq!(supports_pdf(), cfg!(target_os = "linux"));
     }
 
     #[test]
