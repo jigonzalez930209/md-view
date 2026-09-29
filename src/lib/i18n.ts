@@ -22,6 +22,8 @@ export const DEFAULT_LANGUAGE: Language = 'en';
 const en = {
   // Common
   'common.cancel': 'Cancel',
+  'common.save': 'Save',
+  'common.saveAll': 'Save all',
   'common.discard': 'Discard',
   'common.close': 'Close',
   'common.reset': 'Reset',
@@ -185,7 +187,9 @@ const en = {
   'app.folderReloaded': 'Folder reloaded',
   'app.dirtyOne': '"{name}" has unsaved changes.',
   'app.dirtyMany': 'There are {count} documents with unsaved changes.',
-  'app.discardQuestion': 'Do you want to discard them?',
+  'app.unsavedTitle': 'Unsaved changes',
+  'app.unsavedPrompt': 'Save before closing?',
+  'app.saving': 'Saving…',
   'app.browserReopenOnly': 'In the browser you can only reopen files picked in this session.',
   'app.browserFolderOnly': 'In the browser you can only open the folder picked in this session.',
   'app.editorPlainNote':
@@ -254,6 +258,8 @@ export type TranslationKey = keyof typeof en;
 
 const es: Record<TranslationKey, string> = {
   'common.cancel': 'Cancelar',
+  'common.save': 'Guardar',
+  'common.saveAll': 'Guardar todo',
   'common.discard': 'Descartar',
   'common.close': 'Cerrar',
   'common.reset': 'Restablecer',
@@ -409,7 +415,9 @@ const es: Record<TranslationKey, string> = {
   'app.folderReloaded': 'Carpeta recargada',
   'app.dirtyOne': '"{name}" tiene cambios sin guardar.',
   'app.dirtyMany': 'Hay {count} documentos con cambios sin guardar.',
-  'app.discardQuestion': '¿Querés descartarlos?',
+  'app.unsavedTitle': 'Cambios sin guardar',
+  'app.unsavedPrompt': '¿Querés guardar antes de cerrar?',
+  'app.saving': 'Guardando…',
   'app.browserReopenOnly':
     'En el navegador solo se pueden reabrir los archivos elegidos en esta sesión.',
   'app.browserFolderOnly':

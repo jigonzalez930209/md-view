@@ -8,7 +8,7 @@
  */
 
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
-import { ask, open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
+import { open as openFileDialog, save as saveFileDialog } from '@tauri-apps/plugin-dialog';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
@@ -435,17 +435,6 @@ export async function setWindowTitle(title: string): Promise<void> {
   } catch {
     /* no permission: not critical */
   }
-}
-
-/** Asks the user before losing changes. */
-export async function confirmDiscard(message: string): Promise<boolean> {
-  if (!isTauri) return window.confirm(`${message}\n\n${t('app.discardQuestion')}`);
-  return ask(message, {
-    title: 'md-view',
-    kind: 'warning',
-    okLabel: t('common.discard'),
-    cancelLabel: t('common.cancel'),
-  });
 }
 
 /** Standard message for documents with unsaved changes. */

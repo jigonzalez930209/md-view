@@ -8,6 +8,7 @@ import { Preview } from './components/Preview';
 import { StatusBar } from './components/StatusBar';
 import { TabBar } from './components/TabBar';
 import { SettingsDialog } from './components/SettingsDialog';
+import { UnsavedDialog } from './components/UnsavedDialog';
 import { TooltipProvider } from './components/ui/tooltip';
 import { WindowResizeHandles } from './components/WindowResizeHandles';
 import { Welcome } from './components/Welcome';
@@ -74,6 +75,9 @@ interface Message {
 
 const UNTITLED = 'untitled';
 
+/** Close action waiting for the user's decision about dirty documents. */
+type PendingClose = { kind: 'tab'; id: string } | { kind: 'window' };
+
 /** Counts files in the tree (for the message shown when opening the folder). */
 function countTreeFiles(entry: backend.TreeEntry): number {
   if (entry.kind === 'file') return 1;
@@ -114,6 +118,8 @@ export default function App() {
   const [ratio, setRatio] = useState(0.5);
   const [recents, setRecents] = useState<string[]>([]);
   const [message, setMessage] = useState<Message | null>(null);
+  const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
+  const [closeBusy, setCloseBusy] = useState(false);
   const [dropping, setDropping] = useState(false);
   const [draggingSplitter, setDraggingSplitter] = useState(false);
 
@@ -322,27 +328,35 @@ export default function App() {
     setActiveId(next.id);
   }, []);
 
+  /** Removes a tab (or closes the window) once the user has decided. */
+  const finishClose = useCallback((pending: PendingClose) => {
+    if (pending.kind === 'window') {
+      void backend.destroyWindow();
+      return;
+    }
+    const list = tabsRef.current;
+    const index = list.findIndex((item) => item.id === pending.id);
+    const next = list.filter((item) => item.id !== pending.id);
+    setTabs(next);
+    if (activeIdRef.current === pending.id) {
+      const neighbor = next[Math.min(index, next.length - 1)] ?? null;
+      activeIdRef.current = neighbor?.id ?? null;
+      setActiveId(neighbor?.id ?? null);
+    }
+  }, []);
+
   const closeTab = useCallback(
-    async (id: string) => {
+    (id: string) => {
       const tab = tabsRef.current.find((item) => item.id === id);
       if (!tab) return;
-
+      // Dirty documents go through the three-way dialog (save, discard or cancel).
       if (tab.dirty) {
-        const discard = await backend.confirmDiscard(backend.dirtyMessage([tab.doc.name]));
-        if (!discard) return;
+        setPendingClose({ kind: 'tab', id });
+        return;
       }
-
-      const list = tabsRef.current;
-      const index = list.findIndex((item) => item.id === id);
-      const next = list.filter((item) => item.id !== id);
-      setTabs(next);
-      if (activeIdRef.current === id) {
-        const neighbor = next[Math.min(index, next.length - 1)] ?? null;
-        activeIdRef.current = neighbor?.id ?? null;
-        setActiveId(neighbor?.id ?? null);
-      }
+      finishClose({ kind: 'tab', id });
     },
-    [],
+    [finishClose],
   );
 
   const closeActiveTab = useCallback(() => {
@@ -423,51 +437,115 @@ export default function App() {
 
   /* ---------------------------------- save ---------------------------------- */
 
+  /** Current text of a tab: the active one is flushed from the editor, the rest come from their own view. */
+  const tabText = useCallback(
+    (id: string): string => {
+      if (id === activeIdRef.current) return flushContent();
+      const view = editorViews.current.get(id);
+      if (view) return view.state.doc.toString();
+      return tabsRef.current.find((tab) => tab.id === id)?.content ?? '';
+    },
+    [flushContent],
+  );
+
+  /**
+   * Saves one tab (any tab, not only the active one).
+   * `forcePath` always asks for a new path ("Save as").
+   * Returns false when the user cancels or the write fails.
+   */
+  const saveTab = useCallback(
+    async (id: string, forcePath = false): Promise<boolean> => {
+      const tab = tabsRef.current.find((item) => item.id === id);
+      if (!tab) return true;
+      const text = tabText(id);
+      try {
+        const previousPath = tab.doc.path;
+        let target = previousPath;
+        if (forcePath || !target) {
+          target = await backend.pickSavePath(target ?? joinPath('', tab.doc.name));
+        }
+        if (!target) return false;
+        const nextDoc: OpenDoc = {
+          path: target,
+          name: basename(target),
+          eol: tab.doc.eol,
+          bom: tab.doc.bom,
+        };
+        await backend.saveFile(
+          { path: target, name: nextDoc.name, eol: nextDoc.eol, bom: nextDoc.bom, content: text },
+          text,
+        );
+        updateTab(id, { doc: nextDoc, dirty: false, content: text });
+        void refreshBaseline(id, target, text);
+        if (previousPath !== target) {
+          setRecents(await backend.addRecent(target));
+          showMessage(t('app.savedIn', { dir: dirname(target) }));
+        } else {
+          showMessage(t('app.saved'));
+        }
+        return true;
+      } catch (error) {
+        showMessage(error instanceof Error ? error.message : String(error), 'error');
+        return false;
+      }
+    },
+    [refreshBaseline, showMessage, tabText, updateTab],
+  );
+
   const save = useCallback(async () => {
     const tab = currentTab();
-    if (!tab) return;
-    const text = flushContent();
-    const path = tab.doc.path;
-    // A new document has no path yet: we ask for one.
-    if (!path) {
-      await saveAsRef.current();
-      return;
-    }
-    try {
-      await backend.saveFile(
-        { path, name: tab.doc.name, eol: tab.doc.eol, bom: tab.doc.bom, content: text },
-        text,
-      );
-      updateTab(tab.id, { dirty: false });
-      void refreshBaseline(tab.id, path, text);
-      showMessage(t('app.saved'));
-    } catch (error) {
-      showMessage(error instanceof Error ? error.message : String(error), 'error');
-    }
-  }, [currentTab, flushContent, refreshBaseline, showMessage, updateTab]);
-
-  /** Ref so `save` can trigger "Save as" without a circular dependency. */
-  const saveAsRef = useRef<() => Promise<void>>(async () => {});
+    if (tab) await saveTab(tab.id);
+  }, [currentTab, saveTab]);
 
   const saveAs = useCallback(async () => {
     const tab = currentTab();
-    if (!tab) return;
-    const text = flushContent();
-    try {
-      const suggested = tab.doc.path ?? joinPath('', tab.doc.name);
-      const target = await backend.pickSavePath(suggested);
-      if (!target) return;
+    if (tab) await saveTab(tab.id, true);
+  }, [currentTab, saveTab]);
 
-      const nextDoc: OpenDoc = { path: target, name: basename(target), eol: tab.doc.eol, bom: tab.doc.bom };
-      await backend.saveFile({ ...nextDoc, path: target, content: text }, text);
-      updateTab(tab.id, { doc: nextDoc, dirty: false });
-      void refreshBaseline(tab.id, target, text);
-      setRecents(await backend.addRecent(target));
-      showMessage(t('app.savedIn', { dir: dirname(target) }));
-    } catch (error) {
-      showMessage(error instanceof Error ? error.message : String(error), 'error');
+  /* ---------------------- closing with unsaved changes ---------------------- */
+
+  /** Names for the dialog: the tab being closed, or every dirty tab when quitting. */
+  const pendingNames = useMemo(() => {
+    if (!pendingClose) return [];
+    const list =
+      pendingClose.kind === 'tab'
+        ? tabs.filter((tab) => tab.id === pendingClose.id && tab.dirty)
+        : tabs.filter((tab) => tab.dirty);
+    return list.map((tab) => tab.doc.name);
+  }, [pendingClose, tabs]);
+
+  /** Save every document involved; the close continues only if all of them saved. */
+  const closeSaving = async () => {
+    if (!pendingClose || closeBusy) return;
+    const pending = pendingClose;
+    const ids =
+      pending.kind === 'tab'
+        ? [pending.id]
+        : tabsRef.current.filter((tab) => tab.dirty).map((tab) => tab.id);
+    setCloseBusy(true);
+    try {
+      for (const id of ids) {
+        const saved = await saveTab(id);
+        // The dialog stays open so the user can retry, discard or cancel.
+        if (!saved) return;
+      }
+    } finally {
+      setCloseBusy(false);
     }
-  }, [currentTab, flushContent, refreshBaseline, showMessage, updateTab]);
+    setPendingClose(null);
+    finishClose(pending);
+  };
+
+  const closeDiscarding = () => {
+    if (!pendingClose || closeBusy) return;
+    const pending = pendingClose;
+    setPendingClose(null);
+    finishClose(pending);
+  };
+
+  const closeCancelled = () => {
+    if (!closeBusy) setPendingClose(null);
+  };
 
   // A commit or checkout made elsewhere moves HEAD: re-read it on focus.
   useEffect(() => {
@@ -506,7 +584,6 @@ export default function App() {
     toggleTree,
     openSettings,
   };
-  saveAsRef.current = saveAs;
 
   /* -------------------------------- effects --------------------------------- */
 
@@ -574,19 +651,13 @@ export default function App() {
     return () => unlisten?.();
   }, []);
 
-  // Window close with unsaved changes (in any tab).
+  // Window close with unsaved changes (in any tab): the in-app dialog decides.
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     void backend
       .onCloseRequested(() => {
-        const dirtyTabs = tabsRef.current.filter((tab) => tab.dirty);
-        if (dirtyTabs.length === 0) return false;
-        void (async () => {
-          const discard = await backend.confirmDiscard(
-            backend.dirtyMessage(dirtyTabs.map((tab) => tab.doc.name)),
-          );
-          if (discard) await backend.destroyWindow();
-        })();
+        if (tabsRef.current.every((tab) => !tab.dirty)) return false;
+        setPendingClose({ kind: 'window' });
         return true;
       })
       .then((fn) => {
@@ -1200,6 +1271,15 @@ export default function App() {
             onReset={resetPreferences}
             onClearRecents={() => void clearRecents()}
             recentsCount={recents.length}
+          />
+
+          <UnsavedDialog
+            open={pendingClose !== null}
+            names={pendingNames}
+            busy={closeBusy}
+            onSave={() => void closeSaving()}
+            onDiscard={closeDiscarding}
+            onCancel={closeCancelled}
           />
 
           <WindowResizeHandles />
