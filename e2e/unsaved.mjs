@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 // Local verification for issue #2: Save / Discard / Cancel before closing a dirty tab.
 import { chromium } from 'playwright';
-import { appDialog as dialog, BASE_URL as URL, createReporter, tab } from './harness.mjs';
+import { appDialog as dialog, BASE_URL as URL, createReporter, selectAll, tab } from './harness.mjs';
 
 const { check, finish } = createReporter();
 
@@ -15,7 +15,7 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 
 async function typeInEditor(text) {
   await page.locator('.cm-content').last().click();
-  await page.keyboard.press('Control+a');
+  await selectAll(page);
   await page.keyboard.type(text);
   await page.waitForTimeout(150);
 }

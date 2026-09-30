@@ -38,3 +38,10 @@ export function tab(page, name) {
 export function editorText(page) {
   return page.locator('.cm-content').last().innerText();
 }
+
+/** Modifier key for native shortcuts: Meta (Cmd) on macOS, Control elsewhere. */
+export const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+export async function selectAll(page) {
+  await page.keyboard.press(`${MOD}+a`);
+}

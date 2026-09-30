@@ -1,6 +1,6 @@
 // Local verification for issue #11: keyboard access, live regions and splitter a11y.
 import { chromium } from 'playwright';
-import { appDialog as dialog, BASE_URL as URL, createReporter, fixture } from './harness.mjs';
+import { appDialog as dialog, BASE_URL as URL, createReporter, fixture, selectAll } from './harness.mjs';
 
 const { check, finish } = createReporter();
 
@@ -97,7 +97,7 @@ check('the tab is gone', await page.locator('button[role="tab"]').filter({ hasTe
 
 // --- Live status -------------------------------------------------------------
 await page.locator('.cm-content').last().click();
-await page.keyboard.press('Control+a');
+await selectAll(page);
 await page.keyboard.type('save me');
 await page.waitForTimeout(150);
 const download = page.waitForEvent('download');

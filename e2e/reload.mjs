@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 // Local verification for issue #3: reload from disk discards local edits and refreshes state.
 import { chromium } from 'playwright';
-import { BASE_URL as URL, createReporter } from './harness.mjs';
+import { BASE_URL as URL, createReporter, selectAll } from './harness.mjs';
 
 const { check, finish } = createReporter();
 
@@ -27,7 +27,7 @@ const editorText = () => page.locator('.cm-content').last().innerText();
 
 // Edit: the tab turns dirty.
 await page.locator('.cm-content').last().click();
-await page.keyboard.press('Control+a');
+await selectAll(page);
 await page.keyboard.type('local edit that will be discarded');
 await page.waitForTimeout(200);
 check('editing marks the tab dirty', await tab().getAttribute('data-dirty') === 'true');
@@ -46,7 +46,7 @@ check(
 
 // Saving after a reload keeps working.
 await page.locator('.cm-content').last().click();
-await page.keyboard.press('Control+a');
+await selectAll(page);
 await page.keyboard.type('after reload');
 await page.waitForTimeout(150);
 const downloadPromise = page.waitForEvent('download');
