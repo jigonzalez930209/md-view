@@ -87,10 +87,10 @@ const lines = [
   '',
 ];
 
-for (const [license, texts] of [...textsByGroup.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+for (const [license, texts] of [...textsByGroup.entries()].toSorted(([a], [b]) => a.localeCompare(b))) {
   lines.push(`### ${license}`, '');
   for (const entry of texts.values()) {
-    const names = [...new Set(entry.names)].sort().join(', ');
+    const names = [...new Set(entry.names)].toSorted().join(', ');
     lines.push(`Used by: ${names}`, '', '```', entry.text, '```', '');
   }
 }
@@ -98,7 +98,7 @@ for (const [license, texts] of [...textsByGroup.entries()].sort(([a], [b]) => a.
 if (unknown.length > 0) {
   lines.push('## Packages without a declared license', '');
   lines.push('These declare no license and need a manual review before a release:', '');
-  for (const entry of unknown.sort()) lines.push(`- ${entry}`);
+  for (const entry of unknown.toSorted()) lines.push(`- ${entry}`);
   lines.push('');
 }
 
@@ -122,7 +122,7 @@ if (unknown.length > 0) {
   const message = `Packages without a declared license: ${unknown.length}`;
   if (strict) {
     console.error(message);
-    console.error(unknown.sort().join(', '));
+    console.error(unknown.toSorted().join(', '));
     process.exit(1);
   }
   console.warn(message);
