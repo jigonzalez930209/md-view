@@ -11,7 +11,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: From the About window or the installer name (for example 0.5.0)
+      description: From the About window or the installer name (for example 0.7.0)
     validations:
       required: true
   - type: dropdown
@@ -19,17 +19,48 @@ body:
     attributes:
       label: Platform
       options:
-        - Linux (deb/rpm/AppImage)
-        - macOS
-        - Windows
+        - Linux (.deb)
+        - Linux (.rpm)
+        - Linux (AppImage)
+        - Linux (APT repository)
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows (.msi)
+        - Windows (.exe)
         - Browser mode (pnpm dev)
     validations:
       required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Desktop Environment / Display Scaling
+      description: e.g. GNOME Wayland, KDE X11, macOS Retina, Windows 11 at 125% DPI
+    validations:
+      required: false
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Area
+      description: What part of the app is failing?
+      options:
+        - Native Dialogs (Open / Save / Save As)
+        - File Association / Drag & Drop
+        - External Changes & File Conflicts
+        - Encodings (UTF-16, Latin1, BOM)
+        - Preview / Markdown / Mermaid / KaTeX
+        - Find in Preview / Headings Outline
+        - Session Restore / Unsaved Drafts
+        - Export (PDF, HTML, SVG, Image) or Print
+        - Performance / Large Files
+        - Accessibility / Screen Reader / Keyboard navigation
+        - Other
+    validations:
+      required: false
   - type: textarea
     id: steps
     attributes:
       label: What did you do?
-      placeholder: Steps, and the Markdown that triggers it if there is one
+      placeholder: Exact steps, and the Markdown snippet/document that triggers it if there is one
     validations:
       required: true
   - type: textarea
@@ -42,6 +73,6 @@ body:
     id: happened
     attributes:
       label: What happened?
-      description: Include the exact message if there is one
+      description: Include the exact error message, screenshot or console output if there is one
     validations:
       required: true

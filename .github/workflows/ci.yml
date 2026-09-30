@@ -17,7 +17,7 @@ concurrency:
 jobs:
   frontend:
     name: Frontend (typecheck + build)
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -44,8 +44,12 @@ jobs:
       - run: pnpm docs:build
 
   e2e:
-    name: End-to-end smoke (browser mode)
-    runs-on: ubuntu-26.04
+    name: End-to-end smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -62,14 +66,12 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: pnpm e2e
 
-  backend:
-    name: Backend (fmt + tests)
-    runs-on: ubuntu-26.04
+  backend-quality:
+    name: Backend quality (fmt + clippy + audit)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # No appindicator: the app has no system tray (we don't compile Tauri's
-      # `tray-icon` feature) and that package does not exist on 26.04.
       - name: System dependencies
         run: |
           sudo apt-get update
@@ -82,7 +84,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
@@ -98,6 +100,34 @@ jobs:
         uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  backend-test:
+    name: Backend tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Linux system dependencies
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            patchelf
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.os }}
 
       - name: Tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
