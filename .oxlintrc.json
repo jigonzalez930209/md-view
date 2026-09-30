@@ -36,7 +36,8 @@
     {
       "files": [
         "scripts/**",
-        "docs/.vitepress/**"
+        "docs/.vitepress/**",
+        "e2e/**"
       ],
       "rules": {
         "no-console": "off",

@@ -85,9 +85,11 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | @radix-ui/react-use-size | 1.1.4 | MIT |
 | @radix-ui/react-visually-hidden | 1.2.11 | MIT |
 | @radix-ui/rect | 1.1.3 | MIT |
+| @rolldown/binding-linux-x64-gnu | 1.2.11 | MIT |
 | @rolldown/pluginutils | 1.0.1 | MIT |
 | @tailwindcss/node | 4.3.3 | MIT |
 | @tailwindcss/oxide | 4.3.3 | MIT |
+| @tailwindcss/oxide-linux-x64-gnu | 4.3.3 | MIT |
 | @tailwindcss/vite | 4.3.3 | MIT |
 | @tauri-apps/api | 2.11.1 | Apache-2.0 OR MIT |
 | @tauri-apps/plugin-dialog | 2.7.3 | MIT OR Apache-2.0 |
@@ -123,6 +125,10 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | @types/d3-transition | 3.0.9 | MIT |
 | @types/d3-zoom | 3.0.8 | MIT |
 | @types/geojson | 7946.0.16 | MIT |
+| @types/node | 26.6.2 | MIT |
+| @types/react | 19.3.0 | MIT |
+| @types/react-dom | 19.3.0 | MIT |
+| @types/trusted-types | 2.0.7 | MIT |
 | @upsetjs/venn.js | 2.0.0 | MIT |
 | @vscode/markdown-it-katex | 1.1.2 | MIT |
 | argparse | 3.0.2 | PSF-2.0 |
@@ -133,6 +139,7 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | commander | 7.2.0, 8.3.0 | MIT |
 | cose-base | 1.0.3, 2.2.0 | MIT |
 | crelt | 1.0.7 | MIT |
+| csstype | 3.2.3 | MIT |
 | cytoscape | 3.34.3 | MIT |
 | cytoscape-cose-bilkent | 4.1.0 | MIT |
 | cytoscape-fcose | 2.2.0 | MIT |
@@ -197,6 +204,7 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | khroma | 2.1.0 | MIT |
 | layout-base | 1.0.2, 2.0.1 | MIT |
 | lightningcss | 1.32.0, 1.33.0 | MPL-2.0 |
+| lightningcss-linux-x64-gnu | 1.32.0, 1.33.0 | MPL-2.0 |
 | linkify-it | 6.1.0 | MIT |
 | lodash-es | 4.18.1 | MIT |
 | lucide-react | 1.48.0 | ISC |
@@ -242,6 +250,7 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | tslib | 2.8.1 | 0BSD |
 | tw-animate-css | 1.4.0 | MIT |
 | uc.micro | 3.0.0 | MIT |
+| undici-types | 8.9.0 | MIT |
 | use-callback-ref | 1.3.3 | MIT |
 | use-sidecar | 1.1.3 | MIT |
 | uuid | 14.0.2 | MIT |
@@ -2430,7 +2439,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-Used by: @tailwindcss/node, @tailwindcss/oxide, @tailwindcss/vite, tailwindcss
+Used by: @tailwindcss/node, @tailwindcss/oxide, @tailwindcss/oxide-linux-x64-gnu, @tailwindcss/vite, tailwindcss
 
 ```
 MIT License
@@ -2456,7 +2465,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-Used by: @types/d3, @types/d3-array, @types/d3-axis, @types/d3-brush, @types/d3-chord, @types/d3-color, @types/d3-contour, @types/d3-delaunay, @types/d3-dispatch, @types/d3-drag, @types/d3-dsv, @types/d3-ease, @types/d3-fetch, @types/d3-force, @types/d3-format, @types/d3-geo, @types/d3-hierarchy, @types/d3-interpolate, @types/d3-path, @types/d3-polygon, @types/d3-quadtree, @types/d3-random, @types/d3-scale, @types/d3-scale-chromatic, @types/d3-selection, @types/d3-shape, @types/d3-time, @types/d3-time-format, @types/d3-timer, @types/d3-transition, @types/d3-zoom, @types/geojson
+Used by: @types/d3, @types/d3-array, @types/d3-axis, @types/d3-brush, @types/d3-chord, @types/d3-color, @types/d3-contour, @types/d3-delaunay, @types/d3-dispatch, @types/d3-drag, @types/d3-dsv, @types/d3-ease, @types/d3-fetch, @types/d3-force, @types/d3-format, @types/d3-geo, @types/d3-hierarchy, @types/d3-interpolate, @types/d3-path, @types/d3-polygon, @types/d3-quadtree, @types/d3-random, @types/d3-scale, @types/d3-scale-chromatic, @types/d3-selection, @types/d3-shape, @types/d3-time, @types/d3-time-format, @types/d3-timer, @types/d3-transition, @types/d3-zoom, @types/geojson, @types/node, @types/react, @types/react-dom, @types/trusted-types
 
 ```
 MIT License
@@ -2694,6 +2703,30 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+```
+
+Used by: csstype
+
+```
+Copyright (c) 2017-2018 Fredrik Nicol
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 Used by: cytoscape
@@ -4052,6 +4085,32 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+Used by: undici-types
+
+```
+MIT License
+
+Copyright (c) Matteo Collina and Undici contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 Used by: uuid
@@ -6447,7 +6506,7 @@ DEALINGS IN THE SOFTWARE.
 
 ### MPL-2.0
 
-Used by: lightningcss
+Used by: lightningcss, lightningcss-linux-x64-gnu
 
 ```
 Mozilla Public License Version 2.0

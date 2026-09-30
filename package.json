@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "e2e": "node e2e/run.mjs",
+    "fixtures": "bash scripts/setup-fixtures.sh",
     "versions": "node scripts/check-versions.mjs",
     "notices": "node scripts/third-party.mjs",
     "icons": "python3 scripts/generate-icons.py",
