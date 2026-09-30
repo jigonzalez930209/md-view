@@ -17,6 +17,10 @@ Everything below assumes version **0.7.0** (replace with the version under test)
 
 ### 1.2 Fixtures (once per machine)
 
+You can generate all fixtures automatically with `pnpm fixtures` (or `./scripts/setup-fixtures.sh` on Linux/macOS, `powershell -ExecutionPolicy Bypass -File scripts/setup-fixtures.ps1` on Windows).
+
+Or manually:
+
 Linux / macOS:
 
 ```bash

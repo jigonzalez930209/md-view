@@ -62,8 +62,9 @@ on every push to `main`, every pull request **and every tag**:
 | Job | Steps |
 | --- | --- |
 | Frontend | install, `pnpm lint`, `pnpm versions`, `pnpm notices -- --check`, runtime-only `pnpm audit`, typecheck, build, docs build |
-| End to end | install, Chromium, `pnpm e2e` |
-| Backend | system dependencies, `cargo fmt --check`, `cargo clippy -D warnings`, Rust advisories, `cargo test` |
+| End to end (Matrix) | `ubuntu-latest`, `macos-latest`, `windows-latest`: install, Chromium, `pnpm e2e` (9 smoke suites) |
+| Backend quality | Linux: system dependencies, `cargo fmt --check`, `cargo clippy -D warnings`, Rust advisories |
+| Backend tests (Matrix) | `ubuntu-latest`, `macos-latest`, `windows-latest`: `cargo test` (21 unit tests covering encoding, symlinks, git, outside changes, platform PDF checks) |
 
 Dependabot keeps npm, cargo and the workflow actions updated every week. The documentation is
 built and deployed by
