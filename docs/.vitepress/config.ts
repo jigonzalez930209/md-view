@@ -85,6 +85,7 @@ export default defineConfig({
           { text: 'Setup', link: '/development/setup' },
           { text: 'Project structure', link: '/development/structure' },
           { text: 'Tests', link: '/development/tests' },
+          { text: 'Manual test plan', link: '/development/manual-testing' },
           { text: 'Roadmap', link: '/development/roadmap' },
           { text: 'Code style', link: '/development/code-style' },
           { text: 'Contributing', link: '/development/contributing' },

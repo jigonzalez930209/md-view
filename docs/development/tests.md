@@ -71,15 +71,15 @@ built and deployed by
 
 ## Manual checklist before a release
 
-Everything in `pnpm e2e` is automatic; these need the real app (`pnpm app`) because they touch
-the system:
+Everything in `pnpm e2e` is automatic; the rest needs the real app on real systems. The full
+step-by-step script (fixtures, every platform, expected results, result sheet) lives in
+[Manual test plan](/development/manual-testing). In short:
 
-1. Open the demo: preview, Mermaid, KaTeX, images; `Ctrl+F` in the preview and the outline.
-2. Open a folder, navigate the tree with the keyboard, switch to a code file and back.
-3. Save (native dialog for a new document), reload from disk, and check the conflict prompt by
-   touching the file from another program.
-4. Kill the app with unsaved changes and recover the draft on the next launch.
-5. Move/resize the window, quit and check the geometry and the session come back.
-6. Export one document of each kind (PDF, HTML, PNG pages, SVG); check the PDF is paginated.
-7. Open a file over 10 MB and switch tabs; confirm the preview notice appears.
-8. Change the palette and the language, reload, and check that both persist.
+1. Install from the release artifacts and check the file association on each platform.
+2. Open documents, folders and the demo; exercise the preview, find and outline.
+3. Save (native dialog), save as, reload from disk and the external-change conflict dialog.
+4. Kill the app with unsaved work and recover the draft; check geometry and session restore.
+5. Export every format (and the partial-export confirmation for large documents).
+6. Open the ~100 MB fixture and switch tabs.
+7. Keyboard-only pass; switch the language and reload.
+8. Verify `SHA256SUMS` and the APT repository.
