@@ -1,7 +1,6 @@
-import fs from 'node:fs/promises';
 // Local verification for issue #9: panel layout survives a reload.
 import { chromium } from 'playwright';
-import { appDialog as dialog, BASE_URL as URL, createReporter } from './harness.mjs';
+import { BASE_URL as URL, createReporter } from './harness.mjs';
 
 const { check, finish } = createReporter();
 
@@ -32,8 +31,8 @@ check('split ratio is persisted', typeof prefs.splitRatio === 'number' && prefs.
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(500);
 const restored = await page.evaluate(() => {
-  const prefs = JSON.parse(localStorage.getItem('md-view:prefs') ?? '{}');
-  return prefs.splitRatio;
+  const reloadedPrefs = JSON.parse(localStorage.getItem('md-view:prefs') ?? '{}');
+  return reloadedPrefs.splitRatio;
 });
 check('ratio survives the reload', restored === prefs.splitRatio, `${restored} vs ${prefs.splitRatio}`);
 

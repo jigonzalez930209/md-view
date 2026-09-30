@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 // Shared helpers for the end-to-end smoke suites.
 //
 // Every suite launches its own browser and exits non-zero when a check fails.
@@ -21,7 +23,7 @@ export function createReporter() {
 
 /** Path of a fixture folder or file inside e2e/fixtures. */
 export function fixture(name) {
-  return new URL(`./fixtures/${name}`, import.meta.url).pathname;
+  return fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 }
 
 /** The dialogs the app renders (Radix) share this slot attribute. */

@@ -1,6 +1,6 @@
 // Local verification for issue #12: PDF entry availability per platform.
 import { chromium } from 'playwright';
-import { appDialog as dialog, BASE_URL as URL, createReporter } from './harness.mjs';
+import { BASE_URL as URL, createReporter } from './harness.mjs';
 
 const { check, finish } = createReporter();
 

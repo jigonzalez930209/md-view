@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 // Local verification for issue #3: reload from disk discards local edits and refreshes state.
 import { chromium } from 'playwright';
-import { appDialog as dialog, BASE_URL as URL, createReporter } from './harness.mjs';
+import { BASE_URL as URL, createReporter } from './harness.mjs';
 
 const { check, finish } = createReporter();
 
@@ -13,7 +13,7 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 // Open a document from disk.
 const [chooser] = await Promise.all([
   page.waitForEvent('filechooser'),
-  page.keyboard.press('Control+o'),
+  page.getByRole('button', { name: 'Open file' }).click(),
 ]);
 await chooser.setFiles({
   name: 'reload.md',

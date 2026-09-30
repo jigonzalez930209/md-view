@@ -6,6 +6,7 @@
 import { spawn } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
 import { BASE_URL } from './harness.mjs';
 
 const filters = process.argv.slice(2);
@@ -13,17 +14,20 @@ const suites = readdirSync(new URL('.', import.meta.url))
   .filter((name) => name.endsWith('.mjs'))
   .filter((name) => !['run.mjs', 'harness.mjs'].includes(name))
   .filter((name) => filters.length === 0 || filters.some((filter) => name.includes(filter)))
-  .sort();
+  .toSorted();
 
 if (suites.length === 0) {
   console.error('No suite matches those filters.');
   process.exit(1);
 }
 
+const isWindows = process.platform === 'win32';
+
 console.log(`Starting the dev server for: ${suites.join(', ')}`);
 const server = spawn('pnpm', ['dev', '--port', '1420', '--strictPort'], {
   stdio: 'ignore',
-  detached: true,
+  detached: !isWindows,
+  shell: isWindows,
 });
 
 async function waitForServer() {
@@ -41,7 +45,8 @@ async function waitForServer() {
 
 const run = (script) =>
   new Promise((resolve) => {
-    const child = spawn(process.execPath, [new URL(script, import.meta.url).pathname], {
+    const scriptPath = fileURLToPath(new URL(script, import.meta.url));
+    const child = spawn(process.execPath, [scriptPath], {
       stdio: 'inherit',
     });
     child.on('close', (code) => resolve(code ?? 1));
@@ -57,7 +62,11 @@ try {
   }
 } finally {
   try {
-    process.kill(-server.pid, 'SIGTERM');
+    if (isWindows && server.pid) {
+      spawn('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else if (server.pid) {
+      process.kill(-server.pid, 'SIGTERM');
+    }
   } catch {
     /* already gone */
   }

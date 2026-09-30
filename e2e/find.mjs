@@ -1,6 +1,6 @@
 // Local verification for issue #10: find in preview and the headings outline.
 import { chromium } from 'playwright';
-import { appDialog as dialog, BASE_URL as URL, createReporter } from './harness.mjs';
+import { BASE_URL as URL, createReporter } from './harness.mjs';
 
 const { check, finish } = createReporter();
 

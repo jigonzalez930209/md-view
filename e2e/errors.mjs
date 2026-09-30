@@ -1,6 +1,6 @@
 // Local verification for issue #8: backend error codes are translated, detail kept.
 import { chromium } from 'playwright';
-import { appDialog as dialog, BASE_URL as URL, createReporter } from './harness.mjs';
+import { BASE_URL as URL, createReporter } from './harness.mjs';
 
 const { check, finish } = createReporter();
 
