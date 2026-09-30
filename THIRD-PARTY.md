@@ -91,8 +91,8 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | @tailwindcss/oxide | 4.3.3 | MIT |
 | @tailwindcss/oxide-linux-x64-gnu | 4.3.3 | MIT |
 | @tailwindcss/vite | 4.3.3 | MIT |
-| @tauri-apps/api | 2.11.1 | Apache-2.0 OR MIT |
-| @tauri-apps/plugin-dialog | 2.7.3 | MIT OR Apache-2.0 |
+| @tauri-apps/api | 2.12.0 | Apache-2.0 OR MIT |
+| @tauri-apps/plugin-dialog | 2.8.0 | MIT OR Apache-2.0 |
 | @types/d3 | 7.4.3 | MIT |
 | @types/d3-array | 3.2.2 | MIT |
 | @types/d3-axis | 3.0.6 | MIT |
@@ -125,7 +125,7 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | @types/d3-transition | 3.0.9 | MIT |
 | @types/d3-zoom | 3.0.8 | MIT |
 | @types/geojson | 7946.0.16 | MIT |
-| @types/node | 26.6.2 | MIT |
+| @types/node | 26.6.3 | MIT |
 | @types/react | 19.3.0 | MIT |
 | @types/react-dom | 19.3.0 | MIT |
 | @types/trusted-types | 2.0.7 | MIT |
@@ -136,7 +136,7 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | chevrotain | 11.1.2 | Apache-2.0 |
 | class-variance-authority | 0.7.1 | Apache-2.0 |
 | clsx | 2.1.1 | MIT |
-| commander | 7.2.0, 8.3.0 | MIT |
+| commander | 7.2.0, 15.0.0 | MIT |
 | cose-base | 1.0.3, 2.2.0 | MIT |
 | crelt | 1.0.7 | MIT |
 | csstype | 3.2.3 | MIT |
@@ -200,7 +200,7 @@ from the production dependency tree with `pnpm notices`; CI fails when it is out
 | import-meta-resolve | 4.2.0 | MIT |
 | internmap | 1.0.1, 2.0.3 | ISC |
 | jiti | 2.7.0 | MIT |
-| katex | 0.16.47 | MIT |
+| katex | 0.18.9 | MIT |
 | khroma | 2.1.0 | MIT |
 | layout-base | 1.0.2, 2.0.1 | MIT |
 | lightningcss | 1.32.0, 1.33.0 | MPL-2.0 |
