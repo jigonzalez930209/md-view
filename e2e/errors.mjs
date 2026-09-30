@@ -38,6 +38,7 @@ await page.evaluate(() => {
   localStorage.setItem('md-view:prefs', JSON.stringify({ ...prefs, language: 'es' }));
 });
 await page.reload({ waitUntil: 'networkidle' });
+await page.locator('main').waitFor();
 const spanish = await page.evaluate(async () => {
   const backend = await import('/src/lib/backend.ts');
   return backend.friendlyError(new Error('not_found: /tmp/x.md'));
